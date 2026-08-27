@@ -1,0 +1,10 @@
+{
+  "id": "resume-editor",
+  "name": "Resume Editor",
+  "version": "0.1.0",
+  "minAppVersion": "1.7.2",
+  "description": "Form-driven resume editor with live preview, Chinese templates and PDF/HTML/DOCX/LaTeX export.",
+  "author": "hellokunzai",
+  "authorUrl": "https://github.com/hellokunzai",
+  "isDesktopOnly": true
+}

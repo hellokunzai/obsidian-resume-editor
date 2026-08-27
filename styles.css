@@ -1,0 +1,382 @@
+/* Resume Editor - Obsidian Plugin Styles
+   使用 Obsidian 主题 CSS 变量，无硬编码颜色 */
+
+.review-editor-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--background-primary);
+}
+
+.re-header {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2, 8px);
+  padding: var(--size-4-2, 8px) var(--size-4-3, 12px);
+  border-bottom: 1px solid var(--background-modifier-border);
+  flex-wrap: wrap;
+}
+
+.re-header .re-title {
+  font-weight: 600;
+  font-size: var(--font-ui-medium, 15px);
+  margin-right: auto;
+}
+
+.re-tpl-switch {
+  display: flex;
+  gap: var(--size-4-1, 4px);
+}
+
+.re-tpl-chip {
+  font-size: var(--font-ui-small, 13px);
+  padding: 3px 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--text-muted);
+  background: var(--background-secondary);
+}
+
+.re-tpl-chip.re-on {
+  background: var(--interactive-accent);
+  border-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  font-weight: 600;
+}
+
+.re-btn {
+  font-size: var(--font-ui-small, 13px);
+  padding: 4px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--button-radius, 6px);
+  cursor: pointer;
+  background: var(--background-secondary);
+  color: var(--text-normal);
+}
+
+.re-btn:hover {
+  border-color: var(--interactive-accent);
+  color: var(--interactive-accent);
+}
+
+.re-btn.re-primary {
+  background: var(--interactive-accent);
+  border-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.re-btn.re-primary:hover {
+  filter: brightness(1.05);
+  color: var(--text-on-accent);
+}
+
+.re-dual {
+  display: grid;
+  grid-template-columns: minmax(300px, 1fr) minmax(340px, 1.1fr);
+  gap: var(--size-4-2, 8px);
+  flex: 1;
+  min-height: 0;
+  padding: var(--size-4-2, 8px);
+}
+
+.re-pane {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius, 8px);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--background-primary);
+}
+
+.re-pane-head {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  font-weight: 600;
+  font-size: var(--font-ui-small, 13px);
+  background: var(--background-secondary);
+}
+
+.re-pane-body {
+  padding: 10px;
+  overflow: auto;
+  flex: 1;
+}
+
+/* 表单 */
+.re-sect {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius, 8px);
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+
+.re-sect > summary {
+  padding: 6px 10px;
+  background: var(--background-secondary);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: var(--font-ui-small, 13px);
+  list-style: none;
+}
+
+.re-sect > summary::-webkit-details-marker {
+  display: none;
+}
+
+.re-sect .re-sect-body {
+  padding: 8px 10px;
+}
+
+.re-field {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.re-field > span {
+  display: block;
+  font-size: var(--font-ui-smaller, 12px);
+  color: var(--text-faint);
+  margin-bottom: 2px;
+}
+
+.re-input,
+.re-textarea,
+.re-select {
+  width: 100%;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--button-radius, 6px);
+  padding: 5px 8px;
+  font-size: var(--font-ui-small, 13px);
+  font-family: inherit;
+  color: var(--text-normal);
+  background: var(--background-primary);
+}
+
+.re-textarea {
+  resize: vertical;
+  min-height: 52px;
+}
+
+.re-input:focus,
+.re-textarea:focus,
+.re-select:focus {
+  outline: none;
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 2px var(--background-modifier-border-focus, rgba(120, 120, 200, 0.15));
+}
+
+.re-entry {
+  border: 1px dashed var(--background-modifier-border);
+  border-radius: var(--radius, 7px);
+  padding: 8px;
+  margin-bottom: 8px;
+  background: var(--background-secondary);
+  position: relative;
+}
+
+.re-entry .re-rm {
+  position: absolute;
+  top: 5px;
+  right: 7px;
+  color: var(--text-faint);
+  cursor: pointer;
+  font-size: var(--font-ui-small, 12px);
+  border: none;
+  background: none;
+}
+
+.re-entry .re-rm:hover {
+  color: var(--text-error, #d24b4b);
+}
+
+.re-row {
+  display: flex;
+  gap: var(--size-4-2, 8px);
+  align-items: center;
+}
+
+.re-row > * {
+  flex: 1;
+}
+
+/* 预览纸张 */
+.re-preview-scroll {
+  height: 100%;
+  overflow: auto;
+  padding: 14px;
+  background: var(--background-secondary);
+}
+
+.re-paper {
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 30px 36px;
+  min-height: 900px;
+  color: var(--text-normal);
+}
+
+.re-paper .r-name {
+  font-size: 26px;
+  font-weight: 700;
+  margin: 0 0 2px;
+  color: var(--text-normal);
+}
+
+.re-paper .r-role {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.re-paper .r-contact {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+
+.re-paper .r-contact span {
+  margin-right: 14px;
+}
+
+.re-paper h3.r-sec {
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  border-bottom: 2px solid var(--interactive-accent);
+  padding-bottom: 3px;
+  margin: 16px 0 8px;
+  color: var(--text-normal);
+}
+
+.re-paper .r-item {
+  margin-bottom: 10px;
+}
+
+.re-paper .r-item .r-top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.re-paper .r-item .r-nm {
+  font-weight: 600;
+}
+
+.re-paper .r-item .r-dt {
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+.re-paper .r-item .r-sub {
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.re-paper ul {
+  margin: 3px 0 0;
+  padding-left: 18px;
+}
+
+.re-paper ul li {
+  font-size: 12.5px;
+  margin: 2px 0;
+}
+
+.re-paper .r-skills {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+/* 双栏模板 */
+.re-paper.re-two-col {
+  display: grid;
+  grid-template-columns: 34% 64%;
+  gap: 20px;
+  padding: 26px 30px;
+}
+
+.re-paper.re-two-col .r-col-left {
+  background: var(--background-secondary);
+  padding: 12px;
+  border-radius: var(--radius, 8px);
+  align-self: start;
+}
+
+.re-paper.re-two-col h3.r-sec {
+  border-bottom: 1px solid var(--interactive-accent);
+}
+
+/* 学术模板 */
+.re-paper.re-academic {
+  font-family: var(--font-text, Georgia, "Songti SC", serif);
+}
+
+.re-paper.re-academic .r-name {
+  text-align: center;
+  border-bottom: 3px double var(--text-normal);
+  padding-bottom: 6px;
+}
+
+/* ATS 面板 */
+.re-ats {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius, 8px);
+  background: var(--background-primary);
+  padding: 12px;
+  margin-top: 10px;
+}
+
+.re-ats .re-ats-score {
+  font-size: 34px;
+  font-weight: 800;
+  text-align: center;
+  color: var(--text-success, #2e9e6b);
+}
+
+.re-ats .re-ats-score small {
+  font-size: 12px;
+  color: var(--text-faint);
+  font-weight: 500;
+  display: block;
+}
+
+.re-check {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--background-modifier-border);
+  font-size: 12.5px;
+}
+
+.re-check .re-ic {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--text-on-accent);
+  margin-top: 1px;
+}
+
+.re-check.re-ok .re-ic {
+  background: var(--text-success, #2e9e6b);
+}
+
+.re-check.re-bad .re-ic {
+  background: var(--text-error, #d24b4b);
+}
+
+.re-hint {
+  font-size: var(--font-ui-smaller, 11px);
+  color: var(--text-faint);
+  margin-top: 6px;
+}

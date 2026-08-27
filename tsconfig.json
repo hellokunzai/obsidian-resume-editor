@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES6",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "allowSyntheticDefaultImports": true,
+    "lib": ["ES6", "DOM"],
+    "baseUrl": ".",
+    "inlineSourceMap": true,
+    "inlineSources": true,
+    "skipLibCheck": true
+  },
+  "include": ["**/*.ts"]
+}

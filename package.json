@@ -1,0 +1,27 @@
+{
+  "name": "obsidian-resume-editor",
+  "version": "0.1.0",
+  "description": "Form-driven resume editor with live preview, Chinese templates and PDF/HTML/DOCX/LaTeX export.",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production"
+  },
+  "keywords": [
+    "obsidian-plugin",
+    "resume"
+  ],
+  "author": "hellokunzai",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "builtin-modules": "^3.3.0",
+    "esbuild": "^0.17.0",
+    "obsidian": "latest",
+    "tslib": "^2.6.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "docx": "^8.5.0"
+  }
+}
