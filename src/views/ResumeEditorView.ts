@@ -111,12 +111,10 @@ export class ResumeEditorView extends ItemView {
     const dual = shell.createDiv({ cls: "re-dual" });
 
     const formPane = dual.createDiv({ cls: "re-pane" });
-    formPane.createDiv({ cls: "re-pane-head", text: t("form.basic") });
     this.formBody = formPane.createDiv({ cls: "re-pane-body" });
     this.formBody.addEventListener("input", () => this.syncFromForm());
 
     const previewPane = dual.createDiv({ cls: "re-pane" });
-    previewPane.createDiv({ cls: "re-pane-head", text: t("view.title") });
     const scroll = previewPane.createDiv({ cls: "re-preview-scroll" });
     this.previewPaper = scroll.createDiv();
 
@@ -198,7 +196,7 @@ export class ResumeEditorView extends ItemView {
     this.rowField(basicBody, "field.phone", "phone", this.model.phone, "field.email", "email", this.model.email);
 
     // 自定义字段
-    this.customFieldsBlock(b);
+    this.customFieldsBlock(basicBody);
 
     // 教育 / 工作 / 项目
     this.sectionBlock(b, "education", t("form.education"), this.model.education, t("btn.addEducation"));
