@@ -4,6 +4,8 @@ import { Plugin, Notice, TFile } from "obsidian";
 import { t } from "./i18n";
 import {
   DEFAULT_RESUME,
+  createResumeMarkdown,
+  isResumeFile,
   isResumeFrontmatter,
   readResume,
   writeResume,
@@ -28,6 +30,18 @@ export default class ResumeEditorPlugin extends Plugin {
     this.addRibbonIcon("file-text", t("ribbon.tooltip"), () => {
       void this.activateView();
     });
+
+    // 点击简历目录下的文件时自动唤起简历编辑器
+    this.registerEvent(
+      this.app.workspace.on("file-open", (file) => {
+        if (
+          file &&
+          isResumeFile(this.app, file, this.settings.resumeDir)
+        ) {
+          void this.activateView();
+        }
+      })
+    );
 
     this.addCommand({
       id: "open-resume-editor",
@@ -91,7 +105,15 @@ export default class ResumeEditorPlugin extends Plugin {
   }
 
   async loadSettings(): Promise<void> {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    const data = (await this.loadData()) ?? {};
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
+    // 旧配置项迁移：persistDir -> resumeDir
+    if (!this.settings.resumeDir && data.persistDir) {
+      const oldDir = data.persistDir;
+      if (typeof oldDir === "string") {
+        this.settings.resumeDir = oldDir;
+      }
+    }
   }
 
   async saveSettings(): Promise<void> {
@@ -117,9 +139,18 @@ export default class ResumeEditorPlugin extends Plugin {
 
   private async newResumeNote(): Promise<void> {
     const name = "简历-" + new Date().toISOString().slice(0, 10);
+    const dir = this.settings.resumeDir.trim().replace(/\/+$/, "");
+    if (dir && !this.app.vault.getAbstractFileByPath(dir)) {
+      try {
+        await this.app.vault.createFolder(dir);
+      } catch {
+        // 目录可能已存在，忽略
+      }
+    }
+    const path = dir ? `${dir}/${name}.md` : `${name}.md`;
     const file = await this.app.vault.create(
-      name + ".md",
-      "---\nresume: true\n---\n\n"
+      path,
+      createResumeMarkdown({ ...DEFAULT_RESUME, name })
     );
     await this.app.workspace.getLeaf(false).openFile(file);
     new Notice(t("notice.created", { name: file.basename }));
@@ -136,7 +167,7 @@ export default class ResumeEditorPlugin extends Plugin {
       new Notice(t("notice.marked", { name: file.basename }));
       return;
     }
-    const data = readResume(this.app, file) ?? { ...DEFAULT_RESUME };
+    const data = (await readResume(this.app, file)) ?? { ...DEFAULT_RESUME };
     await writeResume(this.app, file, data);
     new Notice(t("notice.marked", { name: file.basename }));
   }

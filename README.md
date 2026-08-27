@@ -6,10 +6,11 @@ Form-driven resume editor for Obsidian. Edit structured fields on the left, see 
 
 ## Features
 
-- **Form-driven editing** — no need to learn a custom Markdown syntax. Fill name, contact, education, work, projects and skills; data is stored in the note's frontmatter.
+- **Form-driven editing** — no need to learn a custom Markdown syntax. Fill name, contact, education, work, projects and skills; data is stored as plain Markdown in the note body (no YAML frontmatter properties).
 - **Live preview** — updates instantly as you type.
 - **Chinese-first templates** — Single column / Two columns / Academic, styled with A4-friendly typography.
 - **Multi-format export** — PDF (via Electron `printToPDF`), HTML, DOCX, LaTeX.
+- **Resume directory** — point to a vault folder and every Markdown file inside it is automatically treated as a resume (no need for the `resume: true` frontmatter tag). Clicking any file in this folder automatically opens the resume editor; new resume notes are created here when no file is active.
 - **ATS pre-check** — a light heuristic panel scores ATS-friendliness (text-copyable, no graphic separators, quantified results).
 - **AI polish** (optional) — rewrite descriptions via an OpenAI-compatible API. See *Network usage* below.
 
@@ -21,9 +22,10 @@ Form-driven resume editor for Obsidian. Edit structured fields on the left, see 
 ## Usage
 
 - Ribbon icon or command **Open Resume Editor** opens the dual-pane view (right sidebar).
-- Command **New resume note** creates a note marked with `resume: true`.
+- Command **New resume note** creates a Markdown resume in the configured Resume directory.
 - Command **Mark current note as resume** marks the active note as a resume note.
-- Edits auto-save back to the note's frontmatter (plain text, diff-friendly, vault-native).
+- Clicking any Markdown file inside the configured **Resume directory** automatically opens the editor for that file.
+- Edits are saved either automatically (toggle **Auto save** in settings) or manually via the **Save** button. If no file is active, the first save creates a new resume note in the Resume directory.
 
 ## Templates & settings
 
@@ -31,6 +33,8 @@ Settings → Resume Editor:
 
 - Default template (single / two-column / academic)
 - PDF paper size (A4 / Letter)
+- Resume directory (vault-relative path; Markdown files in this folder are automatically treated as resumes; new resume notes are created here when set)
+- Auto save toggle (on by default; when off, use the Save button)
 - AI polish endpoint, key, model
 
 ## Network usage

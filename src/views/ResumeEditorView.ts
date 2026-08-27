@@ -103,6 +103,9 @@ export class ResumeEditorView extends ItemView {
     const btnLatex = header.createEl("button", { cls: "re-btn", text: t("export.latex") });
     btnLatex.addEventListener("click", () => this.doExport("latex"));
 
+    const btnSave = header.createEl("button", { cls: "re-btn re-primary", text: t("btn.save") });
+    btnSave.addEventListener("click", () => this.saveNow());
+
     // 双栏
     const dual = shell.createDiv({ cls: "re-dual" });
 
@@ -122,21 +125,21 @@ export class ResumeEditorView extends ItemView {
 
     // 监听活动文件变化
     this.registerEvent(
-      this.app.workspace.on("file-open", () => this.loadActive())
+      this.app.workspace.on("file-open", () => void this.loadActive())
     );
 
-    this.loadActive();
+    void this.loadActive();
   }
 
   async onClose(): Promise<void> {
     if (this.saveTimer !== null) window.clearTimeout(this.saveTimer);
   }
 
-  private loadActive(): void {
+  private async loadActive(): Promise<void> {
     const file = this.app.workspace.getActiveFile();
     this.currentFile = file ?? null;
     if (file) {
-      const data = readResume(this.app, file);
+      const data = await readResume(this.app, file, this.plugin.settings.resumeDir);
       if (data) {
         this.model = data;
         this.renderForm();
@@ -322,6 +325,7 @@ export class ResumeEditorView extends ItemView {
   }
 
   private scheduleSave(): void {
+    if (!this.plugin.settings.autoSave) return;
     if (this.saveTimer !== null) window.clearTimeout(this.saveTimer);
     this.saveTimer = window.setTimeout(() => {
       this.saveTimer = null;
@@ -329,10 +333,77 @@ export class ResumeEditorView extends ItemView {
     }, 600);
   }
 
+  private saveNow(): void {
+    if (this.saveTimer !== null) {
+      window.clearTimeout(this.saveTimer);
+      this.saveTimer = null;
+    }
+    void this.persist();
+  }
+
+  private isModelEmpty(): boolean {
+    const m = this.model;
+    return (
+      !m.name &&
+      !m.role &&
+      !m.phone &&
+      !m.email &&
+      !m.skills &&
+      m.education.length === 0 &&
+      m.work.length === 0 &&
+      m.projects.length === 0
+    );
+  }
+
+  private async createResumeInDir(dir: string): Promise<TFile | null> {
+    try {
+      const normalizedDir = dir.trim().replace(/\/+$/, "");
+      if (!this.app.vault.getAbstractFileByPath(normalizedDir)) {
+        try {
+          await this.app.vault.createFolder(normalizedDir);
+        } catch {
+          // 目录可能已存在，忽略
+        }
+      }
+      const name = "简历-" + new Date().toISOString().slice(0, 10);
+      const path = `${normalizedDir}/${name}.md`;
+      const file = await this.app.vault.create(
+        path,
+        "---\nresume: true\n---\n\n"
+      );
+      // 先把当前表单数据写进去，再打开，避免打开后加载空数据
+      await writeResume(this.app, file, this.model);
+      await this.app.workspace.getLeaf(false).openFile(file);
+      return file;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      new Notice(t("error.export", { msg }));
+      return null;
+    }
+  }
+
   private async persist(): Promise<void> {
-    if (!this.currentFile) return;
+    // 没有当前文件时，若设置了简历目录且内容非空，则在目录下新建文件
+    if (!this.currentFile) {
+      const dir = (this.plugin.settings.resumeDir ?? "").trim();
+      if (!dir) {
+        new Notice(t("notice.noActive"));
+        return;
+      }
+      if (this.isModelEmpty()) {
+        // 自动保存模式下空内容不创建文件，避免无输入时自动生成
+        return;
+      }
+      const file = await this.createResumeInDir(dir);
+      if (!file) return;
+      this.currentFile = file;
+      new Notice(t("notice.created", { name: file.basename }));
+      return;
+    }
+
     try {
       await writeResume(this.app, this.currentFile, this.model);
+      new Notice(t("notice.saved", { name: this.currentFile.basename }));
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       new Notice(t("error.export", { msg }));
