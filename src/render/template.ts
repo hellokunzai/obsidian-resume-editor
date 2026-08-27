@@ -1,6 +1,7 @@
 // 模板引擎：ResumeData -> 预览 DOM（createEl 构造，禁用 innerHTML）/ 导出 HTML 字符串
 
-import { ResumeData, ResumeEntry, TemplateId } from "../data/resume-model";
+import { App, TFile } from "obsidian";
+import { ResumeData, ResumeEntry, ResumeCustomField, ResumeLayout, TemplateId } from "../data/resume-model";
 import { t } from "../i18n";
 
 /* ---------- 预览 DOM 构建（合规：全部用 createEl，无 innerHTML） ---------- */
@@ -23,24 +24,86 @@ function sectionDom(parent: HTMLElement, title: string, entries: ResumeEntry[]):
   }
 }
 
+function resolveAvatarUrl(app: App | undefined, avatarPath: string): string {
+  if (!app || !avatarPath) return "";
+  const f = app.vault.getAbstractFileByPath(avatarPath);
+  if (f && f instanceof TFile) {
+    try {
+      return app.vault.getResourcePath(f);
+    } catch {
+      return "";
+    }
+  }
+  return "";
+}
+
+interface ContactItem {
+  icon: string;
+  label: string;
+  value: string;
+  showLabel: boolean;
+}
+
+function buildContactItems(data: ResumeData): ContactItem[] {
+  const items: ContactItem[] = [];
+  if (data.phone) items.push({ icon: "📞", label: t("field.phone"), value: data.phone, showLabel: false });
+  if (data.email) items.push({ icon: "✉", label: t("field.email"), value: data.email, showLabel: false });
+  for (const f of data.customFields) {
+    if (!f.visible || (!f.value && !f.icon)) continue;
+    items.push({
+      icon: f.icon || "•",
+      label: f.label,
+      value: f.value,
+      showLabel: f.showLabel,
+    });
+  }
+  return items;
+}
+
+function renderContactItem(parent: HTMLElement, item: ContactItem): void {
+  const el = parent.createDiv({ cls: "r-contact-item" });
+  if (item.icon) el.createSpan({ cls: "r-ci-icon", text: item.icon });
+  if (item.showLabel && item.label) {
+    el.createSpan({ cls: "r-ci-label", text: item.label + "：" });
+  }
+  el.createSpan({ cls: "r-ci-value", text: item.value });
+}
+
+function renderHeaderDom(
+  paper: HTMLElement,
+  data: ResumeData,
+  app?: App
+): void {
+  const header = paper.createDiv({ cls: `r-header r-layout-${data.layout}` });
+  const avatarUrl = resolveAvatarUrl(app, data.avatar);
+
+  const main = header.createDiv({ cls: "r-header-main" });
+  if (avatarUrl) main.createEl("img", { cls: "r-avatar", attr: { src: avatarUrl } });
+
+  const headText = main.createDiv({ cls: "r-header-text" });
+  headText.createEl("div", { cls: "r-name", text: data.name || " " });
+  if (data.role) headText.createEl("div", { cls: "r-role", text: data.role });
+
+  const contacts = buildContactItems(data);
+  if (contacts.length) {
+    const grid = header.createDiv({ cls: "r-contact-grid" });
+    for (const c of contacts) renderContactItem(grid, c);
+  }
+}
+
 export function renderResumeDom(
   root: HTMLElement,
   data: ResumeData,
-  template: TemplateId
+  template: TemplateId,
+  app?: App
 ): void {
   root.empty();
   const paper = root.createDiv({ cls: `re-paper re-${template}` });
-  paper.createEl("div", { cls: "r-name", text: data.name || " " });
-  if (data.role) paper.createEl("div", { cls: "r-role", text: data.role });
+
+  renderHeaderDom(paper, data, app);
 
   if (template === "twoCol") {
     const left = paper.createDiv({ cls: "r-col-left" });
-    if (data.phone || data.email) {
-      left.createEl("h3", { cls: "r-sec", text: t("field.phone") });
-      const c = left.createDiv({ cls: "r-sub" });
-      if (data.phone) c.createEl("div", { text: t("field.phone") + "：" + data.phone });
-      if (data.email) c.createEl("div", { text: t("field.email") + "：" + data.email });
-    }
     if (data.skills) {
       left.createEl("h3", { cls: "r-sec", text: t("form.skills") });
       left.createDiv({ cls: "r-sub", text: data.skills });
@@ -50,11 +113,6 @@ export function renderResumeDom(
     sectionDom(right, t("form.work"), data.work);
     sectionDom(right, t("form.project"), data.projects);
   } else {
-    if (data.phone || data.email) {
-      const contact = paper.createDiv({ cls: "r-contact" });
-      if (data.phone) contact.createSpan({ text: "📞 " + data.phone });
-      if (data.email) contact.createSpan({ text: "✉ " + data.email });
-    }
     sectionDom(paper, t("form.education"), data.education);
     sectionDom(paper, t("form.work"), data.work);
     sectionDom(paper, t("form.project"), data.projects);
@@ -100,20 +158,40 @@ function sectionHtml(title: string, entries: ResumeEntry[]): string {
   return `<h3 class="r-sec">${esc(title)}</h3>${items}`;
 }
 
-export function resumeToHtml(data: ResumeData, template: TemplateId): string {
+function contactItemHtml(item: ContactItem): string {
+  const icon = item.icon ? `<span class="r-ci-icon">${esc(item.icon)}</span>` : "";
+  const label = item.showLabel && item.label ? `<span class="r-ci-label">${esc(item.label)}：</span>` : "";
+  return `<div class="r-contact-item">${icon}${label}<span class="r-ci-value">${esc(item.value)}</span></div>`;
+}
+
+function headerHtml(data: ResumeData, app?: App): string {
+  const avatarUrl = app ? resolveAvatarUrl(app, data.avatar) : "";
+  const contacts = buildContactItems(data);
+  const contactGrid = contacts.length
+    ? `<div class="r-contact-grid">${contacts.map(contactItemHtml).join("")}</div>`
+    : "";
+  const avatar = avatarUrl ? `<img class="r-avatar" src="${esc(avatarUrl)}">` : "";
+  const role = data.role ? `<div class="r-role">${esc(data.role)}</div>` : "";
+  return `
+    <div class="r-header r-layout-${esc(data.layout)}">
+      <div class="r-header-main">
+        ${avatar}
+        <div class="r-header-text">
+          <div class="r-name">${esc(data.name || " ")}</div>
+          ${role}
+        </div>
+      </div>
+      ${contactGrid}
+    </div>
+  `;
+}
+
+export function resumeToHtml(data: ResumeData, template: TemplateId, app?: App): string {
   const parts: string[] = [`<div class="re-paper re-${template}">`];
-  parts.push(`<div class="r-name">${esc(data.name || " ")}</div>`);
-  if (data.role) parts.push(`<div class="r-role">${esc(data.role)}</div>`);
+  parts.push(headerHtml(data, app));
 
   if (template === "twoCol") {
     parts.push(`<div class="r-col-left">`);
-    if (data.phone || data.email) {
-      parts.push(`<h3 class="r-sec">${esc(t("field.phone"))}</h3>`);
-      const c: string[] = [];
-      if (data.phone) c.push(`<div>${esc(t("field.phone"))}：${esc(data.phone)}</div>`);
-      if (data.email) c.push(`<div>${esc(t("field.email"))}：${esc(data.email)}</div>`);
-      parts.push(`<div class="r-sub">${c.join("")}</div>`);
-    }
     if (data.skills) {
       parts.push(`<h3 class="r-sec">${esc(t("form.skills"))}</h3>`);
       parts.push(`<div class="r-sub">${esc(data.skills)}</div>`);
@@ -125,12 +203,6 @@ export function resumeToHtml(data: ResumeData, template: TemplateId): string {
     parts.push(sectionHtml(t("form.project"), data.projects));
     parts.push(`</div>`);
   } else {
-    if (data.phone || data.email) {
-      const spans: string[] = [];
-      if (data.phone) spans.push(`<span>📞 ${esc(data.phone)}</span>`);
-      if (data.email) spans.push(`<span>✉ ${esc(data.email)}</span>`);
-      parts.push(`<div class="r-contact">${spans.join("")}</div>`);
-    }
     parts.push(sectionHtml(t("form.education"), data.education));
     parts.push(sectionHtml(t("form.work"), data.work));
     parts.push(sectionHtml(t("form.project"), data.projects));
@@ -150,10 +222,27 @@ export const RESUME_CSS = `
 body{margin:0;font-family:"PingFang SC","Microsoft YaHei",-apple-system,"Segoe UI",sans-serif;color:#222;}
 @page{size:A4;margin:14mm;}
 .re-paper{background:#fff;width:100%;max-width:720px;margin:0 auto;padding:30px 36px;min-height:900px;}
+
+/* header 布局 */
+.re-paper .r-header{display:grid;align-items:center;gap:24px;margin-bottom:18px;}
+.re-paper .r-header.r-layout-left{grid-template-columns:auto 1fr;}
+.re-paper .r-header.r-layout-right{grid-template-columns:1fr auto;}
+.re-paper .r-header.r-layout-top{display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;}
+.re-paper .r-header-main{display:flex;align-items:center;gap:12px;min-width:0;}
+.re-paper .r-header.r-layout-top .r-header-main{flex-direction:column;gap:10px;}
+
+.re-paper .r-avatar{width:90px;height:110px;object-fit:cover;border-radius:8px;border:1px solid #e0e0e0;flex:none;}
+.re-paper .r-header-text{min-width:0;}
 .re-paper .r-name{font-size:26px;font-weight:700;margin:0 0 2px;}
-.re-paper .r-role{color:#666;font-size:13px;margin-bottom:10px;}
-.re-paper .r-contact{font-size:12px;color:#666;margin-bottom:14px;}
-.re-paper .r-contact span{margin-right:14px;}
+.re-paper .r-role{color:#666;font-size:13px;}
+
+.re-paper .r-contact-grid{display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:8px 18px;font-size:12px;color:#555;}
+.re-paper .r-header.r-layout-top .r-contact-grid{grid-template-columns:repeat(auto-fit, minmax(140px, auto));justify-content:center;}
+.re-paper .r-contact-item{display:flex;align-items:center;gap:5px;min-width:0;}
+.re-paper .r-ci-icon{flex:none;}
+.re-paper .r-ci-label{color:#888;flex:none;}
+.re-paper .r-ci-value{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
 .re-paper h3.r-sec{font-size:14px;letter-spacing:.04em;border-bottom:2px solid #7c5cff;padding-bottom:3px;margin:16px 0 8px;}
 .re-paper .r-item{margin-bottom:10px;}
 .re-paper .r-item .r-top{display:flex;justify-content:space-between;font-size:13px;}

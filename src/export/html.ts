@@ -11,7 +11,7 @@ export async function exportHtml(
   template: TemplateId,
   baseName: string
 ): Promise<void> {
-  const body = resumeToHtml(data, template);
+  const body = resumeToHtml(data, template, app);
   const full =
     `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">` +
     `<title>${baseName}</title><style>${RESUME_CSS}</style></head>` +

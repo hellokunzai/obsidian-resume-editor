@@ -14,8 +14,6 @@ const translations: Record<string, Record<string, string>> = {
     "command.exportHtml": "Export resume as HTML",
     "command.exportDocx": "Export resume as DOCX",
     "command.exportLatex": "Export resume as LaTeX",
-    "command.atsCheck": "Run ATS pre-check",
-
     "ribbon.tooltip": "Resume Editor",
     "view.title": "Resume Editor",
 
@@ -46,8 +44,12 @@ const translations: Record<string, Record<string, string>> = {
     "form.work": "Work experience",
     "form.project": "Projects",
     "form.skills": "Skills",
+    "form.customFields": "Custom fields",
+
     "field.name": "Name",
-    "field.role": "Target role",
+    "field.layout": "Layout",
+    "field.avatar": "Avatar path",
+    "field.role": "Position",
     "field.phone": "Phone",
     "field.email": "Email",
     "field.school": "School",
@@ -58,7 +60,18 @@ const translations: Record<string, Record<string, string>> = {
     "field.position": "Position",
     "field.details": "Description (one per line)",
     "field.skills": "Skills (comma separated)",
+    "field.cfIcon": "Icon",
+    "field.cfLabel": "Label",
+    "field.cfValue": "Value",
+    "field.cfShowLabel": "Show label",
+    "field.cfVisible": "Visible",
+
+    "layout.left": "Avatar left",
+    "layout.top": "Avatar top",
+    "layout.right": "Avatar right",
+
     "btn.save": "Save",
+    "btn.addCustomField": "Add custom field",
     "btn.addEducation": "Add education",
     "btn.addWork": "Add work",
     "btn.addProject": "Add project",
@@ -77,11 +90,8 @@ const translations: Record<string, Record<string, string>> = {
     "notice.notResume": "Current note is not a resume note. Use 'Mark as resume' first.",
     "notice.created": "Resume note created: {{name}}",
     "notice.marked": "Marked '{{name}}' as a resume note",
-    "notice.atsDone": "ATS pre-check done: {{score}}/100",
     "error.export": "Export failed: {{msg}}",
     "error.noKey": "AI polish needs an API key in settings",
-    "ats.run": "Run ATS pre-check",
-    "ats.title": "ATS pre-check",
   },
   "zh-cn": {
     "command.openEditor": "打开简历编辑器",
@@ -91,8 +101,6 @@ const translations: Record<string, Record<string, string>> = {
     "command.exportHtml": "导出简历为 HTML",
     "command.exportDocx": "导出简历为 DOCX",
     "command.exportLatex": "导出简历为 LaTeX",
-    "command.atsCheck": "运行 ATS 预检",
-
     "ribbon.tooltip": "简历编辑器",
     "view.title": "简历编辑器",
 
@@ -123,8 +131,12 @@ const translations: Record<string, Record<string, string>> = {
     "form.work": "工作经历",
     "form.project": "项目经历",
     "form.skills": "技能",
+    "form.customFields": "自定义字段",
+
     "field.name": "姓名",
-    "field.role": "求职意向",
+    "field.layout": "布局",
+    "field.avatar": "头像路径",
+    "field.role": "职位",
     "field.phone": "电话",
     "field.email": "邮箱",
     "field.school": "学校",
@@ -135,7 +147,18 @@ const translations: Record<string, Record<string, string>> = {
     "field.position": "职位",
     "field.details": "描述（每行一条）",
     "field.skills": "技能（逗号分隔）",
+    "field.cfIcon": "图标",
+    "field.cfLabel": "标签",
+    "field.cfValue": "值",
+    "field.cfShowLabel": "显示标签",
+    "field.cfVisible": "可见",
+
+    "layout.left": "头像在左",
+    "layout.top": "头像在上",
+    "layout.right": "头像在右",
+
     "btn.save": "保存",
+    "btn.addCustomField": "添加自定义字段",
     "btn.addEducation": "添加教育",
     "btn.addWork": "添加工作",
     "btn.addProject": "添加项目",
@@ -154,11 +177,8 @@ const translations: Record<string, Record<string, string>> = {
     "notice.notResume": "当前笔记不是简历笔记，请先用「标记为简历」。",
     "notice.created": "已创建简历笔记：{{name}}",
     "notice.marked": "已将「{{name}}」标记为简历笔记",
-    "notice.atsDone": "ATS 预检完成：{{score}}/100",
     "error.export": "导出失败：{{msg}}",
     "error.noKey": "AI 润色需要在设置中填写 API Key",
-    "ats.run": "运行 ATS 预检",
-    "ats.title": "ATS 预检",
   },
 };
 

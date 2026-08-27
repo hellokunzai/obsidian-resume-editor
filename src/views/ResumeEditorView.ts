@@ -5,6 +5,8 @@ import type ResumeEditorPlugin from "../main";
 import {
   ResumeData,
   ResumeEntry,
+  ResumeCustomField,
+  ResumeLayout,
   TemplateId,
   DEFAULT_RESUME,
   readResume,
@@ -53,7 +55,6 @@ export class ResumeEditorView extends ItemView {
   private currentFile: TFile | null = null;
   private formBody!: HTMLElement;
   private previewPaper!: HTMLElement;
-  private atsBox!: HTMLElement;
   private saveTimer: number | null = null;
 
   constructor(leaf: WorkspaceLeaf, plugin: ResumeEditorPlugin) {
@@ -114,10 +115,6 @@ export class ResumeEditorView extends ItemView {
     this.formBody = formPane.createDiv({ cls: "re-pane-body" });
     this.formBody.addEventListener("input", () => this.syncFromForm());
 
-    const atsWrap = formPane.createDiv({ cls: "re-ats" });
-    atsWrap.createEl("div", { cls: "re-ats-score", text: "—" });
-    this.atsBox = atsWrap;
-
     const previewPane = dual.createDiv({ cls: "re-pane" });
     previewPane.createDiv({ cls: "re-pane-head", text: t("view.title") });
     const scroll = previewPane.createDiv({ cls: "re-preview-scroll" });
@@ -144,13 +141,11 @@ export class ResumeEditorView extends ItemView {
         this.model = data;
         this.renderForm();
         this.renderPreview();
-        this.updateAts();
         return;
       }
     }
     this.renderForm();
     this.renderPreview();
-    this.updateAts();
   }
 
   private switchTemplate(id: TemplateId): void {
@@ -175,9 +170,35 @@ export class ResumeEditorView extends ItemView {
     const basic = b.createEl("details", { cls: "re-sect", attr: { open: "" } });
     basic.createEl("summary", { text: t("form.basic") });
     const basicBody = basic.createDiv({ cls: "re-sect-body" });
+
+    // 布局选择
+    const layoutWrap = basicBody.createDiv({ cls: "re-field" });
+    layoutWrap.createEl("span", { text: t("field.layout") });
+    const layoutRow = layoutWrap.createDiv({ cls: "re-layout-row" });
+    (["left", "top", "right"] as ResumeLayout[]).forEach((id) => {
+      const btn = layoutRow.createEl("button", {
+        cls: "re-layout-btn" + (this.model.layout === id ? " re-on" : ""),
+        attr: { "data-layout": id, title: t("layout." + id) },
+      });
+      btn.createSpan({ cls: "re-layout-icon re-layout-" + id });
+      btn.addEventListener("click", () => {
+        this.model.layout = id;
+        this.formBody.querySelectorAll(".re-layout-btn").forEach((n) => n.removeClass("re-on"));
+        btn.addClass("re-on");
+        this.renderPreview();
+        this.scheduleSave();
+      });
+    });
+
+    // 头像
+    this.basicField(basicBody, "field.avatar", "avatar", this.model.avatar);
+
     this.basicField(basicBody, "field.name", "name", this.model.name);
     this.basicField(basicBody, "field.role", "role", this.model.role);
     this.rowField(basicBody, "field.phone", "phone", this.model.phone, "field.email", "email", this.model.email);
+
+    // 自定义字段
+    this.customFieldsBlock(b);
 
     // 教育 / 工作 / 项目
     this.sectionBlock(b, "education", t("form.education"), this.model.education, t("btn.addEducation"));
@@ -296,14 +317,16 @@ export class ResumeEditorView extends ItemView {
       role: get('[data-basic="role"]'),
       phone: get('[data-basic="phone"]'),
       email: get('[data-basic="email"]'),
-      skills: get('[data-basic="skills"]'),
+      layout: this.model.layout,
+      avatar: get('[data-basic="avatar"]'),
+      customFields: this.readCustomFields(),
       education: this.readEntries("education"),
       work: this.readEntries("work"),
       projects: this.readEntries("projects"),
+      skills: get('[data-basic="skills"]'),
     };
     this.model = data;
     this.renderPreview();
-    this.updateAts();
     this.scheduleSave();
   }
 
@@ -320,8 +343,84 @@ export class ResumeEditorView extends ItemView {
     return out;
   }
 
+  private customFieldsBlock(parent: HTMLElement): void {
+    const det = parent.createEl("details", { cls: "re-sect", attr: { open: "" } });
+    det.createEl("summary", { text: t("form.customFields") });
+    const body = det.createDiv({ cls: "re-sect-body", attr: { "data-section-body": "customFields" } });
+
+    this.model.customFields.forEach((f) => this.buildCustomField(body, f));
+
+    const add = body.createEl("button", { cls: "re-btn re-btn-block", text: "+ " + t("btn.addCustomField") });
+    add.addEventListener("click", () => {
+      this.buildCustomField(body, { icon: "", label: "", value: "", showLabel: true, visible: true });
+      body.appendChild(add);
+      this.syncFromForm();
+    });
+  }
+
+  private buildCustomField(parent: HTMLElement, f: ResumeCustomField): void {
+    const row = parent.createDiv({ cls: "re-cf-row", attr: { "data-custom-field": "" } });
+
+    const iconInp = row.createEl("input", {
+      cls: "re-input re-cf-icon",
+      attr: { placeholder: t("field.cfIcon"), "data-cf": "icon" },
+    });
+    iconInp.value = f.icon;
+
+    const labelInp = row.createEl("input", {
+      cls: "re-input re-cf-label",
+      attr: { placeholder: t("field.cfLabel"), "data-cf": "label" },
+    });
+    labelInp.value = f.label;
+
+    const valueInp = row.createEl("input", {
+      cls: "re-input re-cf-value",
+      attr: { placeholder: t("field.cfValue"), "data-cf": "value" },
+    });
+    valueInp.value = f.value;
+
+    const showLabelWrap = row.createDiv({ cls: "re-cf-toggle" });
+    showLabelWrap.createEl("span", { text: t("field.cfShowLabel") });
+    const showLabelCb = showLabelWrap.createEl("input", { attr: { type: "checkbox", "data-cf": "showLabel" } });
+    showLabelCb.checked = f.showLabel;
+
+    const visibleWrap = row.createDiv({ cls: "re-cf-toggle" });
+    visibleWrap.createEl("span", { text: t("field.cfVisible") });
+    const visibleCb = visibleWrap.createEl("input", { attr: { type: "checkbox", "data-cf": "visible" } });
+    visibleCb.checked = f.visible;
+
+    const rm = row.createEl("button", { cls: "re-rm", text: "✕" });
+    rm.addEventListener("click", () => {
+      row.remove();
+      this.syncFromForm();
+    });
+
+    row.addEventListener("input", () => this.syncFromForm());
+    showLabelCb.addEventListener("change", () => this.syncFromForm());
+    visibleCb.addEventListener("change", () => this.syncFromForm());
+  }
+
+  private readCustomFields(): ResumeCustomField[] {
+    const out: ResumeCustomField[] = [];
+    this.formBody.querySelectorAll("[data-custom-field]").forEach((node) => {
+      const el = node as HTMLElement;
+      const v = (s: string): string =>
+        ((el.querySelector(`[data-cf="${s}"]`) as HTMLInputElement | null)?.value ?? "");
+      const cb = (s: string): boolean =>
+        ((el.querySelector(`[data-cf="${s}"]`) as HTMLInputElement | null)?.checked ?? false);
+      out.push({
+        icon: v("icon"),
+        label: v("label"),
+        value: v("value"),
+        showLabel: cb("showLabel"),
+        visible: cb("visible"),
+      });
+    });
+    return out;
+  }
+
   private renderPreview(): void {
-    renderResumeDom(this.previewPaper, this.model, this.plugin.settings.template);
+    renderResumeDom(this.previewPaper, this.model, this.plugin.settings.template, this.app);
   }
 
   private scheduleSave(): void {
@@ -407,28 +506,6 @@ export class ResumeEditorView extends ItemView {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       new Notice(t("error.export", { msg }));
-    }
-  }
-
-  private updateAts(): void {
-    const checks: { ok: boolean; text: string }[] = [];
-    const m = this.model;
-    checks.push({ ok: !!m.name, text: t("field.name") });
-    checks.push({ ok: m.education.length > 0, text: t("form.education") });
-    checks.push({ ok: m.work.length > 0, text: t("form.work") });
-    const hasNumber = [...m.work, ...m.projects].some((e) =>
-      /\d/.test(e.details)
-    );
-    checks.push({ ok: hasNumber, text: t("field.details") });
-    const score = Math.round((checks.filter((c) => c.ok).length / checks.length) * 100);
-    const scoreEl = this.atsBox.querySelector(".re-ats-score");
-    if (scoreEl) scoreEl.textContent = String(score);
-    // 清理旧清单（保留 score 节点）
-    this.atsBox.querySelectorAll(".re-check").forEach((n) => n.remove());
-    for (const c of checks) {
-      const row = this.atsBox.createDiv({ cls: "re-check " + (c.ok ? "re-ok" : "re-bad") });
-      row.createDiv({ cls: "re-ic", text: c.ok ? "✓" : "!" });
-      row.createDiv({ cls: "re-txt", text: c.text });
     }
   }
 

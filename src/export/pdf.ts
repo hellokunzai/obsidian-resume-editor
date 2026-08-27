@@ -24,7 +24,7 @@ export async function exportPdf(
   baseName: string,
   paperSize: "A4" | "Letter"
 ): Promise<void> {
-  const body = resumeToHtml(data, template);
+  const body = resumeToHtml(data, template, app);
   const html =
     `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">` +
     `<title>${baseName}</title><style>${RESUME_CSS}</style></head>` +

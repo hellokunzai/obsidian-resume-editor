@@ -3,6 +3,7 @@
 import { App, TFile } from "obsidian";
 
 export type TemplateId = "single" | "twoCol" | "academic";
+export type ResumeLayout = "left" | "top" | "right";
 
 export interface ResumeEntry {
   org: string;
@@ -11,11 +12,22 @@ export interface ResumeEntry {
   details: string;
 }
 
+export interface ResumeCustomField {
+  icon: string;
+  label: string;
+  value: string;
+  showLabel: boolean;
+  visible: boolean;
+}
+
 export interface ResumeData {
   name: string;
   role: string;
   phone: string;
   email: string;
+  layout: ResumeLayout;
+  avatar: string;
+  customFields: ResumeCustomField[];
   education: ResumeEntry[];
   work: ResumeEntry[];
   projects: ResumeEntry[];
@@ -24,12 +36,16 @@ export interface ResumeData {
 
 export const RESUME_MARK = "resume";
 export const RESUME_MARKER = "<!-- obsidian-resume-editor -->";
+export const RESUME_MARKER_OPEN = "<!-- obsidian-resume-editor";
 
 export const DEFAULT_RESUME: ResumeData = {
   name: "",
   role: "",
   phone: "",
   email: "",
+  layout: "left",
+  avatar: "",
+  customFields: [],
   education: [],
   work: [],
   projects: [],
@@ -60,15 +76,43 @@ function asEntries(raw: unknown): ResumeEntry[] {
   return [];
 }
 
+function asCustomField(raw: unknown): ResumeCustomField {
+  const empty = { icon: "", label: "", value: "", showLabel: true, visible: true };
+  if (raw && typeof raw === "object") {
+    const o = raw as Record<string, unknown>;
+    return {
+      icon: typeof o.icon === "string" ? o.icon : "",
+      label: typeof o.label === "string" ? o.label : "",
+      value: typeof o.value === "string" ? o.value : "",
+      showLabel: typeof o.showLabel === "boolean" ? o.showLabel : true,
+      visible: typeof o.visible === "boolean" ? o.visible : true,
+    };
+  }
+  return empty;
+}
+
+function asCustomFields(raw: unknown): ResumeCustomField[] {
+  if (Array.isArray(raw)) return raw.map(asCustomField);
+  return [];
+}
+
+function isLayout(v: unknown): v is ResumeLayout {
+  return v === "left" || v === "top" || v === "right";
+}
+
 export function parseResume(
   fm: Record<string, unknown> | undefined | null
 ): ResumeData {
   if (!fm) return { ...DEFAULT_RESUME };
+  const layout = isLayout(fm.layout) ? fm.layout : DEFAULT_RESUME.layout;
   return {
     name: typeof fm.name === "string" ? fm.name : "",
     role: typeof fm.role === "string" ? fm.role : "",
     phone: typeof fm.phone === "string" ? fm.phone : "",
     email: typeof fm.email === "string" ? fm.email : "",
+    layout,
+    avatar: typeof fm.avatar === "string" ? fm.avatar : "",
+    customFields: asCustomFields(fm.customFields),
     education: asEntries(fm.education),
     work: asEntries(fm.work),
     projects: asEntries(fm.projects),
@@ -80,6 +124,10 @@ function cloneEntry(e: ResumeEntry): ResumeEntry {
   return { org: e.org, title: e.title, time: e.time, details: e.details };
 }
 
+function cloneCustomField(f: ResumeCustomField): ResumeCustomField {
+  return { icon: f.icon, label: f.label, value: f.value, showLabel: f.showLabel, visible: f.visible };
+}
+
 export function toFrontmatter(data: ResumeData): Record<string, unknown> {
   return {
     [RESUME_MARK]: true,
@@ -87,6 +135,9 @@ export function toFrontmatter(data: ResumeData): Record<string, unknown> {
     role: data.role,
     phone: data.phone,
     email: data.email,
+    layout: data.layout,
+    avatar: data.avatar,
+    customFields: data.customFields.map(cloneCustomField),
     education: data.education.map(cloneEntry),
     work: data.work.map(cloneEntry),
     projects: data.projects.map(cloneEntry),
@@ -154,8 +205,44 @@ function parseEntry(line: string): ResumeEntry | null {
   };
 }
 
+function serializeConfig(data: ResumeData): string {
+  const cfJson = JSON.stringify(data.customFields);
+  return [
+    "<!-- obsidian-resume-editor",
+    `layout: ${data.layout}`,
+    `avatar: ${data.avatar}`,
+    `customFields: ${cfJson}`,
+    "-->",
+  ].join("\n");
+}
+
+function parseConfig(content: string): Partial<ResumeData> {
+  const cfg: Partial<ResumeData> = {};
+  const m = content.match(/<!--\s*obsidian-resume-editor\s*\n([\s\S]*?)\n\s*-->/);
+  if (!m) return cfg;
+
+  for (const line of m[1].split("\n")) {
+    const layoutMatch = line.match(/^layout:\s*(.*)$/);
+    if (layoutMatch) {
+      const v = layoutMatch[1].trim();
+      if (isLayout(v)) cfg.layout = v;
+    }
+    const avatarMatch = line.match(/^avatar:\s*(.*)$/);
+    if (avatarMatch) cfg.avatar = avatarMatch[1].trim();
+    const cfMatch = line.match(/^customFields:\s*(\[.*\])\s*$/);
+    if (cfMatch) {
+      try {
+        cfg.customFields = asCustomFields(JSON.parse(cfMatch[1]));
+      } catch {
+        cfg.customFields = [];
+      }
+    }
+  }
+  return cfg;
+}
+
 export function serializeResumeMarkdown(data: ResumeData): string {
-  const lines: string[] = [RESUME_MARKER, ""];
+  const lines: string[] = [serializeConfig(data), ""];
 
   lines.push(`# ${escapeMarkdown(data.name || "未命名")}`);
   lines.push("");
@@ -202,6 +289,11 @@ export function serializeResumeMarkdown(data: ResumeData): string {
 
 export function parseResumeMarkdown(content: string): ResumeData {
   const data: ResumeData = { ...DEFAULT_RESUME };
+  const cfg = parseConfig(content);
+  if (cfg.layout) data.layout = cfg.layout;
+  if (cfg.avatar !== undefined) data.avatar = cfg.avatar;
+  if (cfg.customFields) data.customFields = cfg.customFields;
+
   const body = stripFrontmatter(content).trim();
   if (!body) return data;
 
@@ -290,7 +382,7 @@ export function parseResumeMarkdown(content: string): ResumeData {
 }
 
 export function isResumeMarkdownContent(content: string): boolean {
-  return content.includes(RESUME_MARKER);
+  return content.includes(RESUME_MARKER_OPEN) || content.includes(RESUME_MARKER);
 }
 
 export function isResumeFile(
