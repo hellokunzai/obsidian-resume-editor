@@ -589,6 +589,14 @@
   cursor: grabbing;
 }
 
+.re-drag-handle svg,
+.re-drag-handle .svg-icon {
+  width: 15px !important;
+  height: 15px !important;
+  min-width: 15px !important;
+  min-height: 15px !important;
+}
+
 .re-module-title {
   font-weight: 600;
   font-size: var(--font-ui-small, 13px);
@@ -641,6 +649,14 @@
   opacity: 0.35;
   cursor: not-allowed;
   pointer-events: none;
+}
+
+.re-icon-btn svg,
+.re-icon-btn .svg-icon {
+  width: 15px !important;
+  height: 15px !important;
+  min-width: 15px !important;
+  min-height: 15px !important;
 }
 
 .re-module-body {

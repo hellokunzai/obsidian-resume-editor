@@ -207,7 +207,7 @@ export class ResumeEditorView extends ItemView {
       cls: "re-drag-handle",
       attr: { draggable: "true", title: t("module.drag") },
     });
-    setIcon(handle, "grip-vertical");
+    setIcon(handle, "re-grip-vertical");
 
     const titleWrap = bar.createEl("div", { cls: "re-module-title" });
     if (sec.type === "custom") {
@@ -229,12 +229,12 @@ export class ResumeEditorView extends ItemView {
       cls: "re-icon-btn",
       attr: { title: sec.visible ? t("module.hide") : t("module.show") },
     });
-    setIcon(hideBtn, sec.visible ? "eye" : "eye-off");
+    setIcon(hideBtn, sec.visible ? "re-eye" : "re-eye-off");
     hideBtn.addEventListener("click", () => {
       sec.visible = !sec.visible;
       mod.classList.toggle("re-hidden", !sec.visible);
       hideBtn.setAttribute("title", sec.visible ? t("module.hide") : t("module.show"));
-      setIcon(hideBtn, sec.visible ? "eye" : "eye-off");
+      setIcon(hideBtn, sec.visible ? "re-eye" : "re-eye-off");
       this.renderPreview();
       this.scheduleSave();
     });
@@ -243,7 +243,7 @@ export class ResumeEditorView extends ItemView {
       cls: "re-icon-btn",
       attr: { title: t("module.delete") },
     });
-    setIcon(delBtn, "trash-2");
+    setIcon(delBtn, "re-trash");
     if (sec.type === "basic") {
       delBtn.setAttribute("disabled", "true");
       delBtn.addClass("re-disabled");

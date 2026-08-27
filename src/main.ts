@@ -2,6 +2,7 @@
 
 import { Plugin, Notice, TFile } from "obsidian";
 import { t } from "./i18n";
+import { registerResumeIcons } from "./ui/icons";
 import {
   DEFAULT_RESUME,
   createResumeMarkdown,
@@ -21,6 +22,8 @@ export default class ResumeEditorPlugin extends Plugin {
   settings!: ResumeEditorSettings;
 
   async onload(): Promise<void> {
+    registerResumeIcons();
+
     await this.loadSettings();
 
     this.addSettingTab(new ResumeSettingTab(this.app, this));
