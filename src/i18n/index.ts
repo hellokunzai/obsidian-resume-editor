@@ -75,6 +75,15 @@ const translations: Record<string, Record<string, string>> = {
     "btn.addEducation": "Add education",
     "btn.addWork": "Add work",
     "btn.addProject": "Add project",
+    "btn.addModule": "Add module",
+
+    "module.hide": "Hide (not shown in preview/export)",
+    "module.show": "Show in preview/export",
+    "module.delete": "Delete module",
+    "module.drag": "Drag to reorder",
+    "module.basicNoDelete": "Basic info cannot be deleted",
+    "module.allAdded": "All built-in modules already added",
+    "form.customModule": "Custom module",
 
     "template.single": "Single column",
     "template.twoCol": "Two columns",
@@ -162,6 +171,15 @@ const translations: Record<string, Record<string, string>> = {
     "btn.addEducation": "添加教育",
     "btn.addWork": "添加工作",
     "btn.addProject": "添加项目",
+    "btn.addModule": "添加模块",
+
+    "module.hide": "隐藏（预览/导出不显示）",
+    "module.show": "显示（在预览/导出中）",
+    "module.delete": "删除模块",
+    "module.drag": "拖动调整顺序",
+    "module.basicNoDelete": "基本信息不可删除",
+    "module.allAdded": "内置模块已全部添加",
+    "form.customModule": "自定义模块",
 
     "template.single": "单栏",
     "template.twoCol": "双栏",

@@ -5,6 +5,15 @@ import { App, TFile } from "obsidian";
 export type TemplateId = "single" | "twoCol" | "academic";
 export type ResumeLayout = "left" | "top" | "right";
 
+/** 模块类型：内置固定模块 + 用户自定义模块 */
+export type SectionType =
+  | "basic"
+  | "education"
+  | "work"
+  | "projects"
+  | "skills"
+  | "custom";
+
 export interface ResumeEntry {
   org: string;
   title: string;
@@ -20,6 +29,36 @@ export interface ResumeCustomField {
   visible: boolean;
 }
 
+/** 模块配置：控制顺序与预览/导出的可见性 */
+export interface ResumeSection {
+  /** 唯一标识。内置模块用 type；自定义模块用随机 id */
+  id: string;
+  type: SectionType;
+  /** 是否在预览与导出时显示 */
+  visible: boolean;
+  /** 自定义模块标题（仅 custom 类型生效） */
+  title: string;
+  /** 自定义模块正文（仅 custom 类型生效，每行一条） */
+  content: string;
+}
+
+/** 内置模块的默认标题 key（用于 i18n） */
+export const SECTION_TITLE_KEY: Record<Exclude<SectionType, "custom">, string> = {
+  basic: "form.basic",
+  education: "form.education",
+  work: "form.work",
+  projects: "form.project",
+  skills: "form.skills",
+};
+
+export const DEFAULT_SECTIONS: ResumeSection[] = [
+  { id: "basic", type: "basic", visible: true, title: "", content: "" },
+  { id: "education", type: "education", visible: true, title: "", content: "" },
+  { id: "work", type: "work", visible: true, title: "", content: "" },
+  { id: "projects", type: "projects", visible: true, title: "", content: "" },
+  { id: "skills", type: "skills", visible: true, title: "", content: "" },
+];
+
 export interface ResumeData {
   name: string;
   role: string;
@@ -32,6 +71,7 @@ export interface ResumeData {
   work: ResumeEntry[];
   projects: ResumeEntry[];
   skills: string;
+  sections: ResumeSection[];
 }
 
 export const RESUME_MARK = "resume";
@@ -50,6 +90,7 @@ export const DEFAULT_RESUME: ResumeData = {
   work: [],
   projects: [],
   skills: "",
+  sections: [...DEFAULT_SECTIONS.map((s) => ({ ...s }))],
 };
 
 export function isResumeFrontmatter(
@@ -105,6 +146,29 @@ export function parseResume(
 ): ResumeData {
   if (!fm) return { ...DEFAULT_RESUME };
   const layout = isLayout(fm.layout) ? fm.layout : DEFAULT_RESUME.layout;
+
+  let sections: ResumeSection[];
+  const rawSections = Array.isArray(fm.sections)
+    ? (fm.sections.map(asSection).filter(Boolean) as ResumeSection[])
+    : [];
+  if (rawSections.length) {
+    const seen = new Set<string>();
+    const dedup: ResumeSection[] = [];
+    for (const s of rawSections) {
+      if (s.type !== "custom") {
+        if (seen.has(s.type)) continue;
+        seen.add(s.type);
+      }
+      dedup.push(s);
+    }
+    if (!dedup.some((s) => s.type === "basic")) {
+      dedup.unshift({ id: "basic", type: "basic", visible: true, title: "", content: "" });
+    }
+    sections = dedup;
+  } else {
+    sections = DEFAULT_SECTIONS.map((s) => ({ ...s }));
+  }
+
   return {
     name: typeof fm.name === "string" ? fm.name : "",
     role: typeof fm.role === "string" ? fm.role : "",
@@ -117,6 +181,7 @@ export function parseResume(
     work: asEntries(fm.work),
     projects: asEntries(fm.projects),
     skills: typeof fm.skills === "string" ? fm.skills : "",
+    sections,
   };
 }
 
@@ -128,7 +193,28 @@ function cloneCustomField(f: ResumeCustomField): ResumeCustomField {
   return { icon: f.icon, label: f.label, value: f.value, showLabel: f.showLabel, visible: f.visible };
 }
 
+function asSection(raw: unknown): ResumeSection | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  const type = o.type;
+  const allowed: SectionType[] = ["basic", "education", "work", "projects", "skills", "custom"];
+  if (typeof type !== "string" || !allowed.includes(type as SectionType)) return null;
+  const visible = typeof o.visible === "boolean" ? o.visible : true;
+  const title = typeof o.title === "string" ? o.title : "";
+  const content = typeof o.content === "string" ? o.content : "";
+  const id = typeof o.id === "string" && o.id ? o.id : (type as string);
+  return { id, type: type as SectionType, visible, title, content };
+}
+
 export function toFrontmatter(data: ResumeData): Record<string, unknown> {
+  const sections = data.sections.map((s) => {
+    const base: Record<string, unknown> = { id: s.id, type: s.type, visible: s.visible };
+    if (s.type === "custom") {
+      base.title = s.title;
+      base.content = s.content;
+    }
+    return base;
+  });
   return {
     [RESUME_MARK]: true,
     name: data.name,
@@ -137,6 +223,7 @@ export function toFrontmatter(data: ResumeData): Record<string, unknown> {
     email: data.email,
     layout: data.layout,
     avatar: data.avatar,
+    sections,
     customFields: data.customFields.map(cloneCustomField),
     education: data.education.map(cloneEntry),
     work: data.work.map(cloneEntry),

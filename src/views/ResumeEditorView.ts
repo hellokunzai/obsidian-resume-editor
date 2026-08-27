@@ -1,12 +1,15 @@
 // 双栏表单视图：左结构化表单、右实时预览（createEl 构造，禁用 innerHTML）
 
-import { ItemView, WorkspaceLeaf, Notice, TFile } from "obsidian";
+import { ItemView, WorkspaceLeaf, Notice, TFile, setIcon } from "obsidian";
 import type ResumeEditorPlugin from "../main";
 import {
   ResumeData,
   ResumeEntry,
   ResumeCustomField,
   ResumeLayout,
+  SectionType,
+  ResumeSection,
+  SECTION_TITLE_KEY,
   TemplateId,
   DEFAULT_RESUME,
   readResume,
@@ -54,6 +57,7 @@ export class ResumeEditorView extends ItemView {
   private model: ResumeData = { ...DEFAULT_RESUME };
   private currentFile: TFile | null = null;
   private formBody!: HTMLElement;
+  private sectionList!: HTMLElement;
   private previewPaper!: HTMLElement;
   private saveTimer: number | null = null;
 
@@ -164,13 +168,134 @@ export class ResumeEditorView extends ItemView {
     const b = this.formBody;
     b.empty();
 
-    // 基本信息
-    const basic = b.createEl("details", { cls: "re-sect", attr: { open: "" } });
-    basic.createEl("summary", { text: t("form.basic") });
-    const basicBody = basic.createDiv({ cls: "re-sect-body" });
+    // 模块列表（按 sections 顺序渲染）
+    this.sectionList = b.createDiv({ cls: "re-section-list" });
+    this.renderModules();
+    this.bindDnd();
 
-    // 布局选择
-    const layoutWrap = basicBody.createDiv({ cls: "re-field" });
+    // 添加模块按钮（永远在最下方）
+    const addWrap = b.createDiv({ cls: "re-add-module-wrap" });
+    const addBtn = addWrap.createEl("button", {
+      cls: "re-btn re-add-module",
+      text: "+ " + t("btn.addModule"),
+    });
+    addBtn.addEventListener("click", () => this.openAddMenu(addWrap));
+  }
+
+  private sectionTitle(sec: ResumeSection): string {
+    if (sec.type === "custom") return sec.title || t("form.customModule");
+    return t(SECTION_TITLE_KEY[sec.type as Exclude<SectionType, "custom">]);
+  }
+
+  private renderModules(): void {
+    if (!this.sectionList) return;
+    this.sectionList.empty();
+    for (const sec of this.model.sections) {
+      this.sectionList.appendChild(this.buildModule(sec));
+    }
+  }
+
+  private buildModule(sec: ResumeSection): HTMLElement {
+    const mod = document.createElement("div");
+    mod.className = "re-module" + (sec.visible ? "" : " re-hidden");
+    mod.setAttribute("data-id", sec.id);
+    mod.setAttribute("data-type", sec.type);
+
+    const bar = mod.createEl("div", { cls: "re-module-bar" });
+
+    const handle = bar.createEl("span", {
+      cls: "re-drag-handle",
+      attr: { draggable: "true", title: t("module.drag") },
+    });
+    setIcon(handle, "grip-vertical");
+
+    const titleWrap = bar.createEl("div", { cls: "re-module-title" });
+    if (sec.type === "custom") {
+      const titleInput = titleWrap.createEl("input", {
+        cls: "re-module-title-input",
+        attr: { placeholder: t("form.customModule") },
+      });
+      titleInput.value = sec.title;
+      titleInput.addEventListener("input", () => {
+        sec.title = titleInput.value;
+        this.syncFromForm();
+      });
+    } else {
+      titleWrap.createSpan({ text: this.sectionTitle(sec) });
+    }
+
+    const actions = bar.createEl("div", { cls: "re-module-actions" });
+    const hideBtn = actions.createEl("button", {
+      cls: "re-icon-btn",
+      attr: { title: sec.visible ? t("module.hide") : t("module.show") },
+    });
+    setIcon(hideBtn, sec.visible ? "eye" : "eye-off");
+    hideBtn.addEventListener("click", () => {
+      sec.visible = !sec.visible;
+      mod.classList.toggle("re-hidden", !sec.visible);
+      hideBtn.setAttribute("title", sec.visible ? t("module.hide") : t("module.show"));
+      setIcon(hideBtn, sec.visible ? "eye" : "eye-off");
+      this.renderPreview();
+      this.scheduleSave();
+    });
+
+    const delBtn = actions.createEl("button", {
+      cls: "re-icon-btn",
+      attr: { title: t("module.delete") },
+    });
+    setIcon(delBtn, "trash-2");
+    if (sec.type === "basic") {
+      delBtn.setAttribute("disabled", "true");
+      delBtn.addClass("re-disabled");
+      delBtn.setAttribute("title", t("module.basicNoDelete"));
+    } else {
+      delBtn.addEventListener("click", () => {
+        this.model.sections = this.model.sections.filter((s) => s.id !== sec.id);
+        this.renderModules();
+        this.renderPreview();
+        this.scheduleSave();
+      });
+    }
+
+    const body = mod.createEl("div", { cls: "re-module-body" });
+  this.buildModuleContent(sec, body);
+
+    return mod;
+  }
+
+  private buildModuleContent(sec: ResumeSection, parent: HTMLElement): void {
+    switch (sec.type) {
+      case "basic":
+        this.buildBasicContent(parent);
+        break;
+      case "education":
+        this.sectionBlock(parent, "education", this.model.education, t("btn.addEducation"));
+        break;
+      case "work":
+        this.sectionBlock(parent, "work", this.model.work, t("btn.addWork"));
+        break;
+      case "projects":
+        this.sectionBlock(parent, "projects", this.model.projects, t("btn.addProject"));
+        break;
+      case "skills":
+        this.basicField(parent, "field.skills", "skills", this.model.skills, true);
+        break;
+      case "custom":
+        const ta = parent.createEl("textarea", {
+          cls: "re-textarea",
+          attr: { "data-custom-content": "", placeholder: t("field.details") },
+        });
+        ta.value = sec.content;
+        ta.addEventListener("input", () => {
+          sec.content = ta.value;
+          this.syncFromForm();
+        });
+        break;
+    }
+  }
+
+  private buildBasicContent(parent: HTMLElement): void {
+    const layoutWrap = parent.createDiv({ cls: "re-field" });
     layoutWrap.createEl("span", { text: t("field.layout") });
     const layoutRow = layoutWrap.createDiv({ cls: "re-layout-row" });
     (["left", "top", "right"] as ResumeLayout[]).forEach((id) => {
@@ -181,33 +306,119 @@ export class ResumeEditorView extends ItemView {
       btn.createSpan({ cls: "re-layout-icon re-layout-" + id });
       btn.addEventListener("click", () => {
         this.model.layout = id;
-        this.formBody.querySelectorAll(".re-layout-btn").forEach((n) => n.removeClass("re-on"));
+        parent.querySelectorAll(".re-layout-btn").forEach((n) => n.removeClass("re-on"));
         btn.addClass("re-on");
         this.renderPreview();
         this.scheduleSave();
       });
     });
 
-    // 头像
-    this.basicField(basicBody, "field.avatar", "avatar", this.model.avatar);
+    this.basicField(parent, "field.avatar", "avatar", this.model.avatar);
+    this.basicField(parent, "field.name", "name", this.model.name);
+    this.basicField(parent, "field.role", "role", this.model.role);
+    this.rowField(parent, "field.phone", "phone", this.model.phone, "field.email", "email", this.model.email);
+    this.customFieldsBlock(parent);
+  }
 
-    this.basicField(basicBody, "field.name", "name", this.model.name);
-    this.basicField(basicBody, "field.role", "role", this.model.role);
-    this.rowField(basicBody, "field.phone", "phone", this.model.phone, "field.email", "email", this.model.email);
+  private openAddMenu(wrap: HTMLElement): void {
+    const existing = wrap.querySelector(".re-add-menu");
+    if (existing) {
+      existing.remove();
+      return;
+    }
 
-    // 自定义字段
-    this.customFieldsBlock(basicBody);
+    const menu = wrap.createEl("div", { cls: "re-add-menu" });
+    const present = new Set(this.model.sections.map((s) => s.type));
+    const candidates: { type: SectionType; label: string }[] = [
+      { type: "education", label: t("form.education") },
+      { type: "work", label: t("form.work") },
+      { type: "projects", label: t("form.project") },
+      { type: "skills", label: t("form.skills") },
+      { type: "custom", label: t("form.customModule") },
+    ];
+    let added = false;
+    for (const c of candidates) {
+      if (c.type !== "custom" && present.has(c.type)) continue;
+      added = true;
+      const item = menu.createEl("div", { cls: "re-add-item", text: c.label });
+      item.addEventListener("click", () => {
+        const id = c.type === "custom" ? "custom-" + Date.now().toString(36) : c.type;
+        this.model.sections.push({ id, type: c.type, visible: true, title: "", content: "" });
+        this.renderModules();
+        this.renderPreview();
+        this.scheduleSave();
+        menu.remove();
+      });
+    }
+    if (!added) {
+      menu.createEl("div", { cls: "re-add-empty", text: t("module.allAdded") });
+    }
 
-    // 教育 / 工作 / 项目
-    this.sectionBlock(b, "education", t("form.education"), this.model.education, t("btn.addEducation"));
-    this.sectionBlock(b, "work", t("form.work"), this.model.work, t("btn.addWork"));
-    this.sectionBlock(b, "projects", t("form.project"), this.model.projects, t("btn.addProject"));
+    const close = (ev: MouseEvent) => {
+      const target = ev.target as Node;
+      if (!menu.contains(target) && !(target as HTMLElement).closest(".re-add-module")) {
+        menu.remove();
+        document.removeEventListener("click", close);
+      }
+    };
+    setTimeout(() => document.addEventListener("click", close), 0);
+  }
 
-    // 技能
-    const sk = b.createEl("details", { cls: "re-sect", attr: { open: "" } });
-    sk.createEl("summary", { text: t("form.skills") });
-    const skBody = sk.createDiv({ cls: "re-sect-body" });
-    this.basicField(skBody, "field.skills", "skills", this.model.skills, true);
+  private bindDnd(): void {
+    const list = this.sectionList;
+    if (!list) return;
+    let dragEl: HTMLElement | null = null;
+
+    list.querySelectorAll(".re-module").forEach((mod) => {
+      const handle = mod.querySelector(".re-drag-handle") as HTMLElement;
+      handle.addEventListener("dragstart", (e: DragEvent) => {
+        dragEl = mod as HTMLElement;
+        mod.addClass("re-dragging");
+        e.dataTransfer?.setData("text/plain", "");
+        if (e.dataTransfer) e.dataTransfer.effectAllowed =  "move";
+      });
+      handle.addEventListener("dragend", () => {
+        mod.removeClass("re-dragging");
+        dragEl = null;
+      });
+    });
+
+    list.addEventListener("dragover", (e: DragEvent) => {
+      e.preventDefault();
+      if (!dragEl) return;
+      const after = this.getDragAfterElement(list, e.clientY);
+      if (after == null) list.appendChild(dragEl);
+      else list.insertBefore(dragEl, after);
+    });
+
+    list.addEventListener("drop", (e: DragEvent) => {
+      e.preventDefault();
+      if (!dragEl) return;
+      const ids = Array.from(list.querySelectorAll(".re-module")).map(
+        (m) => (m as HTMLElement).getAttribute("data-id") as string
+      );
+      this.model.sections.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+      dragEl = null;
+      this.renderPreview();
+      this.scheduleSave();
+    });
+  }
+
+  private getDragAfterElement(container: HTMLElement, y: number): HTMLElement | null {
+    const els = Array.from(
+      container.querySelectorAll(".re-module:not(.re-dragging)")
+    ) as HTMLElement[];
+    let closest: HTMLElement | null = null;
+    let closestOffset = -Infinity;
+    for (const el of els) {
+      const box = el.getBoundingClientRect();
+      const offset = y - box.top - box.height / 2;
+      if (offset < 0 && offset > closestOffset) {
+        closestOffset = offset;
+        closest = el;
+      }
+    }
+    return closest;
   }
 
   private basicField(
@@ -251,15 +462,12 @@ export class ResumeEditorView extends ItemView {
   private sectionBlock(
     parent: HTMLElement,
     section: string,
-    title: string,
     entries: ResumeEntry[],
     addLabel: string
   ): void {
-    const det = parent.createEl("details", { cls: "re-sect", attr: { open: "" } });
-    det.createEl("summary", { text: title });
-    const body = det.createDiv({ cls: "re-sect-body", attr: { "data-section-body": section } });
+    const body = parent.createEl("div", { cls: "re-sect-block", attr: { "data-section-body": section } });
     entries.forEach((e) => this.buildEntry(body, section, e));
-    const add = body.createEl("button", { cls: "re-btn", text: "+ " + addLabel });
+    const add = body.createEl("button", { cls: "re-btn re-btn-block", text: "+ " + addLabel });
     add.addEventListener("click", () => {
       this.buildEntry(body, section, { org: "", title: "", time: "", details: "" });
       // 把新增按钮移到末尾
@@ -310,6 +518,21 @@ export class ResumeEditorView extends ItemView {
     const b = this.formBody;
     const get = (sel: string): string =>
       ((b.querySelector(sel) as HTMLInputElement | null)?.value ?? "");
+
+    // 同步模块顺序 / 可见性 / 自定义模块内容（按当前 DOM 顺序）
+    const mods = Array.from(this.sectionList.querySelectorAll(".re-module"));
+    this.model.sections.forEach((sec, i) => {
+      const el = mods[i] as HTMLElement | undefined;
+      if (!el) return;
+      sec.visible = !el.classList.contains("re-hidden");
+      if (sec.type === "custom") {
+        const ti = el.querySelector(".re-module-title-input") as HTMLInputElement | null;
+        const ct = el.querySelector("[data-custom-content]") as HTMLTextAreaElement | null;
+        sec.title = ti?.value ?? "";
+        sec.content = ct?.value ?? "";
+      }
+    });
+
     const data: ResumeData = {
       name: get('[data-basic="name"]'),
       role: get('[data-basic="role"]'),
@@ -322,6 +545,7 @@ export class ResumeEditorView extends ItemView {
       work: this.readEntries("work"),
       projects: this.readEntries("projects"),
       skills: get('[data-basic="skills"]'),
+      sections: this.model.sections,
     };
     this.model = data;
     this.renderPreview();

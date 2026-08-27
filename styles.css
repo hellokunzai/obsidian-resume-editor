@@ -536,3 +536,154 @@
   color: var(--text-faint);
   margin-top: 6px;
 }
+
+/* ===== 左侧模块栏 ===== */
+.re-section-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-2, 8px);
+}
+
+.re-module {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius, 8px);
+  background: var(--background-primary);
+  overflow: hidden;
+}
+
+.re-module.re-hidden .re-module-body {
+  display: none;
+}
+
+.re-module.re-hidden .re-module-title,
+.re-module.re-hidden .re-module-title-input {
+  color: var(--text-faint);
+  text-decoration: line-through;
+}
+
+.re-module.re-dragging {
+  opacity: 0.5;
+}
+
+.re-module-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-1, 4px);
+  padding: 6px 10px;
+  background: var(--background-secondary);
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.re-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  cursor: grab;
+  color: var(--text-faint);
+  flex: none;
+}
+
+.re-drag-handle:active {
+  cursor: grabbing;
+}
+
+.re-module-title {
+  font-weight: 600;
+  font-size: var(--font-ui-small, 13px);
+  flex: 1;
+  min-width: 0;
+}
+
+.re-module-title-input {
+  font-weight: 600;
+  font-size: var(--font-ui-small, 13px);
+  border: none;
+  background: transparent;
+  color: var(--text-normal);
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+}
+
+.re-module-title-input:focus {
+  outline: none;
+  border-bottom: 1px solid var(--interactive-accent);
+}
+
+.re-module-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+
+.re-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: var(--button-radius, 6px);
+  cursor: pointer;
+}
+
+.re-icon-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.re-icon-btn.re-disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.re-module-body {
+  padding: 10px;
+}
+
+.re-sect-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-2, 8px);
+}
+
+.re-add-module-wrap {
+  margin-top: var(--size-4-2, 8px);
+}
+
+.re-add-module {
+  width: 100%;
+}
+
+.re-add-menu {
+  margin-top: 6px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius, 8px);
+  background: var(--background-primary);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+}
+
+.re-add-item {
+  padding: 8px 12px;
+  font-size: var(--font-ui-small, 13px);
+  cursor: pointer;
+  color: var(--text-normal);
+}
+
+.re-add-item:hover {
+  background: var(--background-modifier-hover);
+  color: var(--interactive-accent);
+}
+
+.re-add-empty {
+  padding: 8px 12px;
+  font-size: var(--font-ui-small, 13px);
+  color: var(--text-faint);
+}

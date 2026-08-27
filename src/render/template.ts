@@ -98,29 +98,40 @@ export function renderResumeDom(
   app?: App
 ): void {
   root.empty();
-  const paper = root.createDiv({ cls: `re-paper re-${template}` });
+  const paper = root.createDiv({
+    cls: template === "academic" ? "re-paper re-academic" : "re-paper",
+  });
 
-  renderHeaderDom(paper, data, app);
+  const basicVisible = data.sections.find((s) => s.type === "basic")?.visible !== false;
+  if (basicVisible) renderHeaderDom(paper, data, app);
 
-  if (template === "twoCol") {
-    const left = paper.createDiv({ cls: "r-col-left" });
-    if (data.skills) {
-      left.createEl("h3", { cls: "r-sec", text: t("form.skills") });
-      left.createDiv({ cls: "r-sub", text: data.skills });
-    }
-    const right = paper.createDiv();
-    sectionDom(right, t("form.education"), data.education);
-    sectionDom(right, t("form.work"), data.work);
-    sectionDom(right, t("form.project"), data.projects);
-  } else {
-    sectionDom(paper, t("form.education"), data.education);
-    sectionDom(paper, t("form.work"), data.work);
-    sectionDom(paper, t("form.project"), data.projects);
-    if (data.skills) {
-      paper.createEl("div", {
-        cls: "r-skills",
-        text: t("form.skills") + "：" + data.skills,
-      });
+  for (const sec of data.sections) {
+    if (!sec.visible) continue;
+    if (sec.type === "basic") continue;
+    if (  sec.type === "skills") {
+      if (data.skills) {
+        paper.createEl("div", {
+          cls: "r-skills",
+          text: t("form.skills") + "：" + data.skills,
+        });
+      }
+    } else if (sec.type === "education") {
+      sectionDom(paper, t("form.education"), data.education);
+    } else if (sec.type === "work") {
+      sectionDom(paper, t("form.work"), data.work);
+    } else if (sec.type === "projects") {
+      sectionDom(paper, t("form.project"), data.projects);
+    } else if (sec.type === "custom") {
+      if (sec.content.trim()) {
+        paper.createEl("h3", {
+          cls: "r-sec",
+          text: sec.title || t("form.customModule"),
+        });
+        const ul = paper.createEl("ul");
+        sec.content.split("\n").filter((l) => l.trim()).forEach((l) => {
+          ul.createEl("li", { text: l.trim() });
+        });
+      }
     }
   }
 }
@@ -187,29 +198,37 @@ function headerHtml(data: ResumeData, app?: App): string {
 }
 
 export function resumeToHtml(data: ResumeData, template: TemplateId, app?: App): string {
-  const parts: string[] = [`<div class="re-paper re-${template}">`];
-  parts.push(headerHtml(data, app));
+  const cls = template === "academic" ? "re-paper re-academic" : "re-paper";
+  const parts: string[] = [`<div class="${cls}">`];
 
-  if (template === "twoCol") {
-    parts.push(`<div class="r-col-left">`);
-    if (data.skills) {
-      parts.push(`<h3 class="r-sec">${esc(t("form.skills"))}</h3>`);
-      parts.push(`<div class="r-sub">${esc(data.skills)}</div>`);
-    }
-    parts.push(`</div>`);
-    parts.push(`<div>`);
-    parts.push(sectionHtml(t("form.education"), data.education));
-    parts.push(sectionHtml(t("form.work"), data.work));
-    parts.push(sectionHtml(t("form.project"), data.projects));
-    parts.push(`</div>`);
-  } else {
-    parts.push(sectionHtml(t("form.education"), data.education));
-    parts.push(sectionHtml(t("form.work"), data.work));
-    parts.push(sectionHtml(t("form.project"), data.projects));
-    if (data.skills) {
-      parts.push(
-        `<div class="r-skills">${esc(t("form.skills"))}：${esc(data.skills)}</div>`
-      );
+  const basicVisible = data.sections.find((s) => s.type === "basic")?.visible !== false;
+  if (basicVisible) parts.push(headerHtml(data, app));
+
+  for (const sec of data.sections) {
+    if (!sec.visible) continue;
+    if (sec.type === "basic") continue;
+    if (sec.type === "skills") {
+      if (data.skills) {
+        parts.push(
+          `<div class="r-skills">${esc(t("form.skills"))}：${esc(data.skills)}</div>`
+        );
+      }
+    } else if (sec.type === "education") {
+      parts.push(sectionHtml(t("form.education"), data.education));
+    } else if (sec.type === "work") {
+      parts.push(sectionHtml(t("form.work"), data.work));
+    } else if (sec.type === "projects") {
+      parts.push(sectionHtml(t("form.project"), data.projects));
+    } else if (sec.type === "custom") {
+      if (sec.content.trim()) {
+        const title = sec.title || t("form.customModule");
+        const items = sec.content
+          .split("\n")
+          .filter((l) => l.trim())
+          .map((l) => `<li>${esc(l.trim())}</li>`)
+          .join("");
+        parts.push(`<h3 class="r-sec">${esc(title)}</h3><ul>${items}</ul>`);
+      }
     }
   }
   parts.push(`</div>`);
