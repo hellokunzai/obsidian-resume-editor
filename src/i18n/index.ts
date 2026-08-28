@@ -89,10 +89,13 @@ const translations: Record<string, Record<string, string>> = {
     "btn.save": "Save",
     "btn.chooseImage": "Choose image",
     "btn.addCustomField": "Add custom field",
+    "btn.addBasicField": "Add contact field",
     "btn.addEducation": "Add education",
     "btn.addWork": "Add work",
     "btn.addProject": "Add project",
     "btn.addModule": "Add module",
+
+    "basicField.allAdded": "All contact fields already added",
 
     "module.hide": "Hide (not shown in preview/export)",
     "module.show": "Show in preview/export",
@@ -203,10 +206,13 @@ const translations: Record<string, Record<string, string>> = {
     "btn.save": "保存",
     "btn.chooseImage": "选择图片",
     "btn.addCustomField": "添加自定义字段",
+    "btn.addBasicField": "添加联系方式",
     "btn.addEducation": "添加教育",
     "btn.addWork": "添加工作",
     "btn.addProject": "添加项目",
     "btn.addModule": "添加模块",
+
+    "basicField.allAdded": "所有联系方式已添加",
 
     "module.hide": "隐藏（预览/导出不显示）",
     "module.show": "显示（在预览/导出中）",

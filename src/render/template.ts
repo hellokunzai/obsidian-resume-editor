@@ -89,21 +89,28 @@ const ICON_EMOJI: Record<string, string> = {
   link: "🔗",
 };
 
-/** 联系信息：固定顺序（含新增字段），customFields 置后 */
+/** 基础字段 key -> 图标 key（email 在图标库中对应 mail） */
+const BASIC_FIELD_ICON_KEY: Record<string, string> = {
+  phone: "phone",
+  email: "mail",
+  employmentStatus: "employmentStatus",
+  location: "location",
+  birthDate: "birthDate",
+};
+
+/** 联系信息：按 basicFields 顺序与可见性渲染，customFields 置后 */
 function buildContactItems(data: ResumeData): ContactItem[] {
-  const order: { key: keyof ResumeData; iconKey: string }[] = [
-    { key: "employmentStatus", iconKey: "employmentStatus" },
-    { key: "email", iconKey: "mail" },
-    { key: "birthDate", iconKey: "birthDate" },
-    { key: "phone", iconKey: "phone" },
-    { key: "location", iconKey: "location" },
-  ];
   const items: ContactItem[] = [];
-  for (const f of order) {
-    const v = data[f.key];
-    if (typeof v === "string" && v) {
-      items.push({ iconKey: f.iconKey, label: t("field." + f.key), value: v, showLabel: false });
-    }
+  for (const f of data.basicFields) {
+    if (!f.visible) continue;
+    const v = data[f.key as keyof ResumeData];
+    if (typeof v !== "string" || !v) continue;
+    items.push({
+      iconKey: BASIC_FIELD_ICON_KEY[f.key] ?? f.key,
+      label: t("field." + f.key),
+      value: v,
+      showLabel: false,
+    });
   }
   for (const cf of data.customFields) {
     if (!cf.visible || (!cf.value && !cf.icon)) continue;

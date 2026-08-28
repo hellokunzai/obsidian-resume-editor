@@ -27,6 +27,8 @@ import {
   AVATAR_RATIO_OPTIONS,
   AVATAR_RADIUS_OPTIONS,
   computeAvatarStyle,
+  BasicFieldConfig,
+  BASIC_FIELD_KEYS,
 } from "../data/resume-model";
 import { renderResumeDom, resolveAvatarUrl } from "../render/template";
 import { t } from "../i18n";
@@ -120,6 +122,7 @@ export class ResumeEditorView extends ItemView {
   private saveTimer: number | null = null;
   private activeIconPicker: HTMLElement | null = null;
   private dragEl: HTMLElement | null = null;
+  private basicFieldDragEl: HTMLElement | null = null;
 
   constructor(leaf: WorkspaceLeaf, plugin: ResumeEditorPlugin) {
     super(leaf);
@@ -401,11 +404,191 @@ export class ResumeEditorView extends ItemView {
     this.avatarField(parent);
     this.basicField(parent, "field.name", "name", this.model.name);
     this.basicField(parent, "field.role", "role", this.model.role);
-    this.rowField(parent, "field.phone", "phone", this.model.phone, "field.email", "email", this.model.email);
-    this.basicField(parent, "field.employmentStatus", "employmentStatus", this.model.employmentStatus);
-    this.basicField(parent, "field.location", "location", this.model.location);
-    this.basicField(parent, "field.birthDate", "birthDate", this.model.birthDate);
+
+    const fieldsList = parent.createDiv({ cls: "re-basic-fields" });
+    for (const f of this.model.basicFields) {
+      fieldsList.appendChild(this.buildBasicFieldRow(f));
+    }
+    this.bindBasicFieldDnd(fieldsList);
+
+    const addWrap = parent.createDiv({ cls: "re-add-basic-field-wrap" });
+    const addBtn = addWrap.createEl("button", {
+      cls: "re-btn re-btn-block",
+      text: "+ " + t("btn.addBasicField"),
+    });
+    addBtn.addEventListener("click", () => this.openAddBasicFieldMenu(addBtn, addWrap));
+
     this.customFieldsBlock(parent);
+  }
+
+  private basicFieldIconKey(key: string): string {
+    const map: Record<string, string> = {
+      phone: "phone",
+      email: "mail",
+      employmentStatus: "employmentStatus",
+      location: "location",
+      birthDate: "birthDate",
+    };
+    return map[key] ?? key;
+  }
+
+  private buildBasicFieldRow(f: BasicFieldConfig): HTMLElement {
+    const row = document.createElement("div");
+    row.className = "re-basic-field-row" + (f.visible ? "" : " re-hidden");
+    row.setAttribute("data-basic-field", f.key);
+
+    const handle = row.createEl("span", {
+      cls: "re-basic-field-drag",
+      attr: { title: t("module.drag") },
+    });
+    setIcon(handle, "re-grip-vertical");
+
+    const iconWrap = row.createEl("span", { cls: "re-basic-field-icon" });
+    setIcon(iconWrap, contactIconId(this.basicFieldIconKey(f.key)));
+
+    row.createEl("span", { cls: "re-basic-field-label", text: t("field." + f.key) });
+
+    const inputWrap = row.createDiv({ cls: "re-basic-field-input-wrap" });
+    const inp = inputWrap.createEl("input", {
+      cls: "re-input",
+      attr: { "data-basic": f.key, placeholder: t("field." + f.key) },
+    });
+    const value = this.model[f.key as keyof ResumeData];
+    inp.value = typeof value === "string" ? value : "";
+
+    const actions = row.createDiv({ cls: "re-basic-field-actions" });
+
+    const hideBtn = actions.createEl("button", {
+      cls: "re-icon-btn",
+      attr: { title: f.visible ? t("module.hide") : t("module.show"), type: "button" },
+    });
+    setIcon(hideBtn, f.visible ? "re-eye" : "re-eye-off");
+    hideBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      f.visible = !f.visible;
+      row.classList.toggle("re-hidden", !f.visible);
+      hideBtn.setAttribute("title", f.visible ? t("module.hide") : t("module.show"));
+      setIcon(hideBtn, f.visible ? "re-eye" : "re-eye-off");
+      this.renderPreview();
+      this.scheduleSave();
+    });
+
+    const delBtn = actions.createEl("button", {
+      cls: "re-icon-btn",
+      attr: { title: t("module.delete"), type: "button" },
+    });
+    setIcon(delBtn, "re-trash");
+    delBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.model.basicFields = this.model.basicFields.filter((bf) => bf.key !== f.key);
+      row.remove();
+      this.renderPreview();
+      this.scheduleSave();
+    });
+
+    return row;
+  }
+
+  private bindBasicFieldDnd(list: HTMLElement): void {
+    list.querySelectorAll(".re-basic-field-row").forEach((row) => {
+      const handle = row.querySelector(".re-basic-field-drag") as HTMLElement | null;
+      if (!handle) return;
+      handle.addEventListener("pointerdown", (e: PointerEvent) => {
+        if (e.button !== 0 && e.pointerType === "mouse") return;
+        e.preventDefault();
+        this.startBasicFieldDrag(row as HTMLElement, list);
+      });
+    });
+  }
+
+  private startBasicFieldDrag(row: HTMLElement, list: HTMLElement): void {
+    this.basicFieldDragEl = row;
+    row.addClass("re-dragging");
+
+    const onMove = (ev: PointerEvent) => {
+      if (!this.basicFieldDragEl || !list) return;
+      const after = this.getBasicFieldDragAfter(list, ev.clientY);
+      if (after == null) {
+        if (list.lastElementChild !== this.basicFieldDragEl) list.appendChild(this.basicFieldDragEl);
+      } else if (after !== this.basicFieldDragEl) {
+        list.insertBefore(this.basicFieldDragEl, after);
+      }
+    };
+
+    const onUp = () => {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.removeEventListener("pointercancel", onUp);
+      if (!this.basicFieldDragEl || !list) return;
+      const keys = Array.from(list.querySelectorAll(".re-basic-field-row")).map(
+        (r) => (r as HTMLElement).getAttribute("data-basic-field") as string
+      );
+      this.model.basicFields.sort((a, b) => keys.indexOf(a.key) - keys.indexOf(b.key));
+      this.basicFieldDragEl.removeClass("re-dragging");
+      this.basicFieldDragEl = null;
+      this.renderPreview();
+      this.scheduleSave();
+    };
+
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+    document.addEventListener("pointercancel", onUp);
+  }
+
+  private getBasicFieldDragAfter(list: HTMLElement, y: number): HTMLElement | null {
+    const rows = Array.from(
+      list.querySelectorAll(".re-basic-field-row:not(.re-dragging)")
+    ) as HTMLElement[];
+    let closest: HTMLElement | null = null;
+    let closestOffset = -Infinity;
+    for (const row of rows) {
+      const box = row.getBoundingClientRect();
+      const offset = y - box.top - box.height / 2;
+      if (offset < 0 && offset > closestOffset) {
+        closestOffset = offset;
+        closest = row;
+      }
+    }
+    return closest;
+  }
+
+  private openAddBasicFieldMenu(anchor: HTMLElement, wrap: HTMLElement): void {
+    const existing = wrap.querySelector(".re-add-menu");
+    if (existing) {
+      existing.remove();
+      return;
+    }
+
+    const menu = wrap.createEl("div", { cls: "re-add-menu" });
+    const present = new Set(this.model.basicFields.map((f) => f.key));
+    const candidates = BASIC_FIELD_KEYS.filter((key) => !present.has(key));
+    if (candidates.length === 0) {
+      menu.createEl("div", { cls: "re-add-empty", text: t("basicField.allAdded") });
+    } else {
+      for (const key of candidates) {
+        const item = menu.createEl("div", { cls: "re-add-item", text: t("field." + key) });
+        item.addEventListener("click", () => {
+          this.model.basicFields.push({ key, visible: true });
+          const list = this.formBody.querySelector(".re-basic-fields") as HTMLElement | null;
+          if (list) {
+            list.appendChild(this.buildBasicFieldRow({ key, visible: true }));
+            this.bindBasicFieldDnd(list);
+          }
+          this.renderPreview();
+          this.scheduleSave();
+          menu.remove();
+        });
+      }
+    }
+
+    const close = (ev: MouseEvent) => {
+      const target = ev.target as Node;
+      if (!menu.contains(target) && !(target as HTMLElement).closest(".re-add-basic-field-wrap")) {
+        menu.remove();
+        document.removeEventListener("click", close);
+      }
+    };
+    setTimeout(() => document.addEventListener("click", close), 0);
   }
 
   private openAddMenu(wrap: HTMLElement): void {
@@ -709,20 +892,6 @@ export class ResumeEditorView extends ItemView {
     preview.style.borderRadius = s.radius;
   }
 
-  private rowField(
-    parent: HTMLElement,
-    l1: string,
-    k1: string,
-    v1: string,
-    l2: string,
-    k2: string,
-    v2: string
-  ): void {
-    const row = parent.createDiv({ cls: "re-row" });
-    this.basicField(row, l1, k1, v1);
-    this.basicField(row, l2, k2, v2);
-  }
-
   private sectionBlock(
     parent: HTMLElement,
     section: string,
@@ -816,6 +985,7 @@ export class ResumeEditorView extends ItemView {
       avatarRadius:
         ((b.querySelector('[data-avatar="radius"]') as HTMLSelectElement | null)?.value as AvatarRadius) ??
         this.model.avatarRadius,
+      basicFields: this.readBasicFields(),
       customFields: this.readCustomFields(),
       education: this.readEntries("education"),
       work: this.readEntries("work"),
@@ -826,6 +996,17 @@ export class ResumeEditorView extends ItemView {
     this.model = data;
     this.renderPreview();
     this.scheduleSave();
+  }
+
+  private readBasicFields(): BasicFieldConfig[] {
+    const out: BasicFieldConfig[] = [];
+    this.formBody.querySelectorAll(".re-basic-field-row").forEach((node) => {
+      const el = node as HTMLElement;
+      const key = el.getAttribute("data-basic-field") ?? "";
+      if (!key) return;
+      out.push({ key, visible: !el.classList.contains("re-hidden") });
+    });
+    return out;
   }
 
   private readEntries(section: string): ResumeEntry[] {

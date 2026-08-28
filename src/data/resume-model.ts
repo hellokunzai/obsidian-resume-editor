@@ -65,6 +65,17 @@ export interface ResumeCustomField {
   visible: boolean;
 }
 
+/** 可配置的基础字段：控制顺序与预览/导出可见性 */
+export interface BasicFieldConfig {
+  key: string;
+  visible: boolean;
+}
+
+/** 可调整顺序/显示/删除的基础字段 key 集合（姓名、职位固定，不参与） */
+export const BASIC_FIELD_KEYS = ["phone", "email", "employmentStatus", "location", "birthDate"] as const;
+
+export const DEFAULT_BASIC_FIELDS: BasicFieldConfig[] = BASIC_FIELD_KEYS.map((key) => ({ key, visible: true }));
+
 /** 模块配置：控制顺序、预览/导出可见性与编辑区折叠 */
 export interface ResumeSection {
   /** 唯一标识。内置模块用 type；自定义模块用随机 id */
@@ -116,6 +127,7 @@ export interface ResumeData {
   avatarAspectRatio: AvatarRatio;
   /** 头像圆角样式 */
   avatarRadius: AvatarRadius;
+  basicFields: BasicFieldConfig[];
   customFields: ResumeCustomField[];
   education: ResumeEntry[];
   work: ResumeEntry[];
@@ -141,6 +153,7 @@ export const DEFAULT_RESUME: ResumeData = {
   avatarSize: 90,
   avatarAspectRatio: "4:5",
   avatarRadius: "sm",
+  basicFields: DEFAULT_BASIC_FIELDS.map((f) => ({ ...f })),
   customFields: [],
   education: [],
   work: [],
@@ -193,6 +206,27 @@ function asCustomFields(raw: unknown): ResumeCustomField[] {
   return [];
 }
 
+function asBasicField(raw: unknown): BasicFieldConfig | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  const key = typeof o.key === "string" ? o.key : "";
+  if (!BASIC_FIELD_KEYS.includes(key as (typeof BASIC_FIELD_KEYS)[number])) return null;
+  return { key, visible: typeof o.visible === "boolean" ? o.visible : true };
+}
+
+function asBasicFields(raw: unknown): BasicFieldConfig[] {
+  if (!Array.isArray(raw)) return [];
+  const out: BasicFieldConfig[] = [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    const f = asBasicField(item);
+    if (!f || seen.has(f.key)) continue;
+    seen.add(f.key);
+    out.push(f);
+  }
+  return out;
+}
+
 function isLayout(v: unknown): v is ResumeLayout {
   return v === "left" || v === "top" || v === "right";
 }
@@ -231,6 +265,11 @@ export function parseResume(
     sections = DEFAULT_SECTIONS.map((s) => ({ ...s }));
   }
 
+  const rawBasicFields = asBasicFields(fm.basicFields);
+  const basicFields = rawBasicFields.length
+    ? rawBasicFields
+    : DEFAULT_BASIC_FIELDS.map((f) => ({ ...f }));
+
   return {
     name: typeof fm.name === "string" ? fm.name : "",
     role: typeof fm.role === "string" ? fm.role : "",
@@ -248,6 +287,7 @@ export function parseResume(
     avatarRadius: AVATAR_RADIUS_OPTIONS.includes(fm.avatarRadius as AvatarRadius)
       ? (fm.avatarRadius as AvatarRadius)
       : DEFAULT_RESUME.avatarRadius,
+    basicFields,
     customFields: asCustomFields(fm.customFields),
     education: asEntries(fm.education),
     work: asEntries(fm.work),
@@ -302,6 +342,7 @@ export function toFrontmatter(data: ResumeData): Record<string, unknown> {
     avatarSize: data.avatarSize,
     avatarAspectRatio: data.avatarAspectRatio,
     avatarRadius: data.avatarRadius,
+    basicFields: data.basicFields.map((f) => ({ ...f })),
     sections,
     customFields: data.customFields.map(cloneCustomField),
     education: data.education.map(cloneEntry),
@@ -373,6 +414,7 @@ function parseEntry(line: string): ResumeEntry | null {
 
 function serializeConfig(data: ResumeData): string {
   const cfJson = JSON.stringify(data.customFields);
+  const bfJson = JSON.stringify(data.basicFields);
   return [
     "<!-- obsidian-resume-editor",
     `layout: ${data.layout}`,
@@ -383,6 +425,7 @@ function serializeConfig(data: ResumeData): string {
     `employmentStatus: ${data.employmentStatus}`,
     `location: ${data.location}`,
     `birthDate: ${data.birthDate}`,
+    `basicFields: ${bfJson}`,
     `customFields: ${cfJson}`,
     "-->",
   ].join("\n");
@@ -422,6 +465,14 @@ function parseConfig(content: string): Partial<ResumeData> {
     if (locMatch) cfg.location = locMatch[1].trim();
     const bdMatch = line.match(/^birthDate:\s*(.*)$/);
     if (bdMatch) cfg.birthDate = bdMatch[1].trim();
+    const bfMatch = line.match(/^basicFields:\s*(\[.*\])\s*$/);
+    if (bfMatch) {
+      try {
+        cfg.basicFields = asBasicFields(JSON.parse(bfMatch[1]));
+      } catch {
+        cfg.basicFields = [];
+      }
+    }
     const cfMatch = line.match(/^customFields:\s*(\[.*\])\s*$/);
     if (cfMatch) {
       try {
@@ -491,6 +542,7 @@ export function parseResumeMarkdown(content: string): ResumeData {
   if (cfg.employmentStatus !== undefined) data.employmentStatus = cfg.employmentStatus;
   if (cfg.location !== undefined) data.location = cfg.location;
   if (cfg.birthDate !== undefined) data.birthDate = cfg.birthDate;
+  if (cfg.basicFields && cfg.basicFields.length) data.basicFields = cfg.basicFields;
   if (cfg.customFields) data.customFields = cfg.customFields;
 
   const body = stripFrontmatter(content).trim();

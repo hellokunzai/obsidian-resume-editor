@@ -141,6 +141,102 @@
   margin-bottom: 2px;
 }
 
+/* 可配置基础字段：每行一个，带拖拽/显示/删除 */
+.re-basic-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.re-basic-field-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--button-radius, 6px);
+  background: var(--background-primary);
+}
+
+.re-basic-field-row.re-hidden {
+  opacity: 0.55;
+  background: var(--background-secondary);
+}
+
+.re-basic-field-row.re-dragging {
+  opacity: 0.5;
+}
+
+.re-basic-field-drag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  cursor: grab;
+  color: var(--text-faint);
+  flex: none;
+  touch-action: none;
+}
+
+.re-basic-field-drag:active {
+  cursor: grabbing;
+}
+
+.re-basic-field-drag svg,
+.re-basic-field-drag .svg-icon {
+  width: 15px !important;
+  height: 15px !important;
+  min-width: 15px !important;
+  min-height: 15px !important;
+}
+
+.re-basic-field-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: var(--text-muted);
+  flex: none;
+}
+
+.re-basic-field-icon svg,
+.re-basic-field-icon .svg-icon {
+  width: 15px !important;
+  height: 15px !important;
+  min-width: 15px !important;
+  min-height: 15px !important;
+}
+
+.re-basic-field-label {
+  flex: none;
+  font-size: var(--font-ui-small, 13px);
+  color: var(--text-normal);
+  min-width: 56px;
+}
+
+.re-basic-field-input-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.re-basic-field-input-wrap .re-input {
+  margin-bottom: 0;
+}
+
+.re-basic-field-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+
+.re-add-basic-field-wrap {
+  margin-bottom: 10px;
+}
+
 /* 头像字段：卡片式布局（预览与选图合并） */
 .re-avatar-field .re-avatar-card {
   display: flex;
