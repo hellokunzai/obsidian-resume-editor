@@ -1,21 +1,14 @@
-// PDF 导出：隐藏 <webview> 渲染后调用 Electron printToPDF（桌面端，isDesktopOnly: true）
+// PDF 导出：一键静默生成 —— 基于 html2pdf.js（html2canvas + jsPDF，纯前端，
+// 在 Obsidian 渲染进程内直接把简历 DOM 渲染为 PDF 并写入 vault。
+// 不依赖 <webview>（部分 Obsidian 环境未启用 webview 标签，printToPDF 不可用），
+// 也不经过 window.print() 打印对话框，点击即落盘。
 
 import { App, Notice } from "obsidian";
 import { ResumeData, TemplateId } from "../data/resume-model";
 import { resumeToHtml, RESUME_CSS } from "../render/template";
 import { t } from "../i18n";
-
-interface PrintToPdfOptions {
-  pageSize?: string;
-  printBackground?: boolean;
-  landscape?: boolean;
-  margins?: { top: string; bottom: string; left: string; right: string };
-}
-
-interface WebviewLike extends HTMLElement {
-  srcdoc: string;
-  printToPDF(options: PrintToPdfOptions): Promise<Uint8Array>;
-}
+import { safeFileName } from "./utils";
+import html2pdf from "./vendor/html2pdf.bundle.min.js";
 
 export async function exportPdf(
   app: App,
@@ -24,49 +17,51 @@ export async function exportPdf(
   baseName: string,
   paperSize: "A4" | "Letter"
 ): Promise<void> {
+  const name = safeFileName(baseName);
   const body = resumeToHtml(data, template, app);
-  const html =
-    `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">` +
-    `<title>${baseName}</title><style>${RESUME_CSS}</style></head>` +
-    `<body>${body}</body></html>`;
 
-  const wv = document.createElement("webview") as unknown as WebviewLike;
-  wv.style.position = "fixed";
-  wv.style.right = "0";
-  wv.style.bottom = "0";
-  wv.style.width = "0";
-  wv.style.height = "0";
-  wv.style.opacity = "0";
-  wv.srcdoc = html;
-  document.body.appendChild(wv);
+  // 离屏捕获容器：必须在文档中且可见（不能 display:none），html2canvas 才能读取布局。
+  // 宽度按纸张内容区设置，让 .re-paper（max-width:720px）居中排版与预览一致。
+  const paperPx = paperSize === "Letter" ? 816 : 794; // 96dpi 下的页宽（px）
+  const holder = document.createElement("div");
+  holder.className = "re-pdf-capture";
+  holder.style.cssText = `position:fixed;left:-10000px;top:0;width:${paperPx}px;z-index:-1;background:#fff;`;
+  holder.innerHTML = `<style>${RESUME_CSS}</style>${body}`;
+  document.body.appendChild(holder);
+
+  const el = holder.querySelector(".re-paper") as HTMLElement | null;
 
   try {
-    await new Promise<void>((resolve, reject) => {
-      const onReady = () => resolve();
-      (wv as unknown as {
-        addEventListener(type: string, cb: () => void): void;
-      }).addEventListener("dom-ready", onReady);
-      setTimeout(() => reject(new Error("webview timeout")), 15000);
-    });
+    if (!el) throw new Error(t("error.emptyExport"));
+    new Notice(t("notice.exportingPdf"));
 
-    const buf = await wv.printToPDF({
-      pageSize: paperSize,
-      printBackground: true,
-      landscape: false,
-      margins: { top: "14mm", bottom: "14mm", left: "14mm", right: "14mm" },
-    });
+    const opt = {
+      margin: 14, // mm，与 RESUME_CSS 的 @page margin:14mm 对齐
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+      },
+      jsPDF: {
+        unit: "mm",
+        format: paperSize === "Letter" ? "letter" : "a4",
+        orientation: "portrait",
+      },
+      pagebreak: { mode: ["css", "legacy"] },
+    };
 
-    const ab = buf.buffer.slice(
-      buf.byteOffset,
-      buf.byteOffset + buf.byteLength
-    ) as ArrayBuffer;
-    const path = `${baseName}.pdf`;
+    // outputPdf('blob') 返回 Promise<Blob>，再写入 vault
+    const blob = (await html2pdf().set(opt).from(el).outputPdf("blob")) as Blob;
+    const ab = await blob.arrayBuffer();
+    const path = `${name}.pdf`;
     await app.vault.adapter.writeBinary(path, ab);
     new Notice(t("notice.exported", { name: path }));
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     new Notice(t("error.export", { msg }));
   } finally {
-    wv.remove();
+    holder.remove();
   }
 }

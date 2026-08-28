@@ -125,12 +125,16 @@ const translations: Record<string, Record<string, string>> = {
     "export.latex": "Export LaTeX",
 
     "notice.exported": "Exported: {{name}}",
+    "notice.exportingPdf": "Generating PDF...",
     "notice.noActive": "No active file",
     "notice.notResume": "Current note is not a resume note. Use 'Mark as resume' first.",
     "notice.created": "Resume note created: {{name}}",
     "notice.marked": "Marked '{{name}}' as a resume note",
     "error.export": "Export failed: {{msg}}",
     "error.noKey": "AI polish needs an API key in settings",
+    "error.webviewTimeout": "webview did not become ready",
+    "error.printWindow": "could not open print window",
+    "error.emptyExport": "nothing to export",
   },
   "zh-cn": {
     "command.openEditor": "打开简历编辑器",
@@ -251,12 +255,16 @@ const translations: Record<string, Record<string, string>> = {
     "export.latex": "导出 LaTeX",
 
     "notice.exported": "已导出：{{name}}",
+    "notice.exportingPdf": "正在生成 PDF…",
     "notice.noActive": "没有打开的笔记",
     "notice.notResume": "当前笔记不是简历笔记，请先用「标记为简历」。",
     "notice.created": "已创建简历笔记：{{name}}",
     "notice.marked": "已将「{{name}}」标记为简历笔记",
     "error.export": "导出失败：{{msg}}",
     "error.noKey": "AI 润色需要在设置中填写 API Key",
+    "error.webviewTimeout": "webview 未就绪",
+    "error.printWindow": "无法打开打印窗口",
+    "error.emptyExport": "没有可导出的内容",
   },
 };
 

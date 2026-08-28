@@ -12,3 +12,6 @@ Thumbs.db
 # TypeScript 增量构建缓存
 *.tsbuildinfo
 .workbuddy/
+
+# 临时验证构建产物
+dist-verify/
