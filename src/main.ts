@@ -36,14 +36,24 @@ export default class ResumeEditorPlugin extends Plugin {
       void this.activateView();
     });
 
-    // 点击简历目录下的文件时自动唤起简历编辑器
+    // 点击简历目录下的文件时，找到真正显示该文件的 markdown leaf 并替换为简历编辑器视图
+    // 用 setTimeout(0) 延迟到 Obsidian 完成 leaf 状态初始化后再替换，避免被内部状态覆盖
     this.registerEvent(
       this.app.workspace.on("file-open", (file) => {
         if (
           file &&
           isResumeFile(this.app, file, this.settings.resumeDir)
         ) {
-          void this.activateView();
+          setTimeout(() => {
+            const targetLeaf =
+              this.app.workspace
+                .getLeavesOfType("markdown")
+                .find((leaf) => (leaf.view as { file?: TFile }).file?.path === file.path) ??
+              this.app.workspace.activeLeaf;
+            if (targetLeaf) {
+              void targetLeaf.setViewState({ type: VIEW_TYPE_RESUME, active: true });
+            }
+          }, 0);
         }
       })
     );

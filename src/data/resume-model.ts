@@ -528,7 +528,7 @@ function parseConfig(content: string): Partial<ResumeData> {
   const m = content.match(/<!--\s*obsidian-resume-editor\s*\n([\s\S]*?)\n\s*-->/);
   if (!m) return cfg;
 
-  for (const line of m[1].split("\n")) {
+  for (const line of m[1].split(/\r?\n/)) {
     const layoutMatch = line.match(/^layout:\s*(.*)$/);
     if (layoutMatch) {
       const v = layoutMatch[1].trim();

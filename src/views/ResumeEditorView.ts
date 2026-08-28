@@ -457,6 +457,11 @@ export class ResumeEditorView extends ItemView {
     });
     const value = this.model[f.key as keyof ResumeData];
     inp.value = typeof value === "string" ? value : "";
+    inp.addEventListener("input", () => {
+      (this.model as unknown as Record<string, string>)[f.key] = inp.value;
+      this.renderPreview();
+      this.scheduleSave();
+    });
 
     const actions = row.createDiv({ cls: "re-basic-field-actions" });
 
@@ -812,12 +817,22 @@ export class ResumeEditorView extends ItemView {
         attr: { "data-basic": key },
       });
       ta.value = value;
+      ta.addEventListener("input", () => {
+        (this.model as unknown as Record<string, string>)[key] = ta.value;
+        this.renderPreview();
+        this.scheduleSave();
+      });
     } else {
       const inp = wrap.createEl("input", {
         cls: "re-input",
         attr: { "data-basic": key },
       });
       inp.value = value;
+      inp.addEventListener("input", () => {
+        (this.model as unknown as Record<string, string>)[key] = inp.value;
+        this.renderPreview();
+        this.scheduleSave();
+      });
     }
   }
 
