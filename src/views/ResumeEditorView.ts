@@ -197,7 +197,7 @@ export class ResumeEditorView extends ItemView {
 
   private buildModule(sec: ResumeSection): HTMLElement {
     const mod = document.createElement("div");
-    mod.className = "re-module" + (sec.visible ? "" : " re-hidden");
+    mod.className = "re-module" + (sec.collapsed ? " re-collapsed" : "");
     mod.setAttribute("data-id", sec.id);
     mod.setAttribute("data-type", sec.type);
 
@@ -210,14 +210,15 @@ export class ResumeEditorView extends ItemView {
     setIcon(handle, "re-grip-vertical");
 
     const titleWrap = bar.createEl("div", { cls: "re-module-title" });
+    let titleInput: HTMLInputElement | null = null;
     if (sec.type === "custom") {
-      const titleInput = titleWrap.createEl("input", {
+      titleInput = titleWrap.createEl("input", {
         cls: "re-module-title-input",
         attr: { placeholder: t("form.customModule") },
       });
       titleInput.value = sec.title;
       titleInput.addEventListener("input", () => {
-        sec.title = titleInput.value;
+        sec.title = titleInput!.value;
         this.syncFromForm();
       });
     } else {
@@ -230,9 +231,9 @@ export class ResumeEditorView extends ItemView {
       attr: { title: sec.visible ? t("module.hide") : t("module.show") },
     });
     setIcon(hideBtn, sec.visible ? "re-eye" : "re-eye-off");
-    hideBtn.addEventListener("click", () => {
+    hideBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
       sec.visible = !sec.visible;
-      mod.classList.toggle("re-hidden", !sec.visible);
       hideBtn.setAttribute("title", sec.visible ? t("module.hide") : t("module.show"));
       setIcon(hideBtn, sec.visible ? "re-eye" : "re-eye-off");
       this.renderPreview();
@@ -249,7 +250,8 @@ export class ResumeEditorView extends ItemView {
       delBtn.addClass("re-disabled");
       delBtn.setAttribute("title", t("module.basicNoDelete"));
     } else {
-      delBtn.addEventListener("click", () => {
+      delBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
         this.model.sections = this.model.sections.filter((s) => s.id !== sec.id);
         this.renderModules();
         this.renderPreview();
@@ -257,8 +259,31 @@ export class ResumeEditorView extends ItemView {
       });
     }
 
+    // 标题栏空白处点击：折叠/展开当前模块；展开时自动折叠其他模块（手风琴）
+    bar.addEventListener("click", (e) => {
+      const target = e.target as HTMLElement;
+      if (
+        target.closest(".re-module-actions") ||
+        target.closest(".re-drag-handle") ||
+        target === titleInput
+      ) {
+        return;
+      }
+      sec.collapsed = !sec.collapsed;
+      if (!sec.collapsed) {
+        // 手风琴效果：仅保留当前模块展开
+        for (const s of this.model.sections) {
+          if (s.id !== sec.id) s.collapsed = true;
+        }
+        this.renderModules();
+      } else {
+        mod.classList.toggle("re-collapsed", sec.collapsed);
+      }
+      this.scheduleSave();
+    });
+
     const body = mod.createEl("div", { cls: "re-module-body" });
-  this.buildModuleContent(sec, body);
+    this.buildModuleContent(sec, body);
 
     return mod;
   }
@@ -343,7 +368,7 @@ export class ResumeEditorView extends ItemView {
       const item = menu.createEl("div", { cls: "re-add-item", text: c.label });
       item.addEventListener("click", () => {
         const id = c.type === "custom" ? "custom-" + Date.now().toString(36) : c.type;
-        this.model.sections.push({ id, type: c.type, visible: true, title: "", content: "" });
+        this.model.sections.push({ id, type: c.type, visible: true, collapsed: false, title: "", content: "" });
         this.renderModules();
         this.renderPreview();
         this.scheduleSave();

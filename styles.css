@@ -551,14 +551,13 @@
   overflow: hidden;
 }
 
-.re-module.re-hidden .re-module-body {
+.re-module.re-collapsed .re-module-body {
   display: none;
 }
 
-.re-module.re-hidden .re-module-title,
-.re-module.re-hidden .re-module-title-input {
+.re-module.re-collapsed .re-module-title,
+.re-module.re-collapsed .re-module-title-input {
   color: var(--text-faint);
-  text-decoration: line-through;
 }
 
 .re-module.re-dragging {
@@ -572,6 +571,8 @@
   padding: 6px 10px;
   background: var(--background-secondary);
   border-bottom: 1px solid var(--background-modifier-border);
+  cursor: pointer;
+  user-select: none;
 }
 
 .re-drag-handle {

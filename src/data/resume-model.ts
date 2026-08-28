@@ -29,13 +29,15 @@ export interface ResumeCustomField {
   visible: boolean;
 }
 
-/** 模块配置：控制顺序与预览/导出的可见性 */
+/** 模块配置：控制顺序、预览/导出可见性与编辑区折叠 */
 export interface ResumeSection {
   /** 唯一标识。内置模块用 type；自定义模块用随机 id */
   id: string;
   type: SectionType;
-  /** 是否在预览与导出时显示 */
+  /** 是否在右侧预览与导出时显示 */
   visible: boolean;
+  /** 左侧编辑区是否折叠 */
+  collapsed: boolean;
   /** 自定义模块标题（仅 custom 类型生效） */
   title: string;
   /** 自定义模块正文（仅 custom 类型生效，每行一条） */
@@ -52,11 +54,11 @@ export const SECTION_TITLE_KEY: Record<Exclude<SectionType, "custom">, string> =
 };
 
 export const DEFAULT_SECTIONS: ResumeSection[] = [
-  { id: "basic", type: "basic", visible: true, title: "", content: "" },
-  { id: "education", type: "education", visible: true, title: "", content: "" },
-  { id: "work", type: "work", visible: true, title: "", content: "" },
-  { id: "projects", type: "projects", visible: true, title: "", content: "" },
-  { id: "skills", type: "skills", visible: true, title: "", content: "" },
+  { id: "basic", type: "basic", visible: true, collapsed: false, title: "", content: "" },
+  { id: "education", type: "education", visible: true, collapsed: false, title: "", content: "" },
+  { id: "work", type: "work", visible: true, collapsed: false, title: "", content: "" },
+  { id: "projects", type: "projects", visible: true, collapsed: false, title: "", content: "" },
+  { id: "skills", type: "skills", visible: true, collapsed: false, title: "", content: "" },
 ];
 
 export interface ResumeData {
@@ -162,7 +164,7 @@ export function parseResume(
       dedup.push(s);
     }
     if (!dedup.some((s) => s.type === "basic")) {
-      dedup.unshift({ id: "basic", type: "basic", visible: true, title: "", content: "" });
+      dedup.unshift({ id: "basic", type: "basic", visible: true, collapsed: false, title: "", content: "" });
     }
     sections = dedup;
   } else {
@@ -200,15 +202,16 @@ function asSection(raw: unknown): ResumeSection | null {
   const allowed: SectionType[] = ["basic", "education", "work", "projects", "skills", "custom"];
   if (typeof type !== "string" || !allowed.includes(type as SectionType)) return null;
   const visible = typeof o.visible === "boolean" ? o.visible : true;
+  const collapsed = typeof o.collapsed === "boolean" ? o.collapsed : false;
   const title = typeof o.title === "string" ? o.title : "";
   const content = typeof o.content === "string" ? o.content : "";
   const id = typeof o.id === "string" && o.id ? o.id : (type as string);
-  return { id, type: type as SectionType, visible, title, content };
+  return { id, type: type as SectionType, visible, collapsed, title, content };
 }
 
 export function toFrontmatter(data: ResumeData): Record<string, unknown> {
   const sections = data.sections.map((s) => {
-    const base: Record<string, unknown> = { id: s.id, type: s.type, visible: s.visible };
+    const base: Record<string, unknown> = { id: s.id, type: s.type, visible: s.visible, collapsed: s.collapsed };
     if (s.type === "custom") {
       base.title = s.title;
       base.content = s.content;
