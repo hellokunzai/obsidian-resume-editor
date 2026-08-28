@@ -4,6 +4,7 @@ import { App, Notice } from "obsidian";
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, BorderStyle } from "docx";
 import { ResumeData, ResumeEntry, TemplateId, visibleEntries, formatEntryTime } from "../data/resume-model";
 import { t } from "../i18n";
+import { splitSkills } from "../render/template";
 
 function entryParagraphs(title: string, entries: ResumeEntry[]): Paragraph[] {
   const out: Paragraph[] = [];
@@ -129,7 +130,9 @@ export async function exportDocx(
         }
       } else {
         children.push(new Paragraph({ text: t("form.skills"), heading: HeadingLevel.HEADING_1 }));
-        children.push(new Paragraph({ text: data.skills }));
+        for (const line of splitSkills(data.skills)) {
+          children.push(new Paragraph({ text: "• " + line, bullet: { level: 0 } }));
+        }
       }
     } else if (sec.type === "education") {
       children.push(...(classic ? classicEntryParagraphs : entryParagraphs)(t("form.education"), data.education));

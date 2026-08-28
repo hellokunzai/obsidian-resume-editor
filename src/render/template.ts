@@ -173,7 +173,7 @@ function renderHeaderDom(
 
 /* ---------- Classic 模板（迁移自 magic-resume） ---------- */
 
-function splitSkills(skills: string): string[] {
+export function splitSkills(skills: string): string[] {
   if (!skills.trim()) return [];
   const out: string[] = [];
   for (const line of skills.split("\n")) {
@@ -260,9 +260,11 @@ function renderSkillsClassic(parent: HTMLElement, skills: string): void {
 }
 
 function renderSkills(parent: HTMLElement, skills: string): void {
-  if (!skills.trim()) return;
+  const lines = splitSkills(skills);
+  if (!lines.length) return;
   parent.createEl("h3", { cls: "r-sec", text: t("form.skills") });
-  parent.createEl("div", { cls: "r-skills", text: skills });
+  const ul = parent.createEl("ul", { cls: "r-skills-list" });
+  for (const l of lines) ul.createEl("li", { text: l });
 }
 
 function renderCustomClassic(parent: HTMLElement, sec: ResumeSection): void {
@@ -483,8 +485,11 @@ function skillsHtmlClassic(skills: string): string {
 }
 
 function skillsHtml(skills: string): string {
-  if (!skills.trim()) return "";
-  return `<h3 class="r-sec">${esc(t("form.skills"))}</h3><div class="r-skills">${esc(skills)}</div>`;
+  const lines = splitSkills(skills);
+  if (!lines.length) return "";
+  return `<h3 class="r-sec">${esc(t("form.skills"))}</h3><ul class="r-skills-list">${lines
+    .map((l) => `<li>${esc(l)}</li>`)
+    .join("")}</ul>`;
 }
 
 function customHtmlClassic(sec: ResumeSection): string {

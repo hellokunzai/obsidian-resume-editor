@@ -3,6 +3,7 @@
 import { App, Notice } from "obsidian";
 import { ResumeData, ResumeEntry, TemplateId, visibleEntries, formatEntryTime } from "../data/resume-model";
 import { t } from "../i18n";
+import { splitSkills } from "../render/template";
 
 function escTex(s: string): string {
   return s
@@ -96,7 +97,9 @@ export async function exportLatex(
         }
       } else {
         bodyLines.push(`\\subsection*{${escTex(t("form.skills"))}}`);
-        bodyLines.push(escTex(data.skills));
+        for (const line of splitSkills(data.skills)) {
+          bodyLines.push("\\quad\\textbullet\\; " + escTex(line));
+        }
       }
     } else if (sec.type === "education") {
       bodyLines.push(entryTex(t("form.education"), data.education, classic));
