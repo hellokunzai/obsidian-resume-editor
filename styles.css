@@ -447,22 +447,39 @@
   color: var(--text-normal);
 }
 
-/* header：头像 + 姓名/岗位 + 联系信息整体布局 */
+/* header：头像 / 姓名岗位 / 联系信息 三栏布局 */
 .re-paper .r-header {
   display: grid;
   align-items: center;
   gap: 24px;
-  margin-bottom: 18px;
+  margin-bottom: 22px;
 }
 
+/* left：头像 | 姓名岗位 | 联系信息 */
 .re-paper .r-header.r-layout-left {
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto 1fr auto;
+}
+.re-paper .r-header.r-layout-left .r-header-text {
+  justify-self: start;
 }
 
+/* right：联系信息 | 姓名岗位（右对齐）| 头像（最右） */
 .re-paper .r-header.r-layout-right {
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr auto auto;
+}
+.re-paper .r-header.r-layout-right .r-contact-grid {
+  order: 1;
+}
+.re-paper .r-header.r-layout-right .r-header-text {
+  order: 2;
+  justify-self: end;
+  text-align: right;
+}
+.re-paper .r-header.r-layout-right .r-avatar {
+  order: 3;
 }
 
+/* top：头像在上居中，姓名岗位居中，联系信息水平流式排列并自动换行 */
 .re-paper .r-header.r-layout-top {
   display: flex;
   flex-direction: column;
@@ -471,16 +488,8 @@
   gap: 14px;
 }
 
-.re-paper .r-header-main {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+.re-paper .r-header-text {
   min-width: 0;
-}
-
-.re-paper .r-header.r-layout-top .r-header-main {
-  flex-direction: column;
-  gap: 10px;
 }
 
 .re-paper .r-avatar {
@@ -511,15 +520,23 @@
 
 .re-paper .r-contact-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, auto));
   gap: 8px 18px;
   font-size: 12px;
   color: var(--text-muted);
 }
 
 .re-paper .r-header.r-layout-top .r-contact-grid {
-  grid-template-columns: repeat(auto-fit, minmax(140px, auto));
+  display: flex;
+  flex-wrap: wrap;
   justify-content: center;
+  gap: 8px 22px;
+  width: 100%;
+}
+
+.re-paper .r-header.r-layout-top .r-contact-item {
+  flex: 0 1 auto;
+  white-space: nowrap;
 }
 
 .re-paper .r-contact-item {
@@ -825,17 +842,37 @@
 
 .re-paper.re-classic .r-header-classic {
   display: grid;
-  grid-template-columns: auto 1fr;
   align-items: center;
   gap: 24px;
   margin-bottom: 18px;
 }
 
-.re-paper.re-classic .r-header-main {
+.re-paper.re-classic .r-header.r-layout-left {
+  grid-template-columns: auto 1fr auto;
+}
+.re-paper.re-classic .r-header.r-layout-left .r-header-text {
+  justify-self: start;
+}
+.re-paper.re-classic .r-header.r-layout-right {
+  grid-template-columns: 1fr auto auto;
+}
+.re-paper.re-classic .r-header.r-layout-right .r-contact-grid {
+  order: 1;
+}
+.re-paper.re-classic .r-header.r-layout-right .r-header-text {
+  order: 2;
+  justify-self: end;
+  text-align: right;
+}
+.re-paper.re-classic .r-header.r-layout-right .r-avatar {
+  order: 3;
+}
+.re-paper.re-classic .r-header.r-layout-top {
   display: flex;
+  flex-direction: column;
   align-items: center;
+  text-align: center;
   gap: 14px;
-  min-width: 0;
 }
 
 .re-paper.re-classic .r-avatar {
@@ -866,6 +903,14 @@
   gap: 6px 20px;
   font-size: 12px;
   color: var(--text-muted);
+}
+
+.re-paper.re-classic .r-header.r-layout-top .r-contact-grid-classic {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 20px;
+  width: 100%;
 }
 
 .re-paper.re-classic .r-cic-classic {

@@ -135,10 +135,10 @@ function renderHeaderDom(
   const header = paper.createDiv({ cls: `r-header r-layout-${data.layout}` });
   const avatarUrl = resolveAvatarUrl(app, data.avatar);
 
-  const main = header.createDiv({ cls: "r-header-main" });
-  if (avatarUrl) main.createEl("img", { cls: "r-avatar", attr: { src: avatarUrl } });
+  // 头像、姓名岗位、联系信息为三个并列子元素，由 CSS 控制排布
+  if (avatarUrl) header.createEl("img", { cls: "r-avatar", attr: { src: avatarUrl } });
 
-  const headText = main.createDiv({ cls: "r-header-text" });
+  const headText = header.createDiv({ cls: "r-header-text" });
   headText.createEl("div", { cls: "r-name", text: data.name || " " });
   if (data.role) headText.createEl("div", { cls: "r-role", text: data.role });
 
@@ -181,12 +181,11 @@ function renderHeaderClassic(
   data: ResumeData,
   app?: App
 ): void {
-  const header = paper.createDiv({ cls: "r-header r-header-classic" });
-  const main = header.createDiv({ cls: "r-header-main" });
+  const header = paper.createDiv({ cls: `r-header r-header-classic r-layout-${data.layout}` });
   const avatarUrl = resolveAvatarUrl(app, data.avatar);
-  if (avatarUrl) main.createEl("img", { cls: "r-avatar", attr: { src: avatarUrl } });
+  if (avatarUrl) header.createEl("img", { cls: "r-avatar", attr: { src: avatarUrl } });
 
-  const headText = main.createDiv({ cls: "r-header-text" });
+  const headText = header.createDiv({ cls: "r-header-text" });
   headText.createEl("div", { cls: "r-name", text: data.name || " " });
   if (data.role) headText.createEl("div", { cls: "r-role", text: data.role });
 
@@ -358,12 +357,10 @@ function headerHtml(data: ResumeData, app?: App): string {
   const role = data.role ? `<div class="r-role">${esc(data.role)}</div>` : "";
   return `
     <div class="r-header r-layout-${esc(data.layout)}">
-      <div class="r-header-main">
-        ${avatar}
-        <div class="r-header-text">
-          <div class="r-name">${esc(data.name || " ")}</div>
-          ${role}
-        </div>
+      ${avatar}
+      <div class="r-header-text">
+        <div class="r-name">${esc(data.name || " ")}</div>
+        ${role}
       </div>
       ${contactGrid}
     </div>
@@ -387,13 +384,11 @@ function headerHtmlClassic(data: ResumeData, app?: App): string {
   const avatar = avatarUrl ? `<img class="r-avatar" src="${esc(avatarUrl)}">` : "";
   const role = data.role ? `<div class="r-role">${esc(data.role)}</div>` : "";
   return `
-    <div class="r-header r-header-classic">
-      <div class="r-header-main">
-        ${avatar}
-        <div class="r-header-text">
-          <div class="r-name">${esc(data.name || " ")}</div>
-          ${role}
-        </div>
+    <div class="r-header r-header-classic r-layout-${esc(data.layout)}">
+      ${avatar}
+      <div class="r-header-text">
+        <div class="r-name">${esc(data.name || " ")}</div>
+        ${role}
       </div>
       ${contactGrid}
     </div>
@@ -508,20 +503,21 @@ body{margin:0;font-family:"PingFang SC","Microsoft YaHei",-apple-system,"Segoe U
 .re-paper{background:#fff;width:100%;max-width:720px;margin:0 auto;padding:30px 36px;min-height:900px;}
 
 /* header 布局 */
-.re-paper .r-header{display:grid;align-items:center;gap:24px;margin-bottom:18px;}
-.re-paper .r-header.r-layout-left{grid-template-columns:auto 1fr;}
-.re-paper .r-header.r-layout-right{grid-template-columns:1fr auto;}
+.re-paper .r-header{display:grid;align-items:center;gap:24px;margin-bottom:22px;}
+.re-paper .r-header.r-layout-left{grid-template-columns:auto 1fr auto;}
+.re-paper .r-header.r-layout-left .r-header-text{justify-self:start;}
+.re-paper .r-header.r-layout-right{grid-template-columns:1fr auto auto;}
+.re-paper .r-header.r-layout-right .r-contact-grid{order:1;}
+.re-paper .r-header.r-layout-right .r-header-text{order:2;justify-self:end;text-align:right;}
+.re-paper .r-header.r-layout-right .r-avatar{order:3;}
 .re-paper .r-header.r-layout-top{display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;}
-.re-paper .r-header-main{display:flex;align-items:center;gap:12px;min-width:0;}
-.re-paper .r-header.r-layout-top .r-header-main{flex-direction:column;gap:10px;}
-
-.re-paper .r-avatar{width:90px;height:110px;object-fit:cover;border-radius:8px;border:1px solid #e0e0e0;flex:none;}
 .re-paper .r-header-text{min-width:0;}
+.re-paper .r-avatar{width:90px;height:110px;object-fit:cover;border-radius:8px;border:1px solid #e0e0e0;flex:none;}
 .re-paper .r-name{font-size:26px;font-weight:700;margin:0 0 2px;}
 .re-paper .r-role{color:#666;font-size:13px;}
-
-.re-paper .r-contact-grid{display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:8px 18px;font-size:12px;color:#555;}
-.re-paper .r-header.r-layout-top .r-contact-grid{grid-template-columns:repeat(auto-fit, minmax(140px, auto));justify-content:center;}
+.re-paper .r-contact-grid{display:grid;grid-template-columns:repeat(2, minmax(0, auto));gap:8px 18px;font-size:12px;color:#555;}
+.re-paper .r-header.r-layout-top .r-contact-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 22px;width:100%;}
+.re-paper .r-header.r-layout-top .r-contact-item{flex:0 1 auto;white-space:nowrap;}
 .re-paper .r-contact-item{display:flex;align-items:center;gap:5px;min-width:0;}
 .re-paper .r-ci-icon{flex:none;width:14px;height:14px;display:inline-flex;align-items:center;justify-content:center;}
 .re-paper .r-ci-icon svg{width:14px;height:14px;display:block;}
@@ -544,12 +540,19 @@ body{margin:0;font-family:"PingFang SC","Microsoft YaHei",-apple-system,"Segoe U
 .re-paper.re-academic .r-name{text-align:center;border-bottom:3px double #333;padding-bottom:6px;}
 
 /* ===== Classic 模板（迁移自 magic-resume） ===== */
-.re-paper.re-classic .r-header-classic{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:24px;margin-bottom:18px;}
-.re-paper.re-classic .r-header-main{display:flex;align-items:center;gap:14px;min-width:0;}
+.re-paper.re-classic .r-header-classic{display:grid;align-items:center;gap:24px;margin-bottom:18px;}
+.re-paper.re-classic .r-header.r-layout-left{grid-template-columns:auto 1fr auto;}
+.re-paper.re-classic .r-header.r-layout-left .r-header-text{justify-self:start;}
+.re-paper.re-classic .r-header.r-layout-right{grid-template-columns:1fr auto auto;}
+.re-paper.re-classic .r-header.r-layout-right .r-contact-grid{order:1;}
+.re-paper.re-classic .r-header.r-layout-right .r-header-text{order:2;justify-self:end;text-align:right;}
+.re-paper.re-classic .r-header.r-layout-right .r-avatar{order:3;}
+.re-paper.re-classic .r-header.r-layout-top{display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;}
 .re-paper.re-classic .r-avatar{width:88px;height:112px;object-fit:cover;border-radius:6px;border:1px solid #e0e0e0;flex:none;}
 .re-paper.re-classic .r-name{font-size:26px;font-weight:700;margin:0 0 2px;color:#1a1a1a;}
 .re-paper.re-classic .r-role{color:#555;font-size:13px;}
 .re-paper.re-classic .r-contact-grid-classic{display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:6px 20px;font-size:12px;color:#444;}
+.re-paper.re-classic .r-header.r-layout-top .r-contact-grid-classic{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 20px;width:100%;}
 .re-paper.re-classic .r-cic-classic{display:flex;align-items:center;gap:6px;min-width:0;}
 .re-paper.re-classic .r-cic-classic .r-ci-icon{width:14px;height:14px;flex:none;color:#222;display:inline-flex;align-items:center;justify-content:center;}
 .re-paper.re-classic .r-cic-classic .r-ci-icon svg{width:14px;height:14px;display:block;}

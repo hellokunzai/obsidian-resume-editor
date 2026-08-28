@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>简历头部布局原型</title>
+  <style>
+    :root {
+      --bg-primary: #ffffff;
+      --bg-secondary: #f6f7f8;
+      --bg-hover: #eceef0;
+      --border: #e2e4e7;
+      --border-hover: #cdd0d5;
+      --accent: #7c5cff;
+      --accent-text: #ffffff;
+      --text-normal: #222226;
+      --text-muted: #5c5f66;
+      --text-faint: #8a8e94;
+      --radius: 8px;
+      --shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "PingFang SC", "Microsoft YaHei", -apple-system, "Segoe UI", sans-serif;
+      background: var(--bg-secondary);
+      color: var(--text-normal);
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .proto-root {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      height: 100vh;
+    }
+
+    /* ===== 左侧控制面板 ===== */
+    .proto-panel {
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border);
+      padding: 24px 16px;
+      overflow: auto;
+    }
+
+    .proto-section-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 18px;
+      color: var(--text-normal);
+    }
+
+    .proto-section-title svg {
+      width: 18px;
+      height: 18px;
+      color: var(--accent);
+    }
+
+    .proto-label {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .proto-layout-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .proto-layout-btn {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 44px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg-primary);
+      cursor: pointer;
+      padding: 0;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .proto-layout-btn:hover {
+      border-color: var(--border-hover);
+      background: var(--bg-hover);
+    }
+
+    .proto-layout-btn.proto-on {
+      border-color: var(--accent);
+      background: rgba(124, 92, 255, 0.08);
+    }
+
+    .proto-layout-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      color: var(--text-muted);
+    }
+
+    .proto-layout-btn.proto-on .proto-layout-icon {
+      color: var(--accent);
+    }
+
+    .proto-layout-icon::before,
+    .proto-layout-icon::after {
+      content: "";
+      display: block;
+      background: currentColor;
+    }
+
+    /* left: 圆点 + 横线 */
+    .proto-layout-left::before {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    .proto-layout-left::after {
+      width: 20px;
+      height: 3px;
+      border-radius: 1.5px;
+    }
+
+    /* top: 圆点在上，横线在下 */
+    .proto-layout-top {
+      flex-direction: column;
+      gap: 4px !important;
+    }
+    .proto-layout-top::before {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    .proto-layout-top::after {
+      width: 20px;
+      height: 3px;
+      border-radius: 1.5px;
+    }
+
+    /* right: 横线 + 圆点 */
+    .proto-layout-right::before {
+      width: 20px;
+      height: 3px;
+      border-radius: 1.5px;
+    }
+    .proto-layout-right::after {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    /* ===== 右侧预览区 ===== */
+    .proto-preview {
+      padding: 24px;
+      overflow: auto;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
+    .proto-paper {
+      width: 100%;
+      max-width: 720px;
+      min-height: 900px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      padding: 36px 40px;
+    }
+
+    /* ===== 简历头部（目标样式） ===== */
+    .r-header {
+      display: grid;
+      align-items: center;
+      gap: 24px;
+      margin-bottom: 22px;
+    }
+
+    /* left: 头像 | 姓名岗位 | 联系信息 */
+    .r-header.r-layout-left {
+      grid-template-columns: auto 1fr auto;
+    }
+    .r-header.r-layout-left .r-header-text {
+      justify-self: start;
+    }
+
+    /* right: 联系信息 | 姓名岗位 | 头像（头像在最右列，姓名岗位右对齐紧贴头像） */
+    .r-header.r-layout-right {
+      grid-template-columns: 1fr auto auto;
+    }
+    .r-header.r-layout-right .r-contact-grid {
+      order: 1;
+    }
+    .r-header.r-layout-right .r-header-text {
+      order: 2;
+      justify-self: end;
+      text-align: right;
+    }
+    .r-header.r-layout-right .r-avatar {
+      order: 3;
+    }
+
+    /* top: 头像在上居中，姓名岗位居中，联系信息水平流式排列并自动换行 */
+    .r-header.r-layout-top {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 14px;
+    }
+
+    .r-header-text {
+      min-width: 0;
+    }
+
+    .r-avatar {
+      width: 90px;
+      height: 110px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      flex: none;
+      background: var(--bg-secondary);
+    }
+
+    .r-header-text {
+      min-width: 0;
+    }
+
+    .r-name {
+      font-size: 26px;
+      font-weight: 700;
+      margin: 0 0 3px;
+      color: var(--text-normal);
+    }
+
+    .r-role {
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    .r-contact-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, auto));
+      gap: 8px 22px;
+      font-size: 12px;
+      color: var(--text-muted);
+      justify-items: start;
+    }
+
+    .r-header.r-layout-top .r-contact-grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px 22px;
+      width: 100%;
+    }
+
+    .r-header.r-layout-top .r-contact-item {
+      flex: 0 1 auto;
+      white-space: nowrap;
+    }
+
+    .r-contact-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      white-space: nowrap;
+    }
+
+    .r-ci-icon {
+      flex: none;
+      width: 14px;
+      height: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+    }
+
+    .r-ci-icon svg {
+      width: 14px;
+      height: 14px;
+      display: block;
+    }
+
+    .r-ci-value {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ===== 下方内容占位 ===== */
+    .r-sec {
+      font-size: 14px;
+      letter-spacing: 0.04em;
+      border-bottom: 2px solid var(--accent);
+      padding-bottom: 4px;
+      margin: 18px 0 10px;
+      color: var(--text-normal);
+    }
+
+    .r-item {
+      margin-bottom: 12px;
+    }
+
+    .r-item-top {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      margin-bottom: 3px;
+    }
+
+    .r-item-nm {
+      font-weight: 600;
+    }
+
+    .r-item-dt {
+      color: var(--text-faint);
+      font-size: 12px;
+    }
+
+    .r-item-sub {
+      color: var(--text-muted);
+      font-size: 12.5px;
+    }
+
+    .r-item ul {
+      margin: 4px 0 0;
+      padding-left: 18px;
+      font-size: 12.5px;
+      color: var(--text-muted);
+    }
+
+    .r-item li {
+      margin: 2px 0;
+    }
+
+    .proto-note {
+      margin-top: 16px;
+      padding: 10px 12px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .proto-note strong {
+      color: var(--text-normal);
+    }
+  </style>
+</head>
+<body>
+  <div class="proto-root">
+    <aside class="proto-panel">
+      <div class="proto-section-title">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+        基本信息
+      </div>
+
+      <div class="proto-label">布局</div>
+      <div class="proto-layout-row">
+        <button class="proto-layout-btn proto-on" data-layout="left" title="头像在左">
+          <span class="proto-layout-icon proto-layout-left"></span>
+        </button>
+        <button class="proto-layout-btn" data-layout="top" title="头像在上">
+          <span class="proto-layout-icon proto-layout-top"></span>
+        </button>
+        <button class="proto-layout-btn" data-layout="right" title="头像在右">
+          <span class="proto-layout-icon proto-layout-right"></span>
+        </button>
+      </div>
+
+      <div class="proto-note">
+        <strong>原型说明</strong><br>
+        点击上方三个按钮切换右侧预览布局。确认后我再按此样式修改插件代码。<br><br>
+        三种布局分别为：<br>
+        • 头像在左：头像 | 姓名岗位 | 联系信息<br>
+        • 头像在上：头像在上居中，姓名岗位和联系信息在下<br>
+        • 头像在右：联系信息 | 姓名岗位 | 头像
+      </div>
+    </aside>
+
+    <main class="proto-preview">
+      <div class="proto-paper">
+        <div id="resumeHeader" class="r-header r-layout-left">
+          <img class="r-avatar" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='110'%3E%3Crect width='90' height='110' fill='%23e2e4e7'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%238a8e94' font-size='14'%3E头像%3C/text%3E%3C/svg%3E" alt="头像">
+          <div class="r-header-text">
+            <div class="r-name">宋哈娜</div>
+            <div class="r-role">高级前端工程师</div>
+          </div>
+
+          <div class="r-contact-grid">
+            <div class="r-contact-item">
+              <span class="r-ci-icon">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-6 0h-4V4h4v2z"/></svg>
+              </span>
+              <span class="r-ci-value">离职</span>
+            </div>
+            <div class="r-contact-item">
+              <span class="r-ci-icon">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM9 10H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm-8 4H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2z"/></svg>
+              </span>
+              <span class="r-ci-value">2025/01</span>
+            </div>
+            <div class="r-contact-item">
+              <span class="r-ci-icon">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+              </span>
+              <span class="r-ci-value">zhangsan@example.com</span>
+            </div>
+            <div class="r-contact-item">
+              <span class="r-ci-icon">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+              </span>
+              <span class="r-ci-value">13800138000</span>
+            </div>
+            <div class="r-contact-item">
+              <span class="r-ci-icon">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+              </span>
+              <span class="r-ci-value">北京市朝阳区</span>
+            </div>
+            <div class="r-contact-item">
+              <span class="r-ci-icon">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
+              </span>
+              <span class="r-ci-value">https://zhangsan.dev</span>
+            </div>
+          </div>
+        </div>
+
+        <h3 class="r-sec">专业技能</h3>
+        <div class="r-item">
+          <div class="r-item-top">
+            <span class="r-item-nm">前端框架</span>
+          </div>
+          <div class="r-item-sub">熟悉 React、Vue.js，熟悉 Next.js、Nuxt.js 等 SSR 框架</div>
+        </div>
+        <div class="r-item">
+          <div class="r-item-top">
+            <span class="r-item-nm">开发语言</span>
+          </div>
+          <div class="r-item-sub">TypeScript、JavaScript(ES6+)、HTML5、CSS3</div>
+        </div>
+        <div class="r-item">
+          <div class="r-item-top">
+            <span class="r-item-nm">UI/样式</span>
+          </div>
+          <div class="r-item-sub">熟悉 TailwindCSS、Sass/Less、CSS Module、Styled-components</div>
+        </div>
+
+        <h3 class="r-sec">工作经历</h3>
+        <div class="r-item">
+          <div class="r-item-top">
+            <span class="r-item-nm">XX公司</span>
+            <span class="r-item-dt">2021-2023</span>
+          </div>
+          <div class="r-item-sub">高级前端工程师</div>
+          <ul>
+            <li>负责核心产品前端架构设计与性能优化</li>
+            <li>推动组件库建设，提升团队开发效率</li>
+          </ul>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const header = document.getElementById('resumeHeader');
+    const buttons = document.querySelectorAll('.proto-layout-btn');
+
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const layout = btn.dataset.layout;
+
+        buttons.forEach(b => b.classList.remove('proto-on'));
+        btn.classList.add('proto-on');
+
+        header.classList.remove('r-layout-left', 'r-layout-top', 'r-layout-right');
+        header.classList.add('r-layout-' + layout);
+      });
+    });
+  </script>
+</body>
+</html>
