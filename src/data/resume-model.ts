@@ -616,7 +616,7 @@ export function serializeResumeMarkdown(data: ResumeData): string {
     }
   }
 
-  lines.push("## 技能");
+  lines.push("## 专业技能");
   lines.push("");
   lines.push(escapeMarkdown(data.skills) || "（暂无）");
   lines.push("");
@@ -683,7 +683,7 @@ export function parseResumeMarkdown(content: string): ResumeData {
       if (title === "教育经历") currentSection = "education";
       else if (title === "工作经历") currentSection = "work";
       else if (title === "项目经历") currentSection = "projects";
-      else if (title === "技能") currentSection = "skills";
+      else if (title === "专业技能") currentSection = "skills";
       else currentSection = null;
       i++;
       continue;

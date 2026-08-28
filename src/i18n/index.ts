@@ -179,7 +179,7 @@ const translations: Record<string, Record<string, string>> = {
     "form.education": "教育经历",
     "form.work": "工作经历",
     "form.project": "项目经历",
-    "form.skills": "技能",
+    "form.skills": "专业技能",
     "form.customFields": "自定义字段",
 
     "field.name": "姓名",
@@ -206,7 +206,7 @@ const translations: Record<string, Record<string, string>> = {
     "field.projectName": "项目名称",
     "field.position": "职位",
     "field.details": "简介（每行一条）",
-    "field.skills": "技能（逗号分隔）",
+    "field.skills": "专业技能（逗号分隔）",
     "field.cfIcon": "图标",
     "field.cfLabel": "标签",
     "field.cfValue": "值",

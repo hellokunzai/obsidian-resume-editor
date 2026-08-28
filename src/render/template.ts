@@ -259,6 +259,12 @@ function renderSkillsClassic(parent: HTMLElement, skills: string): void {
   for (const l of lines) ul.createEl("li", { text: l });
 }
 
+function renderSkills(parent: HTMLElement, skills: string): void {
+  if (!skills.trim()) return;
+  parent.createEl("h3", { cls: "r-sec", text: t("form.skills") });
+  parent.createEl("div", { cls: "r-skills", text: skills });
+}
+
 function renderCustomClassic(parent: HTMLElement, sec: ResumeSection): void {
   if (!sec.content.trim()) return;
   parent.createEl("h3", { cls: "r-sec r-sec-classic", text: sec.title || t("form.customModule") });
@@ -302,11 +308,8 @@ export function renderResumeDom(
     if (sec.type === "skills") {
       if (template === "classic") {
         renderSkillsClassic(paper, data.skills);
-      } else if (data.skills) {
-        paper.createEl("div", {
-          cls: "r-skills",
-          text: t("form.skills") + "：" + data.skills,
-        });
+      } else {
+        renderSkills(paper, data.skills);
       }
     } else if (sec.type === "education") {
       if (template === "classic") {
@@ -479,6 +482,11 @@ function skillsHtmlClassic(skills: string): string {
     .join("")}</ul>`;
 }
 
+function skillsHtml(skills: string): string {
+  if (!skills.trim()) return "";
+  return `<h3 class="r-sec">${esc(t("form.skills"))}</h3><div class="r-skills">${esc(skills)}</div>`;
+}
+
 function customHtmlClassic(sec: ResumeSection): string {
   if (!sec.content.trim()) return "";
   const title = sec.title || t("form.customModule");
@@ -510,8 +518,8 @@ export function resumeToHtml(data: ResumeData, template: TemplateId, app?: App):
     if (sec.type === "skills") {
       if (template === "classic") {
         parts.push(skillsHtmlClassic(data.skills));
-      } else if (data.skills) {
-        parts.push(`<div class="r-skills">${esc(t("form.skills"))}：${esc(data.skills)}</div>`);
+      } else {
+        parts.push(skillsHtml(data.skills));
       }
     } else if (sec.type === "education") {
       parts.push(

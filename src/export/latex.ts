@@ -95,7 +95,8 @@ export async function exportLatex(
           if (line.trim()) bodyLines.push("\\quad\\textbullet\\; " + escTex(line.trim()));
         }
       } else {
-        bodyLines.push("\\noindent\\textbf{" + escTex(t("form.skills")) + "}：" + escTex(data.skills));
+        bodyLines.push(`\\subsection*{${escTex(t("form.skills"))}}`);
+        bodyLines.push(escTex(data.skills));
       }
     } else if (sec.type === "education") {
       bodyLines.push(entryTex(t("form.education"), data.education, classic));

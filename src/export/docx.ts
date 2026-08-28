@@ -128,7 +128,8 @@ export async function exportDocx(
           if (line.trim()) children.push(new Paragraph({ text: "• " + line.trim(), bullet: { level: 0 } }));
         }
       } else {
-        children.push(new Paragraph({ text: t("form.skills") + "：" + data.skills }));
+        children.push(new Paragraph({ text: t("form.skills"), heading: HeadingLevel.HEADING_1 }));
+        children.push(new Paragraph({ text: data.skills }));
       }
     } else if (sec.type === "education") {
       children.push(...(classic ? classicEntryParagraphs : entryParagraphs)(t("form.education"), data.education));
