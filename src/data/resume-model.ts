@@ -55,10 +55,10 @@ export const SECTION_TITLE_KEY: Record<Exclude<SectionType, "custom">, string> =
 
 export const DEFAULT_SECTIONS: ResumeSection[] = [
   { id: "basic", type: "basic", visible: true, collapsed: false, title: "", content: "" },
-  { id: "education", type: "education", visible: true, collapsed: false, title: "", content: "" },
-  { id: "work", type: "work", visible: true, collapsed: false, title: "", content: "" },
-  { id: "projects", type: "projects", visible: true, collapsed: false, title: "", content: "" },
-  { id: "skills", type: "skills", visible: true, collapsed: false, title: "", content: "" },
+  { id: "education", type: "education", visible: true, collapsed: true, title: "", content: "" },
+  { id: "work", type: "work", visible: true, collapsed: true, title: "", content: "" },
+  { id: "projects", type: "projects", visible: true, collapsed: true, title: "", content: "" },
+  { id: "skills", type: "skills", visible: true, collapsed: true, title: "", content: "" },
 ];
 
 export interface ResumeData {

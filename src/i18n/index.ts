@@ -38,6 +38,7 @@ const translations: Record<string, Record<string, string>> = {
 
     "notice.pickedFolder": "Resume directory set to: {{path}}",
     "notice.saved": "Saved: {{name}}",
+    "notice.imageSelected": "Image selected: {{name}}",
 
     "form.basic": "Basic info",
     "form.education": "Education",
@@ -48,7 +49,7 @@ const translations: Record<string, Record<string, string>> = {
 
     "field.name": "Name",
     "field.layout": "Layout",
-    "field.avatar": "Avatar path",
+    "field.avatar": "Avatar",
     "field.role": "Position",
     "field.phone": "Phone",
     "field.email": "Email",
@@ -74,6 +75,7 @@ const translations: Record<string, Record<string, string>> = {
     "layout.right": "Avatar right",
 
     "btn.save": "Save",
+    "btn.chooseImage": "Choose image",
     "btn.addCustomField": "Add custom field",
     "btn.addEducation": "Add education",
     "btn.addWork": "Add work",
@@ -138,6 +140,7 @@ const translations: Record<string, Record<string, string>> = {
 
     "notice.pickedFolder": "简历目录已设置为：{{path}}",
     "notice.saved": "已保存：{{name}}",
+    "notice.imageSelected": "已选择图片：{{name}}",
 
     "form.basic": "基本信息",
     "form.education": "教育经历",
@@ -148,7 +151,7 @@ const translations: Record<string, Record<string, string>> = {
 
     "field.name": "姓名",
     "field.layout": "布局",
-    "field.avatar": "头像路径",
+    "field.avatar": "头像",
     "field.role": "职位",
     "field.phone": "电话",
     "field.email": "邮箱",
@@ -174,6 +177,7 @@ const translations: Record<string, Record<string, string>> = {
     "layout.right": "头像在右",
 
     "btn.save": "保存",
+    "btn.chooseImage": "选择图片",
     "btn.addCustomField": "添加自定义字段",
     "btn.addEducation": "添加教育",
     "btn.addWork": "添加工作",

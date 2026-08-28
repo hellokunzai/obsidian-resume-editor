@@ -1,6 +1,14 @@
 // 双栏表单视图：左结构化表单、右实时预览（createEl 构造，禁用 innerHTML）
 
-import { ItemView, WorkspaceLeaf, Notice, TFile, setIcon } from "obsidian";
+import {
+  ItemView,
+  WorkspaceLeaf,
+  Notice,
+  TFile,
+  App,
+  FuzzySuggestModal,
+  setIcon,
+} from "obsidian";
 import type ResumeEditorPlugin from "../main";
 import {
   ResumeData,
@@ -15,7 +23,7 @@ import {
   readResume,
   writeResume,
 } from "../data/resume-model";
-import { renderResumeDom } from "../render/template";
+import { renderResumeDom, resolveAvatarUrl } from "../render/template";
 import { t } from "../i18n";
 import {
   CUSTOM_FIELD_ICON_KEYS,
@@ -29,6 +37,32 @@ import { exportDocx } from "../export/docx";
 import { exportLatex } from "../export/latex";
 
 export const VIEW_TYPE_RESUME = "resume-editor-view";
+
+const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg"]);
+
+class ImagePickerModal extends FuzzySuggestModal<TFile> {
+  private onPick: (file: TFile) => void;
+
+  constructor(app: App, onPick: (file: TFile) => void) {
+    super(app);
+    this.onPick = onPick;
+    this.setPlaceholder(t("btn.chooseImage"));
+  }
+
+  getItems(): TFile[] {
+    return this.app.vault.getFiles().filter((file) =>
+      IMAGE_EXTENSIONS.has(file.extension.toLowerCase())
+    );
+  }
+
+  getItemText(file: TFile): string {
+    return file.path;
+  }
+
+  onChooseItem(file: TFile): void {
+    this.onPick(file);
+  }
+}
 
 interface SectionCfg {
   org: string;
@@ -346,7 +380,7 @@ export class ResumeEditorView extends ItemView {
       });
     });
 
-    this.basicField(parent, "field.avatar", "avatar", this.model.avatar);
+    this.avatarField(parent);
     this.basicField(parent, "field.name", "name", this.model.name);
     this.basicField(parent, "field.role", "role", this.model.role);
     this.rowField(parent, "field.phone", "phone", this.model.phone, "field.email", "email", this.model.email);
@@ -491,6 +525,66 @@ export class ResumeEditorView extends ItemView {
         attr: { "data-basic": key },
       });
       inp.value = value;
+    }
+  }
+
+  private avatarField(parent: HTMLElement): void {
+    const wrap = parent.createDiv({ cls: "re-field re-avatar-field" });
+    wrap.createEl("span", { text: t("field.avatar") });
+
+    const row = wrap.createDiv({ cls: "re-avatar-row" });
+
+    const inp = row.createEl("input", {
+      cls: "re-input re-avatar-input",
+      attr: {
+        "data-basic": "avatar",
+        placeholder: "vault/path/photo.png 或 https://...",
+      },
+    });
+    inp.value = this.model.avatar;
+
+    const preview = row.createEl("img", {
+      cls: "re-avatar-thumb",
+      attr: { alt: "" },
+    });
+    this.updateAvatarThumb(preview, this.model.avatar);
+
+    const btn = row.createEl("button", {
+      cls: "re-btn re-avatar-btn",
+      attr: { type: "button" },
+      text: t("btn.chooseImage"),
+    });
+
+    const onChange = () => {
+      this.model.avatar = inp.value;
+      this.updateAvatarThumb(preview, inp.value);
+      this.renderPreview();
+      this.scheduleSave();
+    };
+
+    inp.addEventListener("input", onChange);
+    inp.addEventListener("change", onChange);
+
+    btn.addEventListener("click", () => {
+      new ImagePickerModal(this.app, (file) => {
+        inp.value = file.path;
+        this.model.avatar = file.path;
+        this.updateAvatarThumb(preview, file.path);
+        this.renderPreview();
+        this.scheduleSave();
+        new Notice(t("notice.imageSelected", { name: file.name }));
+      }).open();
+    });
+  }
+
+  private updateAvatarThumb(img: HTMLImageElement, avatarPath: string): void {
+    const url = resolveAvatarUrl(this.app, avatarPath);
+    if (url) {
+      img.src = url;
+      img.removeClass("re-avatar-thumb-empty");
+    } else {
+      img.src = "";
+      img.addClass("re-avatar-thumb-empty");
     }
   }
 

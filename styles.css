@@ -141,6 +141,37 @@
   margin-bottom: 2px;
 }
 
+/* 头像字段 */
+.re-avatar-field .re-avatar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.re-avatar-field .re-avatar-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.re-avatar-field .re-avatar-thumb {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  object-fit: cover;
+  border: 1px solid var(--background-modifier-border);
+  flex: none;
+  background: var(--background-secondary);
+}
+
+.re-avatar-field .re-avatar-thumb-empty {
+  display: none;
+}
+
+.re-avatar-field .re-avatar-btn {
+  flex: none;
+  white-space: nowrap;
+}
+
 .re-input,
 .re-textarea,
 .re-select {

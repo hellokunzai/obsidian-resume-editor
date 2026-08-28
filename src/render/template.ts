@@ -1,6 +1,6 @@
 // 模板引擎：ResumeData -> 预览 DOM（createEl 构造，禁用 innerHTML）/ 导出 HTML 字符串
 
-import { App, TFile, setIcon } from "obsidian";
+import { App, TFile, normalizePath, setIcon } from "obsidian";
 import { ResumeData, ResumeEntry, ResumeCustomField, ResumeLayout, TemplateId, ResumeSection } from "../data/resume-model";
 import { t } from "../i18n";
 import {
@@ -30,16 +30,46 @@ function sectionDom(parent: HTMLElement, title: string, entries: ResumeEntry[]):
   }
 }
 
-function resolveAvatarUrl(app: App | undefined, avatarPath: string): string {
+const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg"]);
+
+function isImageFile(file: TFile): boolean {
+  return IMAGE_EXTENSIONS.has(file.extension.toLowerCase());
+}
+
+export function resolveAvatarUrl(app: App | undefined, avatarPath: string): string {
   if (!app || !avatarPath) return "";
-  const f = app.vault.getAbstractFileByPath(avatarPath);
-  if (f && f instanceof TFile) {
+  const trimmed = avatarPath.trim();
+  if (!trimmed) return "";
+
+  // 支持网络图片链接
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+
+  // 支持 vault 内文件路径（使用 normalizePath 兼容 Windows 反斜杠）
+  const normalized = normalizePath(trimmed);
+  const f = app.vault.getAbstractFileByPath(normalized);
+  if (f && f instanceof TFile && isImageFile(f)) {
     try {
       return app.vault.getResourcePath(f);
     } catch {
       return "";
     }
   }
+
+  // 尝试按 basename 模糊匹配（用户可能只输入了文件名）
+  const lowerName = normalized.toLowerCase();
+  const matched = app.vault.getFiles().find(
+    (file) => isImageFile(file) && file.path.toLowerCase().endsWith(lowerName)
+  );
+  if (matched) {
+    try {
+      return app.vault.getResourcePath(matched);
+    } catch {
+      return "";
+    }
+  }
+
   return "";
 }
 
