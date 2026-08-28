@@ -912,7 +912,11 @@ export class ResumeEditorView extends ItemView {
   private buildEntry(parent: HTMLElement, section: string, e: ResumeEntry): void {
     const cfg = SECTION_LABELS[section];
     const entry = parent.createDiv({ cls: "re-entry", attr: { "data-section": section } });
-    const rm = entry.createEl("button", { cls: "re-rm", text: "✕" });
+    const rm = entry.createEl("button", {
+      cls: "re-icon-btn re-rm",
+      attr: { type: "button", title: t("module.delete") },
+    });
+    setIcon(rm, "re-trash");
     rm.addEventListener("click", () => {
       entry.remove();
       this.syncFromForm();
@@ -1070,25 +1074,57 @@ export class ResumeEditorView extends ItemView {
     });
     valueInp.value = f.value;
 
-    const showLabelWrap = row.createDiv({ cls: "re-cf-toggle" });
-    showLabelWrap.createEl("span", { text: t("field.cfShowLabel") });
-    const showLabelCb = showLabelWrap.createEl("input", { attr: { type: "checkbox", "data-cf": "showLabel" } });
+    const actions = row.createDiv({ cls: "re-cf-actions" });
+
+    // 显示标签
+    const showLabelWrap = actions.createDiv({ cls: "re-cf-toggle" });
+    const showLabelCb = showLabelWrap.createEl("input", {
+      attr: { type: "checkbox", "data-cf": "showLabel" },
+    });
     showLabelCb.checked = f.showLabel;
+    const showLabelBtn = showLabelWrap.createEl("button", {
+      cls: "re-icon-btn re-cf-toggle-btn" + (f.showLabel ? " re-on" : ""),
+      attr: { type: "button", title: t("field.cfShowLabel") },
+    });
+    setIcon(showLabelBtn, "re-tag");
+    showLabelBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      showLabelCb.checked = !showLabelCb.checked;
+      showLabelBtn.toggleClass("re-on", showLabelCb.checked);
+      this.syncFromForm();
+    });
 
-    const visibleWrap = row.createDiv({ cls: "re-cf-toggle" });
-    visibleWrap.createEl("span", { text: t("field.cfVisible") });
-    const visibleCb = visibleWrap.createEl("input", { attr: { type: "checkbox", "data-cf": "visible" } });
+    // 可见
+    const visibleWrap = actions.createDiv({ cls: "re-cf-toggle" });
+    const visibleCb = visibleWrap.createEl("input", {
+      attr: { type: "checkbox", "data-cf": "visible" },
+    });
     visibleCb.checked = f.visible;
+    const visibleBtn = visibleWrap.createEl("button", {
+      cls: "re-icon-btn re-cf-toggle-btn" + (f.visible ? " re-on" : ""),
+      attr: { type: "button", title: t("field.cfVisible") },
+    });
+    setIcon(visibleBtn, f.visible ? "re-eye" : "re-eye-off");
+    visibleBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      visibleCb.checked = !visibleCb.checked;
+      visibleBtn.toggleClass("re-on", visibleCb.checked);
+      setIcon(visibleBtn, visibleCb.checked ? "re-eye" : "re-eye-off");
+      this.syncFromForm();
+    });
 
-    const rm = row.createEl("button", { cls: "re-rm", text: "✕" });
+    // 删除
+    const rm = actions.createEl("button", {
+      cls: "re-icon-btn re-cf-rm",
+      attr: { type: "button", title: t("module.delete") },
+    });
+    setIcon(rm, "re-trash");
     rm.addEventListener("click", () => {
       row.remove();
       this.syncFromForm();
     });
 
     row.addEventListener("input", () => this.syncFromForm());
-    showLabelCb.addEventListener("change", () => this.syncFromForm());
-    visibleCb.addEventListener("change", () => this.syncFromForm());
   }
 
   private openIconPicker(

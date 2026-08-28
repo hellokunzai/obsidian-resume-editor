@@ -385,13 +385,9 @@
 
 .re-entry .re-rm {
   position: absolute;
-  top: 5px;
-  right: 7px;
+  top: 4px;
+  right: 4px;
   color: var(--text-faint);
-  cursor: pointer;
-  font-size: var(--font-ui-small, 12px);
-  border: none;
-  background: none;
 }
 
 .re-entry .re-rm:hover {
@@ -584,18 +580,39 @@
   min-width: 80px;
 }
 
+.re-cf-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+
 .re-cf-toggle {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 1px;
-  font-size: var(--font-ui-smaller, 11px);
-  color: var(--text-faint);
-  white-space: nowrap;
+  justify-content: center;
 }
 
 .re-cf-toggle input[type="checkbox"] {
-  margin: 0;
+  display: none;
+}
+
+.re-cf-toggle-btn {
+  color: var(--text-faint);
+}
+
+.re-cf-toggle-btn.re-on {
+  color: var(--interactive-accent);
+  background: var(--background-modifier-active-hover);
+}
+
+.re-cf-rm {
+  color: var(--text-faint);
+}
+
+.re-cf-rm:hover {
+  color: var(--text-error, #d24b4b);
+  background: var(--background-modifier-hover);
 }
 
 .re-btn-block {
