@@ -5,6 +5,42 @@ import { App, TFile } from "obsidian";
 export type TemplateId = "single" | "twoCol" | "academic" | "classic";
 export type ResumeLayout = "left" | "top" | "right";
 
+/** 头像宽高比选项 */
+export type AvatarRatio = "1:1" | "4:5" | "3:4";
+/** 头像圆角样式 */
+export type AvatarRadius = "none" | "sm" | "md" | "lg";
+
+export const AVATAR_RATIO_OPTIONS: AvatarRatio[] = ["1:1", "4:5", "3:4"];
+export const AVATAR_RADIUS_OPTIONS: AvatarRadius[] = ["none", "sm", "md", "lg"];
+
+/** 根据简历数据计算头像的渲染尺寸与圆角，供编辑视图与导出渲染共用 */
+export function computeAvatarStyle(data: ResumeData): {
+  width: number;
+  height: number;
+  radius: string;
+} {
+  const size =
+    typeof data.avatarSize === "number" && isFinite(data.avatarSize)
+      ? Math.min(240, Math.max(40, Math.round(data.avatarSize)))
+      : 90;
+  const ratio = AVATAR_RATIO_OPTIONS.includes(data.avatarAspectRatio)
+    ? data.avatarAspectRatio
+    : "4:5";
+  const [aw, ah] = ratio.split(":").map(Number);
+  const width = size;
+  const height = aw && ah ? Math.round((size * ah) / aw) : size;
+  const radiusMap: Record<AvatarRadius, string> = {
+    none: "0",
+    sm: "6px",
+    md: "14px",
+    lg: "999px",
+  };
+  const radiusKey = AVATAR_RADIUS_OPTIONS.includes(data.avatarRadius)
+    ? data.avatarRadius
+    : "sm";
+  return { width, height, radius: radiusMap[radiusKey] };
+}
+
 /** 模块类型：内置固定模块 + 用户自定义模块 */
 export type SectionType =
   | "basic"
@@ -74,6 +110,12 @@ export interface ResumeData {
   birthDate: string;
   layout: ResumeLayout;
   avatar: string;
+  /** 头像尺寸（像素，作为宽度基准） */
+  avatarSize: number;
+  /** 头像宽高比 */
+  avatarAspectRatio: AvatarRatio;
+  /** 头像圆角样式 */
+  avatarRadius: AvatarRadius;
   customFields: ResumeCustomField[];
   education: ResumeEntry[];
   work: ResumeEntry[];
@@ -96,6 +138,9 @@ export const DEFAULT_RESUME: ResumeData = {
   birthDate: "",
   layout: "left",
   avatar: "",
+  avatarSize: 90,
+  avatarAspectRatio: "4:5",
+  avatarRadius: "sm",
   customFields: [],
   education: [],
   work: [],
@@ -152,6 +197,12 @@ function isLayout(v: unknown): v is ResumeLayout {
   return v === "left" || v === "top" || v === "right";
 }
 
+function asNumber(v: unknown, fallback: number): number {
+  if (typeof v === "number" && isFinite(v)) return v;
+  if (typeof v === "string" && v.trim() !== "" && !isNaN(Number(v))) return Number(v);
+  return fallback;
+}
+
 export function parseResume(
   fm: Record<string, unknown> | undefined | null
 ): ResumeData {
@@ -190,6 +241,13 @@ export function parseResume(
     birthDate: typeof fm.birthDate === "string" ? fm.birthDate : "",
     layout,
     avatar: typeof fm.avatar === "string" ? fm.avatar : "",
+    avatarSize: asNumber(fm.avatarSize, DEFAULT_RESUME.avatarSize),
+    avatarAspectRatio: AVATAR_RATIO_OPTIONS.includes(fm.avatarAspectRatio as AvatarRatio)
+      ? (fm.avatarAspectRatio as AvatarRatio)
+      : DEFAULT_RESUME.avatarAspectRatio,
+    avatarRadius: AVATAR_RADIUS_OPTIONS.includes(fm.avatarRadius as AvatarRadius)
+      ? (fm.avatarRadius as AvatarRadius)
+      : DEFAULT_RESUME.avatarRadius,
     customFields: asCustomFields(fm.customFields),
     education: asEntries(fm.education),
     work: asEntries(fm.work),
@@ -241,6 +299,9 @@ export function toFrontmatter(data: ResumeData): Record<string, unknown> {
     birthDate: data.birthDate,
     layout: data.layout,
     avatar: data.avatar,
+    avatarSize: data.avatarSize,
+    avatarAspectRatio: data.avatarAspectRatio,
+    avatarRadius: data.avatarRadius,
     sections,
     customFields: data.customFields.map(cloneCustomField),
     education: data.education.map(cloneEntry),
@@ -316,6 +377,9 @@ function serializeConfig(data: ResumeData): string {
     "<!-- obsidian-resume-editor",
     `layout: ${data.layout}`,
     `avatar: ${data.avatar}`,
+    `avatarSize: ${data.avatarSize}`,
+    `avatarAspectRatio: ${data.avatarAspectRatio}`,
+    `avatarRadius: ${data.avatarRadius}`,
     `employmentStatus: ${data.employmentStatus}`,
     `location: ${data.location}`,
     `birthDate: ${data.birthDate}`,
@@ -337,6 +401,21 @@ function parseConfig(content: string): Partial<ResumeData> {
     }
     const avatarMatch = line.match(/^avatar:\s*(.*)$/);
     if (avatarMatch) cfg.avatar = avatarMatch[1].trim();
+    const sizeMatch = line.match(/^avatarSize:\s*(.*)$/);
+    if (sizeMatch) {
+      const n = Number(sizeMatch[1].trim());
+      if (isFinite(n)) cfg.avatarSize = n;
+    }
+    const ratioMatch = line.match(/^avatarAspectRatio:\s*(.*)$/);
+    if (ratioMatch) {
+      const v = ratioMatch[1].trim();
+      if (AVATAR_RATIO_OPTIONS.includes(v as AvatarRatio)) cfg.avatarAspectRatio = v as AvatarRatio;
+    }
+    const radiusMatch = line.match(/^avatarRadius:\s*(.*)$/);
+    if (radiusMatch) {
+      const v = radiusMatch[1].trim();
+      if (AVATAR_RADIUS_OPTIONS.includes(v as AvatarRadius)) cfg.avatarRadius = v as AvatarRadius;
+    }
     const esMatch = line.match(/^employmentStatus:\s*(.*)$/);
     if (esMatch) cfg.employmentStatus = esMatch[1].trim();
     const locMatch = line.match(/^location:\s*(.*)$/);
@@ -406,6 +485,9 @@ export function parseResumeMarkdown(content: string): ResumeData {
   const cfg = parseConfig(content);
   if (cfg.layout) data.layout = cfg.layout;
   if (cfg.avatar !== undefined) data.avatar = cfg.avatar;
+  if (cfg.avatarSize !== undefined) data.avatarSize = cfg.avatarSize;
+  if (cfg.avatarAspectRatio !== undefined) data.avatarAspectRatio = cfg.avatarAspectRatio;
+  if (cfg.avatarRadius !== undefined) data.avatarRadius = cfg.avatarRadius;
   if (cfg.employmentStatus !== undefined) data.employmentStatus = cfg.employmentStatus;
   if (cfg.location !== undefined) data.location = cfg.location;
   if (cfg.birthDate !== undefined) data.birthDate = cfg.birthDate;

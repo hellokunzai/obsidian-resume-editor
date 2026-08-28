@@ -1,7 +1,7 @@
 // 模板引擎：ResumeData -> 预览 DOM（createEl 构造，禁用 innerHTML）/ 导出 HTML 字符串
 
 import { App, TFile, normalizePath, setIcon } from "obsidian";
-import { ResumeData, ResumeEntry, ResumeCustomField, ResumeLayout, TemplateId, ResumeSection } from "../data/resume-model";
+import { ResumeData, ResumeEntry, ResumeCustomField, ResumeLayout, TemplateId, ResumeSection, computeAvatarStyle } from "../data/resume-model";
 import { t } from "../i18n";
 import {
   CONTACT_ICONS,
@@ -136,7 +136,16 @@ function renderHeaderDom(
   const avatarUrl = resolveAvatarUrl(app, data.avatar);
 
   // 头像、姓名岗位、联系信息为三个并列子元素，由 CSS 控制排布
-  if (avatarUrl) header.createEl("img", { cls: "r-avatar", attr: { src: avatarUrl } });
+  if (avatarUrl) {
+    const st = computeAvatarStyle(data);
+    header.createEl("img", {
+      cls: "r-avatar",
+      attr: {
+        src: avatarUrl,
+        style: `width:${st.width}px;height:${st.height}px;border-radius:${st.radius};`,
+      },
+    });
+  }
 
   const headText = header.createDiv({ cls: "r-header-text" });
   headText.createEl("div", { cls: "r-name", text: data.name || " " });
@@ -183,7 +192,16 @@ function renderHeaderClassic(
 ): void {
   const header = paper.createDiv({ cls: `r-header r-header-classic r-layout-${data.layout}` });
   const avatarUrl = resolveAvatarUrl(app, data.avatar);
-  if (avatarUrl) header.createEl("img", { cls: "r-avatar", attr: { src: avatarUrl } });
+  if (avatarUrl) {
+    const st = computeAvatarStyle(data);
+    header.createEl("img", {
+      cls: "r-avatar",
+      attr: {
+        src: avatarUrl,
+        style: `width:${st.width}px;height:${st.height}px;border-radius:${st.radius};`,
+      },
+    });
+  }
 
   const headText = header.createDiv({ cls: "r-header-text" });
   headText.createEl("div", { cls: "r-name", text: data.name || " " });
@@ -353,7 +371,10 @@ function headerHtml(data: ResumeData, app?: App): string {
   const contactGrid = contacts.length
     ? `<div class="r-contact-grid">${contacts.map(contactItemHtml).join("")}</div>`
     : "";
-  const avatar = avatarUrl ? `<img class="r-avatar" src="${esc(avatarUrl)}">` : "";
+  const avatarStyle = avatarUrl ? computeAvatarStyle(data) : null;
+  const avatar = avatarStyle
+    ? `<img class="r-avatar" src="${esc(avatarUrl)}" style="width:${avatarStyle.width}px;height:${avatarStyle.height}px;border-radius:${avatarStyle.radius};">`
+    : "";
   const role = data.role ? `<div class="r-role">${esc(data.role)}</div>` : "";
   return `
     <div class="r-header r-layout-${esc(data.layout)}">
@@ -381,7 +402,10 @@ function headerHtmlClassic(data: ResumeData, app?: App): string {
   const contactGrid = contacts.length
     ? `<div class="r-contact-grid r-contact-grid-classic">${contacts.map(contactItemHtmlClassic).join("")}</div>`
     : "";
-  const avatar = avatarUrl ? `<img class="r-avatar" src="${esc(avatarUrl)}">` : "";
+  const avatarStyle = avatarUrl ? computeAvatarStyle(data) : null;
+  const avatar = avatarStyle
+    ? `<img class="r-avatar" src="${esc(avatarUrl)}" style="width:${avatarStyle.width}px;height:${avatarStyle.height}px;border-radius:${avatarStyle.radius};">`
+    : "";
   const role = data.role ? `<div class="r-role">${esc(data.role)}</div>` : "";
   return `
     <div class="r-header r-header-classic r-layout-${esc(data.layout)}">

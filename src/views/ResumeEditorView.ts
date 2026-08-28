@@ -22,6 +22,11 @@ import {
   DEFAULT_RESUME,
   readResume,
   writeResume,
+  AvatarRatio,
+  AvatarRadius,
+  AVATAR_RATIO_OPTIONS,
+  AVATAR_RADIUS_OPTIONS,
+  computeAvatarStyle,
 } from "../data/resume-model";
 import { renderResumeDom, resolveAvatarUrl } from "../render/template";
 import { t } from "../i18n";
@@ -90,6 +95,19 @@ const SECTION_LABELS: Record<string, SectionCfg> = {
     time: "field.time",
     details: "field.details",
   },
+};
+
+const AVATAR_RATIO_LABEL_KEYS: Record<string, string> = {
+  "1:1": "avatar.ratio.square",
+  "4:5": "avatar.ratio.portrait45",
+  "3:4": "avatar.ratio.portrait34",
+};
+
+const AVATAR_RADIUS_LABEL_KEYS: Record<string, string> = {
+  none: "avatar.radius.none",
+  sm: "avatar.radius.sm",
+  md: "avatar.radius.md",
+  lg: "avatar.radius.lg",
 };
 
 export class ResumeEditorView extends ItemView {
@@ -532,60 +550,163 @@ export class ResumeEditorView extends ItemView {
     const wrap = parent.createDiv({ cls: "re-field re-avatar-field" });
     wrap.createEl("span", { text: t("field.avatar") });
 
-    const row = wrap.createDiv({ cls: "re-avatar-row" });
+    const card = wrap.createDiv({ cls: "re-avatar-card" });
 
-    const inp = row.createEl("input", {
-      cls: "re-input re-avatar-input",
-      attr: {
-        "data-basic": "avatar",
-        placeholder: "vault/path/photo.png 或 https://...",
-      },
-    });
-    inp.value = this.model.avatar;
+    // 头像预览（点击即选图，合并「选择图片」按钮）
+    const preview = card.createDiv({ cls: "re-avatar-preview" });
+    preview.setAttribute("role", "button");
+    preview.setAttribute("tabindex", "0");
+    preview.setAttribute("title", t("btn.chooseImage"));
+    preview.setAttribute("aria-label", t("btn.chooseImage"));
+    const previewImg = preview.createEl("img", { cls: "re-avatar-preview-img", attr: { alt: "" } });
+    preview.createDiv({ cls: "re-avatar-preview-hint", text: t("avatar.clickToSelect") });
 
-    const preview = row.createEl("img", {
-      cls: "re-avatar-thumb",
-      attr: { alt: "" },
-    });
-    this.updateAvatarThumb(preview, this.model.avatar);
-
-    const btn = row.createEl("button", {
-      cls: "re-btn re-avatar-btn",
-      attr: { type: "button" },
-      text: t("btn.chooseImage"),
-    });
-
-    const onChange = () => {
-      this.model.avatar = inp.value;
-      this.updateAvatarThumb(preview, inp.value);
-      this.renderPreview();
-      this.scheduleSave();
-    };
-
-    inp.addEventListener("input", onChange);
-    inp.addEventListener("change", onChange);
-
-    btn.addEventListener("click", () => {
+    const openPicker = () => {
       new ImagePickerModal(this.app, (file) => {
-        inp.value = file.path;
         this.model.avatar = file.path;
-        this.updateAvatarThumb(preview, file.path);
+        pathInput.value = file.path;
+        this.updateAvatarPreview(preview, previewImg, this.model.avatar);
         this.renderPreview();
         this.scheduleSave();
         new Notice(t("notice.imageSelected", { name: file.name }));
       }).open();
+    };
+    preview.addEventListener("click", openPicker);
+    preview.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openPicker();
+      }
     });
+    this.updateAvatarPreview(preview, previewImg, this.model.avatar);
+
+    // 控件区
+    const controls = card.createDiv({ cls: "re-avatar-controls" });
+
+    // 头像路径输入
+    const pathRow = controls.createDiv({ cls: "re-avatar-path-row" });
+    const pathInput = pathRow.createEl("input", {
+      cls: "re-input re-avatar-input",
+      attr: { "data-basic": "avatar", placeholder: "vault/path/photo.png 或 https://..." },
+    });
+    pathInput.value = this.model.avatar;
+    const onChangePath = () => {
+      this.model.avatar = pathInput.value;
+      this.updateAvatarPreview(preview, previewImg, pathInput.value);
+      this.renderPreview();
+      this.scheduleSave();
+    };
+    pathInput.addEventListener("input", onChangePath);
+    pathInput.addEventListener("change", onChangePath);
+
+    // 尺寸滑块
+    const sizeRow = this.avatarControlRow(controls, "field.avatarSize");
+    const sizeInput = sizeRow.createEl("input", {
+      cls: "re-range",
+      attr: {
+        type: "range",
+        min: "40",
+        max: "240",
+        step: "2",
+        "data-avatar": "size",
+        value: String(this.model.avatarSize),
+      },
+    });
+    const sizeVal = sizeRow.createSpan({ cls: "re-avatar-val", text: this.model.avatarSize + "px" });
+    const applySize = () => {
+      const v = Number(sizeInput.value);
+      this.model.avatarSize = v;
+      sizeVal.setText(v + "px");
+      this.updateAvatarPreviewSize(preview, this.model);
+      this.renderPreview();
+      this.scheduleSave();
+    };
+    sizeInput.addEventListener("input", applySize);
+    sizeInput.addEventListener("change", applySize);
+
+    // 宽高比
+    const ratioSel = this.avatarSelectRow(
+      controls,
+      "field.avatarAspectRatio",
+      AVATAR_RATIO_OPTIONS as string[],
+      this.model.avatarAspectRatio,
+      AVATAR_RATIO_LABEL_KEYS,
+      "ratio"
+    );
+    ratioSel.addEventListener("change", () => {
+      this.model.avatarAspectRatio = ratioSel.value as AvatarRatio;
+      this.updateAvatarPreviewSize(preview, this.model);
+      this.renderPreview();
+      this.scheduleSave();
+    });
+
+    // 圆角
+    const radiusSel = this.avatarSelectRow(
+      controls,
+      "field.avatarRadius",
+      AVATAR_RADIUS_OPTIONS as string[],
+      this.model.avatarRadius,
+      AVATAR_RADIUS_LABEL_KEYS,
+      "radius"
+    );
+    radiusSel.addEventListener("change", () => {
+      this.model.avatarRadius = radiusSel.value as AvatarRadius;
+      this.updateAvatarPreviewSize(preview, this.model);
+      this.renderPreview();
+      this.scheduleSave();
+    });
+
+    // 初始化预览框尺寸
+    this.updateAvatarPreviewSize(preview, this.model);
   }
 
-  private updateAvatarThumb(img: HTMLImageElement, avatarPath: string): void {
+  private avatarControlRow(parent: HTMLElement, labelKey: string): HTMLElement {
+    const row = parent.createDiv({ cls: "re-avatar-ctl" });
+    row.createEl("span", { cls: "re-avatar-ctl-label", text: t(labelKey) });
+    return row;
+  }
+
+  private avatarSelectRow(
+    parent: HTMLElement,
+    labelKey: string,
+    options: string[],
+    current: string,
+    labelKeys: Record<string, string>,
+    dataKey: string
+  ): HTMLSelectElement {
+    const row = parent.createDiv({ cls: "re-avatar-ctl" });
+    row.createEl("span", { cls: "re-avatar-ctl-label", text: t(labelKey) });
+    const sel = row.createEl("select", {
+      cls: "re-select re-avatar-select",
+      attr: { "data-avatar": dataKey },
+    });
+    for (const opt of options) {
+      const o = sel.createEl("option", { value: opt, text: t(labelKeys[opt] ?? opt) });
+      if (opt === current) o.selected = true;
+    }
+    return sel;
+  }
+
+  private updateAvatarPreview(
+    preview: HTMLElement,
+    img: HTMLImageElement,
+    avatarPath: string
+  ): void {
     const url = resolveAvatarUrl(this.app, avatarPath);
     if (url) {
       img.src = url;
-      img.removeClass("re-avatar-thumb-empty");
+      preview.removeClass("re-avatar-empty");
     } else {
-      img.src = "";
-      img.addClass("re-avatar-thumb-empty");
+      img.removeAttribute("src");
+      preview.addClass("re-avatar-empty");
     }
+  }
+
+  private updateAvatarPreviewSize(preview: HTMLElement, model: ResumeData): void {
+    const s = computeAvatarStyle(model);
+    preview.style.width = s.width + "px";
+    preview.style.height = s.height + "px";
+    preview.style.borderRadius = s.radius;
   }
 
   private rowField(
@@ -686,6 +807,15 @@ export class ResumeEditorView extends ItemView {
       birthDate: get('[data-basic="birthDate"]'),
       layout: this.model.layout,
       avatar: get('[data-basic="avatar"]'),
+      avatarSize: (b.querySelector('[data-avatar="size"]') as HTMLInputElement | null)?.value
+        ? Number((b.querySelector('[data-avatar="size"]') as HTMLInputElement).value)
+        : this.model.avatarSize,
+      avatarAspectRatio:
+        ((b.querySelector('[data-avatar="ratio"]') as HTMLSelectElement | null)?.value as AvatarRatio) ??
+        this.model.avatarAspectRatio,
+      avatarRadius:
+        ((b.querySelector('[data-avatar="radius"]') as HTMLSelectElement | null)?.value as AvatarRadius) ??
+        this.model.avatarRadius,
       customFields: this.readCustomFields(),
       education: this.readEntries("education"),
       work: this.readEntries("work"),
