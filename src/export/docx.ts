@@ -2,7 +2,7 @@
 
 import { App, Notice } from "obsidian";
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, BorderStyle } from "docx";
-import { ResumeData, ResumeEntry, TemplateId, visibleEntries } from "../data/resume-model";
+import { ResumeData, ResumeEntry, TemplateId, visibleEntries, formatEntryTime } from "../data/resume-model";
 import { t } from "../i18n";
 
 function entryParagraphs(title: string, entries: ResumeEntry[]): Paragraph[] {
@@ -12,14 +12,20 @@ function entryParagraphs(title: string, entries: ResumeEntry[]): Paragraph[] {
   out.push(new Paragraph({ text: title, heading: HeadingLevel.HEADING_1 }));
   for (const e of items) {
     const runs: TextRun[] = [new TextRun({ text: e.org, bold: true })];
-    if (e.time) runs.push(new TextRun({ text: "  " + e.time, italics: true }));
+    const timeStr = formatEntryTime(e);
+    if (timeStr) runs.push(new TextRun({ text: "  " + timeStr, italics: true }));
     out.push(new Paragraph({ children: runs }));
-    if (e.title) out.push(new Paragraph({ text: e.title }));
+    const subParts: string[] = [];
+    if (e.title) subParts.push(e.title);
+    if (e.degree) subParts.push(e.degree);
+    if (e.gpa) subParts.push("GPA " + e.gpa);
+    if (subParts.length) out.push(new Paragraph({ text: subParts.join(" · ") }));
     if (e.details) {
       for (const line of e.details.split("\n")) {
-        if (line.trim()) {
+        const trimmed = line.trim().replace(/^[-*]\s+/, "").replace(/^\d+\.\s+/, "");
+        if (trimmed) {
           out.push(
-            new Paragraph({ text: "• " + line.trim(), bullet: { level: 0 } })
+            new Paragraph({ text: "• " + trimmed, bullet: { level: 0 } })
           );
         }
       }
@@ -47,14 +53,20 @@ function classicEntryParagraphs(title: string, entries: ResumeEntry[]): Paragrap
   out.push(classicHeading(title));
   for (const e of items) {
     const runs: TextRun[] = [new TextRun({ text: e.org, bold: true })];
-    if (e.time) runs.push(new TextRun({ text: "  " + e.time, italics: true }));
+    const timeStr = formatEntryTime(e);
+    if (timeStr) runs.push(new TextRun({ text: "  " + timeStr, italics: true }));
     out.push(new Paragraph({ children: runs }));
-    if (e.title) out.push(new Paragraph({ text: e.title }));
+    const subParts: string[] = [];
+    if (e.title) subParts.push(e.title);
+    if (e.degree) subParts.push(e.degree);
+    if (e.gpa) subParts.push("GPA " + e.gpa);
+    if (subParts.length) out.push(new Paragraph({ text: subParts.join(" · ") }));
     if (e.details) {
       for (const line of e.details.split("\n")) {
-        if (line.trim()) {
+        const trimmed = line.trim().replace(/^[-*]\s+/, "").replace(/^\d+\.\s+/, "");
+        if (trimmed) {
           out.push(
-            new Paragraph({ text: "• " + line.trim(), bullet: { level: 0 } })
+            new Paragraph({ text: "• " + trimmed, bullet: { level: 0 } })
           );
         }
       }

@@ -53,7 +53,19 @@ export type SectionType =
 export interface ResumeEntry {
   org: string;
   title: string;
+  /** 学历（教育经历用） */
+  degree: string;
+  /** GPA（教育经历用） */
+  gpa: string;
+  /** 开始时间 */
+  startTime: string;
+  /** 结束时间 */
+  endTime: string;
+  /** 是否至今 */
+  current: boolean;
+  /** 旧版单一时间字段，读取旧数据时兼容 */
   time: string;
+  /** 简介（Markdown） */
   details: string;
   /** 该条目是否在预览/导出中显示 */
   visible?: boolean;
@@ -175,16 +187,42 @@ export function isResumeFrontmatter(
 function asEntry(raw: unknown): ResumeEntry {
   if (raw && typeof raw === "object") {
     const o = raw as Record<string, unknown>;
+    const time = typeof o.time === "string" ? o.time : "";
+    let startTime = typeof o.startTime === "string" ? o.startTime : "";
+    let endTime = typeof o.endTime === "string" ? o.endTime : "";
+    // 旧数据只有 time：尝试把 "2013/09 - 2017/06" 这类拆成 start/end
+    if (!startTime && !endTime && time) {
+      const parts = time.split(/\s*[~-]\s*/);
+      startTime = parts[0]?.trim() ?? "";
+      endTime = parts[1]?.trim() ?? "";
+    }
     return {
       org: typeof o.org === "string" ? o.org : "",
       title: typeof o.title === "string" ? o.title : "",
-      time: typeof o.time === "string" ? o.time : "",
+      degree: typeof o.degree === "string" ? o.degree : "",
+      gpa: typeof o.gpa === "string" ? o.gpa : "",
+      startTime,
+      endTime,
+      current: typeof o.current === "boolean" ? o.current : false,
+      time,
       details: typeof o.details === "string" ? o.details : "",
       visible: typeof o.visible === "boolean" ? o.visible : true,
       collapsed: typeof o.collapsed === "boolean" ? o.collapsed : false,
     };
   }
-  return { org: "", title: "", time: "", details: "", visible: true, collapsed: false };
+  return {
+    org: "",
+    title: "",
+    degree: "",
+    gpa: "",
+    startTime: "",
+    endTime: "",
+    current: false,
+    time: "",
+    details: "",
+    visible: true,
+    collapsed: false,
+  };
 }
 
 function asEntries(raw: unknown): ResumeEntry[] {
@@ -308,11 +346,27 @@ export function visibleEntries(entries: ResumeEntry[]): ResumeEntry[] {
   return entries.filter((e) => e.visible !== false);
 }
 
+/** 组合 startTime/endTime/current 为展示时间，回退旧 time 字段 */
+export function formatEntryTime(e: ResumeEntry): string {
+  if (e.startTime || e.endTime || e.current) {
+    const end = e.current ? "至今" : e.endTime;
+    if (e.startTime && end) return `${e.startTime} - ${end}`;
+    if (e.startTime) return `${e.startTime} - 至今`;
+    return end || "";
+  }
+  return e.time;
+}
+
 function cloneEntry(e: ResumeEntry): ResumeEntry {
   return {
     org: e.org,
     title: e.title,
-    time: e.time,
+    degree: e.degree ?? "",
+    gpa: e.gpa ?? "",
+    startTime: e.startTime ?? "",
+    endTime: e.endTime ?? "",
+    current: e.current ?? false,
+    time: e.time ?? "",
     details: e.details,
     visible: e.visible ?? true,
     collapsed: e.collapsed ?? false,
@@ -390,42 +444,62 @@ function escapeMarkdown(text: string): string {
 }
 
 function formatDetails(details: string): string {
-  if (!details.trim()) return "";
-  return details
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .map((line) => `- ${escapeMarkdown(line)}`)
-    .join("\n");
+  // details 现在直接保存 Markdown，不再自动加列表符号
+  return details.trim();
 }
 
 function parseDetails(text: string): string {
-  const lines = text
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
+  const lines = text.split("\n");
   const detailLines: string[] = [];
-  for (const line of lines) {
+  for (const raw of lines) {
+    const line = raw.trim();
     if (line.startsWith("### ")) break;
     if (line.startsWith("## ")) break;
     if (line.startsWith("# ")) break;
-    if (line.startsWith("- ")) {
-      detailLines.push(line.slice(2));
-    } else {
-      detailLines.push(line);
-    }
+    detailLines.push(raw);
   }
-  return detailLines.join("\n");
+  return detailLines.join("\n").trim();
 }
 
 function parseEntry(line: string): ResumeEntry | null {
   const m = line.match(/^###\s+(.+)$/);
   if (!m) return null;
   const parts = m[1].split("|").map((s) => s.trim());
+
+  // 旧格式兼容：org | title | time
+  if (parts.length <= 3) {
+    const time = parts[2] ?? "";
+    let startTime = "";
+    let endTime = "";
+    if (time) {
+      const segments = time.split(/\s*[~-]\s*/);
+      startTime = segments[0]?.trim() ?? "";
+      endTime = segments[1]?.trim() ?? "";
+    }
+    return {
+      org: parts[0] ?? "",
+      title: parts[1] ?? "",
+      degree: "",
+      gpa: "",
+      startTime,
+      endTime,
+      current: false,
+      time,
+      details: "",
+    };
+  }
+
+  // 新格式：org | title | degree | gpa | startTime | endTime | current
+  const current = parts[6] === "至今" || parts[6] === "current" || parts[6] === "true";
   return {
     org: parts[0] ?? "",
     title: parts[1] ?? "",
-    time: parts[2] ?? "",
+    degree: parts[2] ?? "",
+    gpa: parts[3] ?? "",
+    startTime: parts[4] ?? "",
+    endTime: current ? "" : (parts[5] ?? ""),
+    current,
+    time: "",
     details: "",
   };
 }
@@ -528,8 +602,9 @@ export function serializeResumeMarkdown(data: ResumeData): string {
       continue;
     }
     for (const item of section.items) {
-      const header = [item.org, item.title, item.time]
-        .filter((s) => s.length > 0)
+      const currentFlag = item.current ? "至今" : "";
+      const header = [item.org, item.title, item.degree, item.gpa, item.startTime, item.endTime, currentFlag]
+        .map((s) => s.trim())
         .join(" | ");
       lines.push(`### ${escapeMarkdown(header || "未填写")}`);
       lines.push("");

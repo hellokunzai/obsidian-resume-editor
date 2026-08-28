@@ -1,7 +1,7 @@
 // 模板引擎：ResumeData -> 预览 DOM（createEl 构造，禁用 innerHTML）/ 导出 HTML 字符串
 
 import { App, TFile, normalizePath, setIcon } from "obsidian";
-import { ResumeData, ResumeEntry, ResumeCustomField, ResumeLayout, TemplateId, ResumeSection, computeAvatarStyle, visibleEntries } from "../data/resume-model";
+import { ResumeData, ResumeEntry, ResumeCustomField, ResumeLayout, TemplateId, ResumeSection, computeAvatarStyle, visibleEntries, formatEntryTime } from "../data/resume-model";
 import { t } from "../i18n";
 import {
   CONTACT_ICONS,
@@ -20,10 +20,15 @@ function sectionDom(parent: HTMLElement, title: string, entries: ResumeEntry[]):
     const item = parent.createDiv({ cls: "r-item" });
     const top = item.createDiv({ cls: "r-top" });
     top.createSpan({ cls: "r-nm", text: e.org });
-    if (e.time) top.createSpan({ cls: "r-dt", text: e.time });
-    if (e.title) item.createDiv({ cls: "r-sub", text: e.title });
-    if (e.details) {
-      const ul = item.createEl("ul");
+    const timeStr = formatEntryTime(e);
+    if (timeStr) top.createSpan({ cls: "r-dt", text: timeStr });
+    const subParts: string[] = [];
+    if (e.title) subParts.push(e.title);
+    if (e.degree) subParts.push(e.degree);
+    if (e.gpa) subParts.push(`GPA ${e.gpa}`);
+    if (subParts.length) item.createDiv({ cls: "r-sub", text: subParts.join(" · ") });
+    if (e.details.trim()) {
+      const ul = item.createEl("ul", { cls: "r-details" });
       for (const line of e.details.split("\n")) {
         if (line.trim()) ul.createEl("li", { text: line.trim() });
       }
@@ -230,10 +235,15 @@ function sectionDomClassic(parent: HTMLElement, title: string, entries: ResumeEn
     const item = parent.createDiv({ cls: "r-item r-item-classic" });
     const top = item.createDiv({ cls: "r-top r-top-classic" });
     top.createSpan({ cls: "r-nm", text: e.org });
-    if (e.time) top.createSpan({ cls: "r-dt", text: e.time });
-    if (e.title) item.createDiv({ cls: "r-sub", text: e.title });
-    if (e.details) {
-      const ul = item.createEl("ul");
+    const timeStr = formatEntryTime(e);
+    if (timeStr) top.createSpan({ cls: "r-dt", text: timeStr });
+    const subParts: string[] = [];
+    if (e.title) subParts.push(e.title);
+    if (e.degree) subParts.push(e.degree);
+    if (e.gpa) subParts.push(`GPA ${e.gpa}`);
+    if (subParts.length) item.createDiv({ cls: "r-sub", text: subParts.join(" · ") });
+    if (e.details.trim()) {
+      const ul = item.createEl("ul", { cls: "r-details" });
       for (const line of e.details.split("\n")) {
         if (line.trim()) ul.createEl("li", { text: line.trim() });
       }
@@ -344,23 +354,33 @@ function esc(s: string): string {
     .replace(/'/g, "&#39;");
 }
 
+/** 将普通文本简介转成安全的 HTML（每行一条，转义后输出） */
+function detailsToHtml(details: string): string {
+  const items = details
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0)
+    .map((l) => `<li>${esc(l)}</li>`)
+    .join("");
+  return items ? `<ul>${items}</ul>` : "";
+}
+
 function sectionHtml(title: string, entries: ResumeEntry[]): string {
   const items = visibleEntries(entries);
   if (!items.length) return "";
   const html = items
     .map((e) => {
+      const timeStr = formatEntryTime(e);
       const top =
         `<div class="r-top"><span class="r-nm">${esc(e.org)}</span>` +
-        (e.time ? `<span class="r-dt">${esc(e.time)}</span>` : "") +
+        (timeStr ? `<span class="r-dt">${esc(timeStr)}</span>` : "") +
         `</div>`;
-      const sub = e.title ? `<div class="r-sub">${esc(e.title)}</div>` : "";
-      const details = e.details
-        ? `<ul>${e.details
-            .split("\n")
-            .filter((l) => l.trim())
-            .map((l) => `<li>${esc(l.trim())}</li>`)
-            .join("")}</ul>`
-        : "";
+      const subParts: string[] = [];
+      if (e.title) subParts.push(e.title);
+      if (e.degree) subParts.push(e.degree);
+      if (e.gpa) subParts.push(`GPA ${e.gpa}`);
+      const sub = subParts.length ? `<div class="r-sub">${esc(subParts.join(" · "))}</div>` : "";
+      const details = e.details.trim() ? `<div class="r-details">${detailsToHtml(e.details)}</div>` : "";
       return `<div class="r-item">${top}${sub}${details}</div>`;
     })
     .join("");
@@ -434,18 +454,17 @@ function sectionHtmlClassic(title: string, entries: ResumeEntry[]): string {
   if (!items.length) return "";
   const html = items
     .map((e) => {
+      const timeStr = formatEntryTime(e);
       const top =
         `<div class="r-top r-top-classic"><span class="r-nm">${esc(e.org)}</span>` +
-        (e.time ? `<span class="r-dt">${esc(e.time)}</span>` : "") +
+        (timeStr ? `<span class="r-dt">${esc(timeStr)}</span>` : "") +
         `</div>`;
-      const sub = e.title ? `<div class="r-sub">${esc(e.title)}</div>` : "";
-      const details = e.details
-        ? `<ul>${e.details
-            .split("\n")
-            .filter((l) => l.trim())
-            .map((l) => `<li>${esc(l.trim())}</li>`)
-            .join("")}</ul>`
-        : "";
+      const subParts: string[] = [];
+      if (e.title) subParts.push(e.title);
+      if (e.degree) subParts.push(e.degree);
+      if (e.gpa) subParts.push(`GPA ${e.gpa}`);
+      const sub = subParts.length ? `<div class="r-sub">${esc(subParts.join(" · "))}</div>` : "";
+      const details = e.details.trim() ? `<div class="r-details">${detailsToHtml(e.details)}</div>` : "";
       return `<div class="r-item r-item-classic">${top}${sub}${details}</div>`;
     })
     .join("");

@@ -493,6 +493,52 @@
   padding: 10px;
 }
 
+.re-entry-row {
+  display: flex;
+  gap: var(--size-4-2, 8px);
+  align-items: flex-start;
+}
+
+.re-entry-row > .re-field {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 8px;
+}
+
+.re-field-half {
+  flex: 1;
+  min-width: 0;
+}
+
+.re-field-end-time .re-end-time-inner {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2, 8px);
+}
+
+.re-field-end-time .re-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.re-current-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  font-size: var(--font-ui-small, 13px);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.re-current-toggle input[type="checkbox"] {
+  accent-color: var(--interactive-accent);
+}
+
+.re-current-label {
+  white-space: nowrap;
+}
+
 .re-entry-rm {
   color: var(--text-faint);
 }
@@ -510,6 +556,21 @@
 
 .re-row > * {
   flex: 1;
+}
+
+.re-paper .r-details {
+  margin-top: 4px;
+  font-size: 12.5px;
+}
+
+.re-paper .r-details ul,
+.re-paper .r-details ol {
+  margin: 3px 0 0;
+  padding-left: 18px;
+}
+
+.re-paper .r-details p {
+  margin: 0 0 2px;
 }
 
 /* 布局选择 */

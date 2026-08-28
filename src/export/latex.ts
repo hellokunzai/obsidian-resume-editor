@@ -1,7 +1,7 @@
 // LaTeX 导出：模板字符串生成（无需第三方库）
 
 import { App, Notice } from "obsidian";
-import { ResumeData, ResumeEntry, TemplateId, visibleEntries } from "../data/resume-model";
+import { ResumeData, ResumeEntry, TemplateId, visibleEntries, formatEntryTime } from "../data/resume-model";
 import { t } from "../i18n";
 
 function escTex(s: string): string {
@@ -20,14 +20,20 @@ function entryTex(title: string, entries: ResumeEntry[], classic: boolean): stri
     : `\\subsection*{${escTex(title)}}`;
   const lines: string[] = [head];
   for (const e of items) {
-    const top = e.time
-      ? `${escTex(e.org)} \\hfill \\textit{${escTex(e.time)}}`
+    const timeStr = formatEntryTime(e);
+    const top = timeStr
+      ? `${escTex(e.org)} \\hfill \\textit{${escTex(timeStr)}}`
       : escTex(e.org);
     lines.push(top);
-    if (e.title) lines.push(escTex(e.title));
+    const subParts: string[] = [];
+    if (e.title) subParts.push(e.title);
+    if (e.degree) subParts.push(e.degree);
+    if (e.gpa) subParts.push("GPA " + e.gpa);
+    if (subParts.length) lines.push(escTex(subParts.join(" · ")));
     if (e.details) {
       for (const line of e.details.split("\n")) {
-        if (line.trim()) lines.push("\\quad\\textbullet\\; " + escTex(line.trim()));
+        const trimmed = line.trim().replace(/^[-*]\s+/, "").replace(/^\d+\.\s+/, "");
+        if (trimmed) lines.push("\\quad\\textbullet\\; " + escTex(trimmed));
       }
     }
     lines.push("");

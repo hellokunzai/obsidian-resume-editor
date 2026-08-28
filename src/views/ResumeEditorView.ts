@@ -29,6 +29,7 @@ import {
   computeAvatarStyle,
   BasicFieldConfig,
   BASIC_FIELD_KEYS,
+  formatEntryTime,
 } from "../data/resume-model";
 import { renderResumeDom, resolveAvatarUrl } from "../render/template";
 import { t } from "../i18n";
@@ -995,7 +996,19 @@ export class ResumeEditorView extends ItemView {
     entries.forEach((e, i) => this.buildEntry(list, section, e, i));
     const add = wrapper.createEl("button", { cls: "re-btn re-btn-block", text: "+ " + addLabel });
     add.addEventListener("click", () => {
-      const target = { org: "", title: "", time: "", details: "", visible: true, collapsed: false };
+      const target: ResumeEntry = {
+        org: "",
+        title: "",
+        degree: "",
+        gpa: "",
+        startTime: "",
+        endTime: "",
+        current: false,
+        time: "",
+        details: "",
+        visible: true,
+        collapsed: false,
+      };
       const idx = entries.length;
       entries.push(target);
       this.buildEntry(list, section, target, idx);
@@ -1013,6 +1026,7 @@ export class ResumeEditorView extends ItemView {
     const entries = this.model[section as keyof ResumeData] as ResumeEntry[];
     const visible = e.visible ?? true;
     const collapsed = e.collapsed ?? false;
+    const isEducation = section === "education";
 
     const card = parent.createDiv({
       cls: "re-entry-card" + (collapsed ? " re-collapsed" : "") + (visible ? "" : " re-hidden"),
@@ -1028,9 +1042,20 @@ export class ResumeEditorView extends ItemView {
     setIcon(handle, "re-grip-vertical");
 
     const summary = bar.createEl("div", { cls: "re-entry-summary" });
-    summary.createEl("span", { cls: "re-entry-summary-org", text: e.org || t("entry.untitled") });
-    if (e.title) summary.createEl("span", { cls: "re-entry-summary-title", text: e.title });
-    if (e.time) summary.createEl("span", { cls: "re-entry-summary-time", text: e.time });
+    const updateSummary = () => {
+      summary.empty();
+      const orgVal = (card.querySelector('[data-key="org"]') as HTMLInputElement)?.value ?? "";
+      const titleVal = (card.querySelector('[data-key="title"]') as HTMLInputElement)?.value ?? "";
+      const startVal = (card.querySelector('[data-key="startTime"]') as HTMLInputElement)?.value ?? "";
+      const endVal = (card.querySelector('[data-key="endTime"]') as HTMLInputElement)?.value ?? "";
+      const currentCb = card.querySelector('[data-key="current"]') as HTMLInputElement | null;
+      const currentVal = currentCb?.checked ?? false;
+      const timeStr = this.formatSummaryTime(startVal, endVal, currentVal);
+      summary.createEl("span", { cls: "re-entry-summary-org", text: orgVal || t("entry.untitled") });
+      if (titleVal) summary.createEl("span", { cls: "re-entry-summary-title", text: titleVal });
+      if (timeStr) summary.createEl("span", { cls: "re-entry-summary-time", text: timeStr });
+    };
+    updateSummary();
 
     const actions = bar.createEl("div", { cls: "re-entry-actions" });
 
@@ -1078,24 +1103,59 @@ export class ResumeEditorView extends ItemView {
     });
 
     const body = card.createEl("div", { cls: "re-entry-body" });
-    this.entryField(body, cfg.org, "org", e.org);
-    this.entryField(body, cfg.title, "title", e.title);
-    this.entryField(body, cfg.time, "time", e.time);
+
+    // 第一行：学校/公司/项目 + 专业/职位/角色
+    const row1 = body.createDiv({ cls: "re-entry-row" });
+    this.entryField(row1, cfg.org, "org", e.org);
+    this.entryField(row1, cfg.title, "title", e.title);
+
+    if (isEducation) {
+      // 第二行：学历 + GPA
+      const row2 = body.createDiv({ cls: "re-entry-row" });
+      this.entryField(row2, "field.degree", "degree", e.degree);
+      this.entryField(row2, "field.gpa", "gpa", e.gpa);
+    }
+
+    // 时间行：开始时间 + 结束时间 + 至今开关
+    const timeRow = body.createDiv({ cls: "re-entry-row" });
+    this.entryField(timeRow, "field.startTime", "startTime", e.startTime);
+    const endWrap = timeRow.createDiv({ cls: "re-field re-field-end-time" });
+    endWrap.createEl("span", { text: t("field.endTime") });
+    const endInner = endWrap.createDiv({ cls: "re-end-time-inner" });
+    const endInput = endInner.createEl("input", {
+      cls: "re-input",
+      attr: { "data-key": "endTime", placeholder: t("field.endTime") },
+    });
+    endInput.value = e.current ? "" : e.endTime;
+    endInput.disabled = e.current;
+    const currentWrap = endInner.createEl("label", { cls: "re-current-toggle" });
+    const currentCb = currentWrap.createEl("input", {
+      attr: { type: "checkbox", "data-key": "current" },
+    });
+    currentCb.checked = e.current;
+    currentWrap.createEl("span", { cls: "re-current-label", text: t("field.current") });
+    currentCb.addEventListener("change", () => {
+      endInput.disabled = currentCb.checked;
+      if (currentCb.checked) endInput.value = "";
+      updateSummary();
+      this.syncFromForm();
+    });
+
+    // 简介：普通多行文本框
     this.entryField(body, cfg.details, "details", e.details, true);
 
-    // 输入时同步摘要
-    const syncSummary = () => {
-      summary.empty();
-      const orgVal = (card.querySelector('[data-key="org"]') as HTMLInputElement)?.value ?? "";
-      const titleVal = (card.querySelector('[data-key="title"]') as HTMLInputElement)?.value ?? "";
-      const timeVal = (card.querySelector('[data-key="time"]') as HTMLInputElement)?.value ?? "";
-      summary.createEl("span", { cls: "re-entry-summary-org", text: orgVal || t("entry.untitled") });
-      if (titleVal) summary.createEl("span", { cls: "re-entry-summary-title", text: titleVal });
-      if (timeVal) summary.createEl("span", { cls: "re-entry-summary-time", text: timeVal });
-    };
-    card.querySelectorAll('[data-key="org"], [data-key="title"], [data-key="time"]').forEach((el) => {
-      el.addEventListener("input", syncSummary);
+    card.querySelectorAll('[data-key="org"], [data-key="title"], [data-key="startTime"], [data-key="endTime"]').forEach((el) => {
+      el.addEventListener("input", updateSummary);
     });
+    const currentCheckbox = card.querySelector('[data-key="current"]') as HTMLInputElement | null;
+    currentCheckbox?.addEventListener("change", updateSummary);
+  }
+
+  private formatSummaryTime(start: string, end: string, current: boolean): string {
+    if (current && start) return `${start} - 至今`;
+    if (current) return "至今";
+    if (start && end) return `${start} - ${end}`;
+    return start || end || "";
   }
 
   private entryField(
@@ -1105,7 +1165,7 @@ export class ResumeEditorView extends ItemView {
     value: string,
     multiline = false
   ): void {
-    const wrap = parent.createDiv({ cls: "re-field" });
+    const wrap = parent.createDiv({ cls: "re-field" + (multiline ? "" : " re-field-half") });
     wrap.createEl("span", { text: t(labelKey) });
     if (multiline) {
       const ta = wrap.createEl("textarea", {
@@ -1117,7 +1177,7 @@ export class ResumeEditorView extends ItemView {
       const inp = wrap.createEl("input", {
         cls: "re-input",
         attr: { "data-key": key },
-      });
+      }) as HTMLInputElement;
       inp.value = value;
     }
   }
@@ -1192,10 +1252,17 @@ export class ResumeEditorView extends ItemView {
         const el = node as HTMLElement;
         const v = (s: string): string =>
           ((el.querySelector(`[data-key="${s}"]`) as HTMLInputElement | HTMLTextAreaElement | null)?.value ?? "");
+        const cb = el.querySelector('[data-key="current"]') as HTMLInputElement | null;
+        const current = cb?.checked ?? false;
         out.push({
           org: v("org"),
           title: v("title"),
-          time: v("time"),
+          degree: v("degree"),
+          gpa: v("gpa"),
+          startTime: v("startTime"),
+          endTime: current ? "" : v("endTime"),
+          current,
+          time: "",
           details: v("details"),
           visible: !el.classList.contains("re-hidden"),
           collapsed: el.classList.contains("re-collapsed"),
