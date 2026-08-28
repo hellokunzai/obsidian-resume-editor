@@ -1,7 +1,7 @@
 // LaTeX 导出：模板字符串生成（无需第三方库）
 
 import { App, Notice } from "obsidian";
-import { ResumeData, ResumeEntry, TemplateId } from "../data/resume-model";
+import { ResumeData, ResumeEntry, TemplateId, visibleEntries } from "../data/resume-model";
 import { t } from "../i18n";
 
 function escTex(s: string): string {
@@ -13,12 +13,13 @@ function escTex(s: string): string {
 }
 
 function entryTex(title: string, entries: ResumeEntry[], classic: boolean): string {
-  if (!entries.length) return "";
+  const items = visibleEntries(entries);
+  if (!items.length) return "";
   const head = classic
     ? `\\subsection*{${escTex(title)}}\n\\noindent\\rule{\\linewidth}{0.6pt}\n`
     : `\\subsection*{${escTex(title)}}`;
   const lines: string[] = [head];
-  for (const e of entries) {
+  for (const e of items) {
     const top = e.time
       ? `${escTex(e.org)} \\hfill \\textit{${escTex(e.time)}}`
       : escTex(e.org);

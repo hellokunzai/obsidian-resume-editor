@@ -1,7 +1,7 @@
 // 模板引擎：ResumeData -> 预览 DOM（createEl 构造，禁用 innerHTML）/ 导出 HTML 字符串
 
 import { App, TFile, normalizePath, setIcon } from "obsidian";
-import { ResumeData, ResumeEntry, ResumeCustomField, ResumeLayout, TemplateId, ResumeSection, computeAvatarStyle } from "../data/resume-model";
+import { ResumeData, ResumeEntry, ResumeCustomField, ResumeLayout, TemplateId, ResumeSection, computeAvatarStyle, visibleEntries } from "../data/resume-model";
 import { t } from "../i18n";
 import {
   CONTACT_ICONS,
@@ -13,9 +13,10 @@ import {
 /* ---------- 预览 DOM 构建（合规：全部用 createEl，无 innerHTML） ---------- */
 
 function sectionDom(parent: HTMLElement, title: string, entries: ResumeEntry[]): void {
-  if (!entries.length) return;
+  const items = visibleEntries(entries);
+  if (!items.length) return;
   parent.createEl("h3", { cls: "r-sec", text: title });
-  for (const e of entries) {
+  for (const e of items) {
     const item = parent.createDiv({ cls: "r-item" });
     const top = item.createDiv({ cls: "r-top" });
     top.createSpan({ cls: "r-nm", text: e.org });
@@ -222,9 +223,10 @@ function renderHeaderClassic(
 }
 
 function sectionDomClassic(parent: HTMLElement, title: string, entries: ResumeEntry[]): void {
-  if (!entries.length) return;
+  const items = visibleEntries(entries);
+  if (!items.length) return;
   parent.createEl("h3", { cls: "r-sec r-sec-classic", text: title });
-  for (const e of entries) {
+  for (const e of items) {
     const item = parent.createDiv({ cls: "r-item r-item-classic" });
     const top = item.createDiv({ cls: "r-top r-top-classic" });
     top.createSpan({ cls: "r-nm", text: e.org });
@@ -343,8 +345,9 @@ function esc(s: string): string {
 }
 
 function sectionHtml(title: string, entries: ResumeEntry[]): string {
-  if (!entries.length) return "";
-  const items = entries
+  const items = visibleEntries(entries);
+  if (!items.length) return "";
+  const html = items
     .map((e) => {
       const top =
         `<div class="r-top"><span class="r-nm">${esc(e.org)}</span>` +
@@ -361,7 +364,7 @@ function sectionHtml(title: string, entries: ResumeEntry[]): string {
       return `<div class="r-item">${top}${sub}${details}</div>`;
     })
     .join("");
-  return `<h3 class="r-sec">${esc(title)}</h3>${items}`;
+  return `<h3 class="r-sec">${esc(title)}</h3>${html}`;
 }
 
 function contactItemHtml(item: ContactItem): string {
@@ -427,8 +430,9 @@ function headerHtmlClassic(data: ResumeData, app?: App): string {
 }
 
 function sectionHtmlClassic(title: string, entries: ResumeEntry[]): string {
-  if (!entries.length) return "";
-  const items = entries
+  const items = visibleEntries(entries);
+  if (!items.length) return "";
+  const html = items
     .map((e) => {
       const top =
         `<div class="r-top r-top-classic"><span class="r-nm">${esc(e.org)}</span>` +
@@ -445,7 +449,7 @@ function sectionHtmlClassic(title: string, entries: ResumeEntry[]): string {
       return `<div class="r-item r-item-classic">${top}${sub}${details}</div>`;
     })
     .join("");
-  return `<h3 class="r-sec r-sec-classic">${esc(title)}</h3>${items}`;
+  return `<h3 class="r-sec r-sec-classic">${esc(title)}</h3>${html}`;
 }
 
 function skillsHtmlClassic(skills: string): string {

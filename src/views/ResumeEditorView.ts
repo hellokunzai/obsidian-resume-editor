@@ -123,6 +123,7 @@ export class ResumeEditorView extends ItemView {
   private activeIconPicker: HTMLElement | null = null;
   private dragEl: HTMLElement | null = null;
   private basicFieldDragEl: HTMLElement | null = null;
+  private entryDragEl: HTMLElement | null = null;
 
   constructor(leaf: WorkspaceLeaf, plugin: ResumeEditorPlugin) {
     super(leaf);
@@ -705,6 +706,96 @@ export class ResumeEditorView extends ItemView {
     return closest;
   }
 
+  private bindEntryDnd(section: string): void {
+    const list = this.formBody.querySelector(
+      `.re-entry-list[data-section-list="${section}"]`
+    ) as HTMLElement | null;
+    if (!list) return;
+    list.querySelectorAll(".re-entry-card").forEach((card) => {
+      const handle = card.querySelector(".re-entry-drag") as HTMLElement | null;
+      if (!handle) return;
+      // 避免重复绑定：标记后跳过
+      if ((handle as unknown as Record<string, boolean>)["__re-entry-dnd-bound"]) return;
+      (handle as unknown as Record<string, boolean>)["__re-entry-dnd-bound"] = true;
+      handle.addEventListener("pointerdown", (e: PointerEvent) => {
+        if (e.button !== 0 && e.pointerType === "mouse") return;
+        e.preventDefault();
+        this.startEntryDrag(card as HTMLElement, section);
+      });
+    });
+  }
+
+  private startEntryDrag(card: HTMLElement, section: string): void {
+    const list = this.formBody.querySelector(
+      `.re-entry-list[data-section-list="${section}"]`
+    ) as HTMLElement | null;
+    if (!list) return;
+    this.entryDragEl = card;
+    card.addClass("re-dragging");
+
+    const onMove = (ev: PointerEvent) => {
+      if (!this.entryDragEl || !list) return;
+      const after = this.getEntryDragAfterElement(list, ev.clientY);
+      if (after == null) {
+        if (list.lastElementChild !== this.entryDragEl) list.appendChild(this.entryDragEl);
+      } else if (after !== this.entryDragEl) {
+        list.insertBefore(this.entryDragEl, after);
+      }
+    };
+
+    const onUp = () => {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.removeEventListener("pointercancel", onUp);
+      if (!this.entryDragEl || !list) return;
+
+      const sectionKey = section as keyof ResumeData;
+      const entries = this.model[sectionKey] as ResumeEntry[];
+      const cards = Array.from(list.querySelectorAll(".re-entry-card")) as HTMLElement[];
+      const newOrder: ResumeEntry[] = [];
+      const used = new Set<number>();
+      for (const c of cards) {
+        const idx = Number(c.getAttribute("data-index"));
+        if (!Number.isNaN(idx) && idx >= 0 && idx < entries.length && !used.has(idx)) {
+          newOrder.push(entries[idx]);
+          used.add(idx);
+        }
+      }
+      // 兜底：若渲染过程中有极短暂的悬空，保留未匹配项
+      for (let i = 0; i < entries.length; i++) {
+        if (!used.has(i)) newOrder.push(entries[i]);
+      }
+      (this.model[sectionKey] as ResumeEntry[]) = newOrder;
+
+      this.entryDragEl.removeClass("re-dragging");
+      this.entryDragEl = null;
+      this.renderModules();
+      this.renderPreview();
+      this.scheduleSave();
+    };
+
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+    document.addEventListener("pointercancel", onUp);
+  }
+
+  private getEntryDragAfterElement(container: HTMLElement, y: number): HTMLElement | null {
+    const els = Array.from(
+      container.querySelectorAll(".re-entry-card:not(.re-dragging)")
+    ) as HTMLElement[];
+    let closest: HTMLElement | null = null;
+    let closestOffset = -Infinity;
+    for (const el of els) {
+      const box = el.getBoundingClientRect();
+      const offset = y - box.top - box.height / 2;
+      if (offset < 0 && offset > closestOffset) {
+        closestOffset = offset;
+        closest = el;
+      }
+    }
+    return closest;
+  }
+
   private basicField(
     parent: HTMLElement,
     labelKey: string,
@@ -800,7 +891,6 @@ export class ResumeEditorView extends ItemView {
       const v = Number(sizeInput.value);
       this.model.avatarSize = v;
       sizeVal.setText(v + "px");
-      this.updateAvatarPreviewSize(preview, this.model);
       this.renderPreview();
       this.scheduleSave();
     };
@@ -818,7 +908,7 @@ export class ResumeEditorView extends ItemView {
     );
     ratioSel.addEventListener("change", () => {
       this.model.avatarAspectRatio = ratioSel.value as AvatarRatio;
-      this.updateAvatarPreviewSize(preview, this.model);
+      this.updateAvatarEditorPreview(preview, this.model);
       this.renderPreview();
       this.scheduleSave();
     });
@@ -834,13 +924,13 @@ export class ResumeEditorView extends ItemView {
     );
     radiusSel.addEventListener("change", () => {
       this.model.avatarRadius = radiusSel.value as AvatarRadius;
-      this.updateAvatarPreviewSize(preview, this.model);
+      this.updateAvatarEditorPreview(preview, this.model);
       this.renderPreview();
       this.scheduleSave();
     });
 
-    // 初始化预览框尺寸
-    this.updateAvatarPreviewSize(preview, this.model);
+    // 初始化左侧头像预览（尺寸固定为 90px 宽度，仅随宽高比/圆角变化）
+    this.updateAvatarEditorPreview(preview, this.model);
   }
 
   private avatarControlRow(parent: HTMLElement, labelKey: string): HTMLElement {
@@ -885,8 +975,10 @@ export class ResumeEditorView extends ItemView {
     }
   }
 
-  private updateAvatarPreviewSize(preview: HTMLElement, model: ResumeData): void {
-    const s = computeAvatarStyle(model);
+  private updateAvatarEditorPreview(preview: HTMLElement, model: ResumeData): void {
+    // 左侧编辑器预览保持固定宽度 90px，仅响应宽高比与圆角变化；
+    // 尺寸滑块只影响右侧简历预览中的头像。
+    const s = computeAvatarStyle({ ...model, avatarSize: 90 });
     preview.style.width = s.width + "px";
     preview.style.height = s.height + "px";
     preview.style.borderRadius = s.radius;
@@ -898,33 +990,112 @@ export class ResumeEditorView extends ItemView {
     entries: ResumeEntry[],
     addLabel: string
   ): void {
-    const body = parent.createEl("div", { cls: "re-sect-block", attr: { "data-section-body": section } });
-    entries.forEach((e) => this.buildEntry(body, section, e));
-    const add = body.createEl("button", { cls: "re-btn re-btn-block", text: "+ " + addLabel });
+    const wrapper = parent.createEl("div", { cls: "re-sect-block", attr: { "data-section-body": section } });
+    const list = wrapper.createEl("div", { cls: "re-entry-list", attr: { "data-section-list": section } });
+    entries.forEach((e, i) => this.buildEntry(list, section, e, i));
+    const add = wrapper.createEl("button", { cls: "re-btn re-btn-block", text: "+ " + addLabel });
     add.addEventListener("click", () => {
-      this.buildEntry(body, section, { org: "", title: "", time: "", details: "" });
-      // 把新增按钮移到末尾
-      body.appendChild(add);
-      this.syncFromForm();
+      const target = { org: "", title: "", time: "", details: "", visible: true, collapsed: false };
+      const idx = entries.length;
+      entries.push(target);
+      this.buildEntry(list, section, target, idx);
+      // 把新增按钮保持在列表下方
+      wrapper.appendChild(add);
+      this.bindEntryDnd(section);
+      this.renderPreview();
+      this.scheduleSave();
     });
+    this.bindEntryDnd(section);
   }
 
-  private buildEntry(parent: HTMLElement, section: string, e: ResumeEntry): void {
+  private buildEntry(parent: HTMLElement, section: string, e: ResumeEntry, index: number): void {
     const cfg = SECTION_LABELS[section];
-    const entry = parent.createDiv({ cls: "re-entry", attr: { "data-section": section } });
-    const rm = entry.createEl("button", {
-      cls: "re-icon-btn re-rm",
+    const entries = this.model[section as keyof ResumeData] as ResumeEntry[];
+    const visible = e.visible ?? true;
+    const collapsed = e.collapsed ?? false;
+
+    const card = parent.createDiv({
+      cls: "re-entry-card" + (collapsed ? " re-collapsed" : "") + (visible ? "" : " re-hidden"),
+      attr: { "data-section": section, "data-index": String(index) },
+    });
+
+    const bar = card.createEl("div", { cls: "re-entry-bar" });
+
+    const handle = bar.createEl("span", {
+      cls: "re-entry-drag",
+      attr: { title: t("module.drag") },
+    });
+    setIcon(handle, "re-grip-vertical");
+
+    const summary = bar.createEl("div", { cls: "re-entry-summary" });
+    summary.createEl("span", { cls: "re-entry-summary-org", text: e.org || t("entry.untitled") });
+    if (e.title) summary.createEl("span", { cls: "re-entry-summary-title", text: e.title });
+    if (e.time) summary.createEl("span", { cls: "re-entry-summary-time", text: e.time });
+
+    const actions = bar.createEl("div", { cls: "re-entry-actions" });
+
+    // 显示/隐藏
+    const hideBtn = actions.createEl("button", {
+      cls: "re-icon-btn",
+      attr: { type: "button", title: visible ? t("entry.hide") : t("entry.show") },
+    });
+    setIcon(hideBtn, visible ? "re-eye" : "re-eye-off");
+    hideBtn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      e.visible = !visible;
+      card.classList.toggle("re-hidden", !e.visible);
+      hideBtn.setAttribute("title", e.visible ? t("entry.hide") : t("entry.show"));
+      setIcon(hideBtn, e.visible ? "re-eye" : "re-eye-off");
+      this.renderPreview();
+      this.scheduleSave();
+    });
+
+    // 删除
+    const rm = actions.createEl("button", {
+      cls: "re-icon-btn re-entry-rm",
       attr: { type: "button", title: t("module.delete") },
     });
     setIcon(rm, "re-trash");
-    rm.addEventListener("click", () => {
-      entry.remove();
-      this.syncFromForm();
+    rm.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const list = parent;
+      const actualIndex = Array.from(list.children).indexOf(card);
+      entries.splice(actualIndex, 1);
+      this.renderModules();
+      this.renderPreview();
+      this.scheduleSave();
     });
-    this.entryField(entry, cfg.org, "org", e.org);
-    this.entryField(entry, cfg.title, "title", e.title);
-    this.entryField(entry, cfg.time, "time", e.time);
-    this.entryField(entry, cfg.details, "details", e.details, true);
+
+    // 点击标题栏空白处折叠/展开
+    bar.addEventListener("click", (ev) => {
+      const target = ev.target as HTMLElement;
+      if (target.closest(".re-entry-actions") || target.closest(".re-entry-drag")) {
+        return;
+      }
+      e.collapsed = !e.collapsed;
+      card.classList.toggle("re-collapsed", e.collapsed);
+      this.scheduleSave();
+    });
+
+    const body = card.createEl("div", { cls: "re-entry-body" });
+    this.entryField(body, cfg.org, "org", e.org);
+    this.entryField(body, cfg.title, "title", e.title);
+    this.entryField(body, cfg.time, "time", e.time);
+    this.entryField(body, cfg.details, "details", e.details, true);
+
+    // 输入时同步摘要
+    const syncSummary = () => {
+      summary.empty();
+      const orgVal = (card.querySelector('[data-key="org"]') as HTMLInputElement)?.value ?? "";
+      const titleVal = (card.querySelector('[data-key="title"]') as HTMLInputElement)?.value ?? "";
+      const timeVal = (card.querySelector('[data-key="time"]') as HTMLInputElement)?.value ?? "";
+      summary.createEl("span", { cls: "re-entry-summary-org", text: orgVal || t("entry.untitled") });
+      if (titleVal) summary.createEl("span", { cls: "re-entry-summary-title", text: titleVal });
+      if (timeVal) summary.createEl("span", { cls: "re-entry-summary-time", text: timeVal });
+    };
+    card.querySelectorAll('[data-key="org"], [data-key="title"], [data-key="time"]').forEach((el) => {
+      el.addEventListener("input", syncSummary);
+    });
   }
 
   private entryField(
@@ -1016,12 +1187,19 @@ export class ResumeEditorView extends ItemView {
   private readEntries(section: string): ResumeEntry[] {
     const out: ResumeEntry[] = [];
     this.formBody
-      .querySelectorAll(`.re-entry[data-section="${section}"]`)
+      .querySelectorAll(`.re-entry-card[data-section="${section}"]`)
       .forEach((node) => {
         const el = node as HTMLElement;
         const v = (s: string): string =>
           ((el.querySelector(`[data-key="${s}"]`) as HTMLInputElement | HTMLTextAreaElement | null)?.value ?? "");
-        out.push({ org: v("org"), title: v("title"), time: v("time"), details: v("details") });
+        out.push({
+          org: v("org"),
+          title: v("title"),
+          time: v("time"),
+          details: v("details"),
+          visible: !el.classList.contains("re-hidden"),
+          collapsed: el.classList.contains("re-collapsed"),
+        });
       });
     return out;
   }

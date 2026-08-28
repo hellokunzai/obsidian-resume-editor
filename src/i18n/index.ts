@@ -105,6 +105,10 @@ const translations: Record<string, Record<string, string>> = {
     "module.allAdded": "All built-in modules already added",
     "form.customModule": "Custom module",
 
+    "entry.untitled": "Untitled",
+    "entry.hide": "Hide (not shown in preview/export)",
+    "entry.show": "Show in preview/export",
+
     "template.single": "Single column",
     "template.twoCol": "Two columns",
     "template.academic": "Academic",
@@ -221,6 +225,10 @@ const translations: Record<string, Record<string, string>> = {
     "module.basicNoDelete": "基本信息不可删除",
     "module.allAdded": "内置模块已全部添加",
     "form.customModule": "自定义模块",
+
+    "entry.untitled": "未命名",
+    "entry.hide": "隐藏（预览/导出不显示）",
+    "entry.show": "显示（在预览/导出中）",
 
     "template.single": "单栏",
     "template.twoCol": "双栏",

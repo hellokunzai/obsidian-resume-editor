@@ -240,7 +240,7 @@
 /* 头像字段：卡片式布局（预览与选图合并） */
 .re-avatar-field .re-avatar-card {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
   padding: 10px;
   border: 1px solid var(--background-modifier-border);
@@ -374,24 +374,132 @@
   box-shadow: 0 0 0 2px var(--background-modifier-border-focus, rgba(120, 120, 200, 0.15));
 }
 
-.re-entry {
-  border: 1px dashed var(--background-modifier-border);
-  border-radius: var(--radius, 7px);
-  padding: 8px;
-  margin-bottom: 8px;
-  background: var(--background-secondary);
-  position: relative;
+/* 可折叠条目卡片（教育/工作/项目经历共用） */
+.re-entry-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-2, 8px);
 }
 
-.re-entry .re-rm {
-  position: absolute;
-  top: 4px;
-  right: 4px;
+.re-entry-card {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius, 8px);
+  background: var(--background-secondary);
+  overflow: hidden;
+}
+
+.re-entry-card.re-hidden {
+  opacity: 0.55;
+  background: var(--background-primary);
+}
+
+.re-entry-card.re-collapsed .re-entry-body {
+  display: none;
+}
+
+.re-entry-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-1, 4px);
+  padding: 6px 8px;
+  background: var(--background-primary);
+  border-bottom: 1px solid var(--background-modifier-border);
+  cursor: pointer;
+  user-select: none;
+}
+
+.re-entry-card.re-collapsed .re-entry-bar {
+  border-bottom: none;
+}
+
+.re-entry-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-1, 4px);
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-ui-small, 13px);
+  color: var(--text-normal);
+}
+
+.re-entry-summary > span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.re-entry-summary-org {
+  font-weight: 600;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.re-entry-summary-title {
+  color: var(--text-muted);
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.re-entry-summary-title::before {
+  content: "·";
+  margin-right: var(--size-4-1, 4px);
   color: var(--text-faint);
 }
 
-.re-entry .re-rm:hover {
+.re-entry-summary-time {
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller, 12px);
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.re-entry-actions {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex: none;
+}
+
+.re-entry-drag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  cursor: grab;
+  color: var(--text-faint);
+  flex: none;
+  touch-action: none;
+  margin-right: var(--size-4-1, 4px);
+}
+
+.re-entry-drag:active {
+  cursor: grabbing;
+}
+
+.re-entry-drag svg,
+.re-entry-drag .svg-icon {
+  width: 15px !important;
+  height: 15px !important;
+  min-width: 15px !important;
+  min-height: 15px !important;
+}
+
+.re-entry-card.re-dragging {
+  opacity: 0.5;
+}
+
+.re-entry-body {
+  padding: 10px;
+}
+
+.re-entry-rm {
+  color: var(--text-faint);
+}
+
+.re-entry-rm:hover {
   color: var(--text-error, #d24b4b);
+  background: var(--background-modifier-hover);
 }
 
 .re-row {

@@ -55,6 +55,10 @@ export interface ResumeEntry {
   title: string;
   time: string;
   details: string;
+  /** 该条目是否在预览/导出中显示 */
+  visible?: boolean;
+  /** 该条目在左侧编辑区是否折叠 */
+  collapsed?: boolean;
 }
 
 export interface ResumeCustomField {
@@ -176,9 +180,11 @@ function asEntry(raw: unknown): ResumeEntry {
       title: typeof o.title === "string" ? o.title : "",
       time: typeof o.time === "string" ? o.time : "",
       details: typeof o.details === "string" ? o.details : "",
+      visible: typeof o.visible === "boolean" ? o.visible : true,
+      collapsed: typeof o.collapsed === "boolean" ? o.collapsed : false,
     };
   }
-  return { org: "", title: "", time: "", details: "" };
+  return { org: "", title: "", time: "", details: "", visible: true, collapsed: false };
 }
 
 function asEntries(raw: unknown): ResumeEntry[] {
@@ -297,8 +303,20 @@ export function parseResume(
   };
 }
 
+/** 过滤出在预览/导出中应显示的条目 */
+export function visibleEntries(entries: ResumeEntry[]): ResumeEntry[] {
+  return entries.filter((e) => e.visible !== false);
+}
+
 function cloneEntry(e: ResumeEntry): ResumeEntry {
-  return { org: e.org, title: e.title, time: e.time, details: e.details };
+  return {
+    org: e.org,
+    title: e.title,
+    time: e.time,
+    details: e.details,
+    visible: e.visible ?? true,
+    collapsed: e.collapsed ?? false,
+  };
 }
 
 function cloneCustomField(f: ResumeCustomField): ResumeCustomField {

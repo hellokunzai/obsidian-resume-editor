@@ -2,14 +2,15 @@
 
 import { App, Notice } from "obsidian";
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, BorderStyle } from "docx";
-import { ResumeData, ResumeEntry, TemplateId } from "../data/resume-model";
+import { ResumeData, ResumeEntry, TemplateId, visibleEntries } from "../data/resume-model";
 import { t } from "../i18n";
 
 function entryParagraphs(title: string, entries: ResumeEntry[]): Paragraph[] {
   const out: Paragraph[] = [];
-  if (!entries.length) return out;
+  const items = visibleEntries(entries);
+  if (!items.length) return out;
   out.push(new Paragraph({ text: title, heading: HeadingLevel.HEADING_1 }));
-  for (const e of entries) {
+  for (const e of items) {
     const runs: TextRun[] = [new TextRun({ text: e.org, bold: true })];
     if (e.time) runs.push(new TextRun({ text: "  " + e.time, italics: true }));
     out.push(new Paragraph({ children: runs }));
@@ -41,9 +42,10 @@ function classicHeading(title: string): Paragraph {
 
 function classicEntryParagraphs(title: string, entries: ResumeEntry[]): Paragraph[] {
   const out: Paragraph[] = [];
-  if (!entries.length) return out;
+  const items = visibleEntries(entries);
+  if (!items.length) return out;
   out.push(classicHeading(title));
-  for (const e of entries) {
+  for (const e of items) {
     const runs: TextRun[] = [new TextRun({ text: e.org, bold: true })];
     if (e.time) runs.push(new TextRun({ text: "  " + e.time, italics: true }));
     out.push(new Paragraph({ children: runs }));
