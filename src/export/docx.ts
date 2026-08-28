@@ -85,33 +85,56 @@ export async function exportDocx(
 ): Promise<void> {
   const classic = template === "classic";
   const children: Paragraph[] = [];
-  children.push(new Paragraph({ text: data.name || " ", heading: HeadingLevel.TITLE }));
-  if (data.role) children.push(new Paragraph({ children: [new TextRun({ text: data.role, italics: true })] }));
 
-  if (classic) {
-    const contact = classicContactLine(data);
-    if (contact) children.push(contact);
-    children.push(...classicEntryParagraphs(t("form.education"), data.education));
-    children.push(...classicEntryParagraphs(t("form.work"), data.work));
-    children.push(...classicEntryParagraphs(t("form.project"), data.projects));
-    if (data.skills) {
-      children.push(classicHeading(t("form.skills")));
-      for (const line of data.skills.split("\n")) {
-        if (line.trim()) children.push(new Paragraph({ text: "• " + line.trim(), bullet: { level: 0 } }));
+  for (const sec of data.sections) {
+    if (!sec.visible) continue;
+
+    if (sec.type === "basic") {
+      children.push(new Paragraph({ text: data.name || " ", heading: HeadingLevel.TITLE }));
+      if (data.role) children.push(new Paragraph({ children: [new TextRun({ text: data.role, italics: true })] }));
+      if (classic) {
+        const contact = classicContactLine(data);
+        if (contact) children.push(contact);
+      } else {
+        if (data.phone || data.email) {
+          const c: string[] = [];
+          if (data.phone) c.push(t("field.phone") + "：" + data.phone);
+          if (data.email) c.push(t("field.email") + "：" + data.email);
+          children.push(new Paragraph({ text: c.join("    ") }));
+        }
       }
+      continue;
     }
-  } else {
-    if (data.phone || data.email) {
-      const c: string[] = [];
-      if (data.phone) c.push(t("field.phone") + "：" + data.phone);
-      if (data.email) c.push(t("field.email") + "：" + data.email);
-      children.push(new Paragraph({ text: c.join("    ") }));
-    }
-    children.push(...entryParagraphs(t("form.education"), data.education));
-    children.push(...entryParagraphs(t("form.work"), data.work));
-    children.push(...entryParagraphs(t("form.project"), data.projects));
-    if (data.skills) {
-      children.push(new Paragraph({ text: t("form.skills") + "：" + data.skills }));
+
+    if (sec.type === "skills") {
+      if (!data.skills) continue;
+      if (classic) {
+        children.push(classicHeading(t("form.skills")));
+        for (const line of data.skills.split("\n")) {
+          if (line.trim()) children.push(new Paragraph({ text: "• " + line.trim(), bullet: { level: 0 } }));
+        }
+      } else {
+        children.push(new Paragraph({ text: t("form.skills") + "：" + data.skills }));
+      }
+    } else if (sec.type === "education") {
+      children.push(...(classic ? classicEntryParagraphs : entryParagraphs)(t("form.education"), data.education));
+    } else if (sec.type === "work") {
+      children.push(...(classic ? classicEntryParagraphs : entryParagraphs)(t("form.work"), data.work));
+    } else if (sec.type === "projects") {
+      children.push(...(classic ? classicEntryParagraphs : entryParagraphs)(t("form.project"), data.projects));
+    } else if (sec.type === "custom") {
+      if (!sec.content.trim()) continue;
+      if (classic) {
+        children.push(classicHeading(sec.title || t("form.customModule")));
+        for (const line of sec.content.split("\n")) {
+          if (line.trim()) children.push(new Paragraph({ text: "• " + line.trim(), bullet: { level: 0 } }));
+        }
+      } else {
+        children.push(new Paragraph({ text: sec.title || t("form.customModule"), heading: HeadingLevel.HEADING_1 }));
+        for (const line of sec.content.split("\n")) {
+          if (line.trim()) children.push(new Paragraph({ text: "• " + line.trim(), bullet: { level: 0 } }));
+        }
+      }
     }
   }
 

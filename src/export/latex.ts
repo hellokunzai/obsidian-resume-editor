@@ -57,6 +57,59 @@ export async function exportLatex(
   template?: TemplateId
 ): Promise<void> {
   const classic = template === "classic";
+  const bodyLines: string[] = [];
+
+  for (const sec of data.sections) {
+    if (!sec.visible) continue;
+
+    if (sec.type === "basic") {
+      bodyLines.push(`\\section*{${escTex(data.name || " ")}}`);
+      if (data.role) bodyLines.push(`\\textbf{${escTex(data.role)}}\\\\`);
+      if (classic) {
+        const contact = classicContactTex(data);
+        if (contact) bodyLines.push(contact);
+      } else {
+        if (data.phone || data.email) {
+          const c: string[] = [];
+          if (data.phone) c.push(t("field.phone") + "：" + data.phone);
+          if (data.email) c.push(t("field.email") + "：" + data.email);
+          bodyLines.push(c.join("\\quad "));
+        }
+      }
+      continue;
+    }
+
+    if (sec.type === "skills") {
+      if (!data.skills) continue;
+      if (classic) {
+        bodyLines.push(`\\subsection*{${escTex(t("form.skills"))}}`);
+        bodyLines.push("\\noindent\\rule{\\linewidth}{0.6pt}");
+        for (const line of data.skills.split("\n")) {
+          if (line.trim()) bodyLines.push("\\quad\\textbullet\\; " + escTex(line.trim()));
+        }
+      } else {
+        bodyLines.push("\\noindent\\textbf{" + escTex(t("form.skills")) + "}：" + escTex(data.skills));
+      }
+    } else if (sec.type === "education") {
+      bodyLines.push(entryTex(t("form.education"), data.education, classic));
+    } else if (sec.type === "work") {
+      bodyLines.push(entryTex(t("form.work"), data.work, classic));
+    } else if (sec.type === "projects") {
+      bodyLines.push(entryTex(t("form.project"), data.projects, classic));
+    } else if (sec.type === "custom") {
+      if (!sec.content.trim()) continue;
+      if (classic) {
+        bodyLines.push(`\\subsection*{${escTex(sec.title || t("form.customModule"))}}`);
+        bodyLines.push("\\noindent\\rule{\\linewidth}{0.6pt}");
+      } else {
+        bodyLines.push(`\\subsection*{${escTex(sec.title || t("form.customModule"))}}`);
+      }
+      for (const line of sec.content.split("\n")) {
+        if (line.trim()) bodyLines.push("\\quad\\textbullet\\; " + escTex(line.trim()));
+      }
+    }
+  }
+
   const lines: string[] = [];
   lines.push("\\documentclass[a4paper,11pt]{article}");
   lines.push("\\usepackage[utf8]{inputenc}");
@@ -64,34 +117,7 @@ export async function exportLatex(
   lines.push("\\usepackage{hyperref}");
   lines.push("\\begin{document}");
   lines.push("\\begin{CJK}{UTF8}{gbsn}");
-  lines.push(`\\section*{${escTex(data.name || " ")}}`);
-  if (data.role) lines.push(`\\textbf{${escTex(data.role)}}\\\\`);
-  if (classic) {
-    const contact = classicContactTex(data);
-    if (contact) lines.push(contact);
-  } else {
-    if (data.phone || data.email) {
-      const c: string[] = [];
-      if (data.phone) c.push(t("field.phone") + "：" + data.phone);
-      if (data.email) c.push(t("field.email") + "：" + data.email);
-      lines.push(c.join("\\quad "));
-    }
-  }
-  lines.push("");
-  lines.push(entryTex(t("form.education"), data.education, classic));
-  lines.push(entryTex(t("form.work"), data.work, classic));
-  lines.push(entryTex(t("form.project"), data.projects, classic));
-  if (data.skills) {
-    if (classic) {
-      lines.push(`\\subsection*{${escTex(t("form.skills"))}}`);
-      lines.push("\\noindent\\rule{\\linewidth}{0.6pt}");
-      for (const line of data.skills.split("\n")) {
-        if (line.trim()) lines.push("\\quad\\textbullet\\; " + escTex(line.trim()));
-      }
-    } else {
-      lines.push("\\noindent\\textbf{" + escTex(t("form.skills")) + "}：" + escTex(data.skills));
-    }
-  }
+  lines.push(bodyLines.join("\n"));
   lines.push("\\end{CJK}");
   lines.push("\\end{document}");
 

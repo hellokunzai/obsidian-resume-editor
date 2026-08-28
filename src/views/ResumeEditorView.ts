@@ -67,6 +67,7 @@ export class ResumeEditorView extends ItemView {
   private previewPaper!: HTMLElement;
   private saveTimer: number | null = null;
   private activeIconPicker: HTMLElement | null = null;
+  private dragEl: HTMLElement | null = null;
 
   constructor(leaf: WorkspaceLeaf, plugin: ResumeEditorPlugin) {
     super(leaf);
@@ -178,7 +179,6 @@ export class ResumeEditorView extends ItemView {
     // 模块列表（按 sections 顺序渲染）
     this.sectionList = b.createDiv({ cls: "re-section-list" });
     this.renderModules();
-    this.bindDnd();
 
     // 添加模块按钮（永远在最下方）
     const addWrap = b.createDiv({ cls: "re-add-module-wrap" });
@@ -200,6 +200,7 @@ export class ResumeEditorView extends ItemView {
     for (const sec of this.model.sections) {
       this.sectionList.appendChild(this.buildModule(sec));
     }
+    this.bindDnd();
   }
 
   private buildModule(sec: ResumeSection): HTMLElement {
@@ -212,7 +213,7 @@ export class ResumeEditorView extends ItemView {
 
     const handle = bar.createEl("span", {
       cls: "re-drag-handle",
-      attr: { draggable: "true", title: t("module.drag") },
+      attr: { title: t("module.drag") },
     });
     setIcon(handle, "re-grip-vertical");
 
@@ -402,41 +403,54 @@ export class ResumeEditorView extends ItemView {
   private bindDnd(): void {
     const list = this.sectionList;
     if (!list) return;
-    let dragEl: HTMLElement | null = null;
-
+    // 每次 renderModules 重建后重新绑定到新节点。
+    // 使用 Pointer Events 而非原生 HTML5 拖放：Obsidian 的 Electron 环境会拦截
+    // dragstart/dragover/drop，导致「拖不动」；Pointer 事件不受其影响，且统一鼠标/触屏。
     list.querySelectorAll(".re-module").forEach((mod) => {
-      const handle = mod.querySelector(".re-drag-handle") as HTMLElement;
-      handle.addEventListener("dragstart", (e: DragEvent) => {
-        dragEl = mod as HTMLElement;
-        mod.addClass("re-dragging");
-        e.dataTransfer?.setData("text/plain", "");
-        if (e.dataTransfer) e.dataTransfer.effectAllowed =  "move";
-      });
-      handle.addEventListener("dragend", () => {
-        mod.removeClass("re-dragging");
-        dragEl = null;
+      const handle = mod.querySelector(".re-drag-handle") as HTMLElement | null;
+      if (!handle) return;
+      handle.addEventListener("pointerdown", (e: PointerEvent) => {
+        if (e.button !== 0 && e.pointerType === "mouse") return;
+        e.preventDefault();
+        this.startModuleDrag(mod as HTMLElement);
       });
     });
+  }
 
-    list.addEventListener("dragover", (e: DragEvent) => {
-      e.preventDefault();
-      if (!dragEl) return;
-      const after = this.getDragAfterElement(list, e.clientY);
-      if (after == null) list.appendChild(dragEl);
-      else list.insertBefore(dragEl, after);
-    });
+  private startModuleDrag(mod: HTMLElement): void {
+    const list = this.sectionList;
+    if (!list) return;
+    this.dragEl = mod;
+    mod.addClass("re-dragging");
 
-    list.addEventListener("drop", (e: DragEvent) => {
-      e.preventDefault();
-      if (!dragEl) return;
+    const onMove = (ev: PointerEvent) => {
+      if (!this.dragEl || !list) return;
+      const after = this.getDragAfterElement(list, ev.clientY);
+      if (after == null) {
+        if (list.lastElementChild !== this.dragEl) list.appendChild(this.dragEl);
+      } else if (after !== this.dragEl) {
+        list.insertBefore(this.dragEl, after);
+      }
+    };
+
+    const onUp = () => {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.removeEventListener("pointercancel", onUp);
+      if (!this.dragEl) return;
       const ids = Array.from(list.querySelectorAll(".re-module")).map(
         (m) => (m as HTMLElement).getAttribute("data-id") as string
       );
       this.model.sections.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
-      dragEl = null;
+      this.dragEl.removeClass("re-dragging");
+      this.dragEl = null;
       this.renderPreview();
       this.scheduleSave();
-    });
+    };
+
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+    document.addEventListener("pointercancel", onUp);
   }
 
   private getDragAfterElement(container: HTMLElement, y: number): HTMLElement | null {

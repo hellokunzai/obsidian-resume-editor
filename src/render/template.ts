@@ -203,27 +203,6 @@ function renderCustomClassic(parent: HTMLElement, sec: ResumeSection): void {
     .forEach((l) => ul.createEl("li", { text: l.trim() }));
 }
 
-function renderResumeClassic(paper: HTMLElement, data: ResumeData, app?: App): void {
-  const basicVisible = data.sections.find((s) => s.type === "basic")?.visible !== false;
-  if (basicVisible) renderHeaderClassic(paper, data, app);
-
-  for (const sec of data.sections) {
-    if (!sec.visible) continue;
-    if (sec.type === "basic") continue;
-    if (sec.type === "skills") {
-      renderSkillsClassic(paper, data.skills);
-    } else if (sec.type === "education") {
-      sectionDomClassic(paper, t("form.education"), data.education);
-    } else if (sec.type === "work") {
-      sectionDomClassic(paper, t("form.work"), data.work);
-    } else if (sec.type === "projects") {
-      sectionDomClassic(paper, t("form.project"), data.projects);
-    } else if (sec.type === "custom") {
-      renderCustomClassic(paper, sec);
-    }
-  }
-}
-
 export function renderResumeDom(
   root: HTMLElement,
   data: ResumeData,
@@ -232,37 +211,59 @@ export function renderResumeDom(
 ): void {
   root.empty();
 
-  if (template === "classic") {
-    const paper = root.createDiv({ cls: "re-paper re-classic" });
-    renderResumeClassic(paper, data, app);
-    return;
-  }
-
-  const paper = root.createDiv({
-    cls: template === "academic" ? "re-paper re-academic" : "re-paper",
-  });
-
-  const basicVisible = data.sections.find((s) => s.type === "basic")?.visible !== false;
-  if (basicVisible) renderHeaderDom(paper, data, app);
+  const paperClass =
+    template === "classic"
+      ? "re-paper re-classic"
+      : template === "academic"
+      ? "re-paper re-academic"
+      : "re-paper";
+  const paper = root.createDiv({ cls: paperClass });
+  // 调试：在 DOM 上暴露当前渲染顺序，便于排查顺序是否生效
+  paper.setAttribute(
+    "data-section-order",
+    data.sections.filter((s) => s.visible).map((s) => s.type).join(",")
+  );
 
   for (const sec of data.sections) {
     if (!sec.visible) continue;
-    if (sec.type === "basic") continue;
+
+    if (sec.type === "basic") {
+      if (template === "classic") renderHeaderClassic(paper, data, app);
+      else renderHeaderDom(paper, data, app);
+      continue;
+    }
+
     if (sec.type === "skills") {
-      if (data.skills) {
+      if (template === "classic") {
+        renderSkillsClassic(paper, data.skills);
+      } else if (data.skills) {
         paper.createEl("div", {
           cls: "r-skills",
           text: t("form.skills") + "：" + data.skills,
         });
       }
     } else if (sec.type === "education") {
-      sectionDom(paper, t("form.education"), data.education);
+      if (template === "classic") {
+        sectionDomClassic(paper, t("form.education"), data.education);
+      } else {
+        sectionDom(paper, t("form.education"), data.education);
+      }
     } else if (sec.type === "work") {
-      sectionDom(paper, t("form.work"), data.work);
+      if (template === "classic") {
+        sectionDomClassic(paper, t("form.work"), data.work);
+      } else {
+        sectionDom(paper, t("form.work"), data.work);
+      }
     } else if (sec.type === "projects") {
-      sectionDom(paper, t("form.project"), data.projects);
+      if (template === "classic") {
+        sectionDomClassic(paper, t("form.project"), data.projects);
+      } else {
+        sectionDom(paper, t("form.project"), data.projects);
+      }
     } else if (sec.type === "custom") {
-      if (sec.content.trim()) {
+      if (template === "classic") {
+        renderCustomClassic(paper, sec);
+      } else if (sec.content.trim()) {
         paper.createEl("h3", {
           cls: "r-sec",
           text: sec.title || t("form.customModule"),
@@ -410,55 +411,51 @@ function customHtmlClassic(sec: ResumeSection): string {
   return `<h3 class="r-sec r-sec-classic">${esc(title)}</h3><ul>${items}</ul>`;
 }
 
-function resumeToHtmlClassic(data: ResumeData, app?: App): string {
-  const parts: string[] = [];
-  const basicVisible = data.sections.find((s) => s.type === "basic")?.visible !== false;
-  if (basicVisible) parts.push(headerHtmlClassic(data, app));
-
-  for (const sec of data.sections) {
-    if (!sec.visible) continue;
-    if (sec.type === "basic") continue;
-    if (sec.type === "skills") {
-      parts.push(skillsHtmlClassic(data.skills));
-    } else if (sec.type === "education") {
-      parts.push(sectionHtmlClassic(t("form.education"), data.education));
-    } else if (sec.type === "work") {
-      parts.push(sectionHtmlClassic(t("form.work"), data.work));
-    } else if (sec.type === "projects") {
-      parts.push(sectionHtmlClassic(t("form.project"), data.projects));
-    } else if (sec.type === "custom") {
-      parts.push(customHtmlClassic(sec));
-    }
-  }
-  return `<div class="re-paper re-classic">${parts.join("")}</div>`;
-}
-
 export function resumeToHtml(data: ResumeData, template: TemplateId, app?: App): string {
-  if (template === "classic") return resumeToHtmlClassic(data, app);
-
-  const cls = template === "academic" ? "re-paper re-academic" : "re-paper";
+  const cls =
+    template === "classic"
+      ? "re-paper re-classic"
+      : template === "academic"
+      ? "re-paper re-academic"
+      : "re-paper";
   const parts: string[] = [`<div class="${cls}">`];
 
-  const basicVisible = data.sections.find((s) => s.type === "basic")?.visible !== false;
-  if (basicVisible) parts.push(headerHtml(data, app));
-
   for (const sec of data.sections) {
     if (!sec.visible) continue;
-    if (sec.type === "basic") continue;
+
+    if (sec.type === "basic") {
+      parts.push(template === "classic" ? headerHtmlClassic(data, app) : headerHtml(data, app));
+      continue;
+    }
+
     if (sec.type === "skills") {
-      if (data.skills) {
-        parts.push(
-          `<div class="r-skills">${esc(t("form.skills"))}：${esc(data.skills)}</div>`
-        );
+      if (template === "classic") {
+        parts.push(skillsHtmlClassic(data.skills));
+      } else if (data.skills) {
+        parts.push(`<div class="r-skills">${esc(t("form.skills"))}：${esc(data.skills)}</div>`);
       }
     } else if (sec.type === "education") {
-      parts.push(sectionHtml(t("form.education"), data.education));
+      parts.push(
+        template === "classic"
+          ? sectionHtmlClassic(t("form.education"), data.education)
+          : sectionHtml(t("form.education"), data.education)
+      );
     } else if (sec.type === "work") {
-      parts.push(sectionHtml(t("form.work"), data.work));
+      parts.push(
+        template === "classic"
+          ? sectionHtmlClassic(t("form.work"), data.work)
+          : sectionHtml(t("form.work"), data.work)
+      );
     } else if (sec.type === "projects") {
-      parts.push(sectionHtml(t("form.project"), data.projects));
+      parts.push(
+        template === "classic"
+          ? sectionHtmlClassic(t("form.project"), data.projects)
+          : sectionHtml(t("form.project"), data.projects)
+      );
     } else if (sec.type === "custom") {
-      if (sec.content.trim()) {
+      if (template === "classic") {
+        parts.push(customHtmlClassic(sec));
+      } else if (sec.content.trim()) {
         const title = sec.title || t("form.customModule");
         const items = sec.content
           .split("\n")

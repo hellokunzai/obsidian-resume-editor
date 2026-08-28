@@ -665,6 +665,7 @@
   cursor: grab;
   color: var(--text-faint);
   flex: none;
+  touch-action: none;
 }
 
 .re-drag-handle:active {
