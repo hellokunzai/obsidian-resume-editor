@@ -293,9 +293,79 @@
   margin-bottom: 0;
 }
 
-.re-cf-icon {
-  width: 36px;
-  text-align: center;
+.re-cf-icon-btn {
+  width: 30px;
+  height: 30px;
+  border: 1px dashed var(--background-modifier-border);
+  background: var(--background-primary);
+  color: var(--text-muted);
+  border-radius: var(--button-radius, 6px);
+  cursor: pointer;
+  padding: 0;
+}
+
+.re-cf-icon-btn:hover {
+  border-color: var(--background-modifier-border-hover);
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
+.re-cf-icon-btn svg,
+.re-cf-icon-btn .svg-icon {
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px !important;
+  min-height: 16px !important;
+}
+
+.re-icon-picker {
+  position: fixed;
+  z-index: 9999;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius, 8px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  padding: 8px;
+  min-width: 180px;
+}
+
+.re-icon-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+}
+
+.re-icon-picker-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: var(--button-radius, 6px);
+  cursor: pointer;
+  padding: 0;
+}
+
+.re-icon-picker-item:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.re-icon-picker-item.re-on {
+  border-color: var(--interactive-accent);
+  color: var(--interactive-accent);
+  background: var(--background-modifier-active-hover);
+}
+
+.re-icon-picker-item svg,
+.re-icon-picker-item .svg-icon {
+  width: 15px !important;
+  height: 15px !important;
+  min-width: 15px !important;
+  min-height: 15px !important;
 }
 
 .re-cf-label {
@@ -430,6 +500,17 @@
 
 .re-paper .r-ci-icon {
   flex: none;
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.re-paper .r-ci-icon svg {
+  width: 14px;
+  height: 14px;
+  display: block;
 }
 
 .re-paper .r-ci-label {
@@ -703,4 +784,136 @@
   padding: 8px 12px;
   font-size: var(--font-ui-small, 13px);
   color: var(--text-faint);
+}
+
+/* ===== Classic 模板预览（迁移自 magic-resume，使用 Obsidian 主题变量） ===== */
+.re-paper.re-classic {
+  color: var(--text-normal);
+}
+
+.re-paper.re-classic .r-header-classic {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 18px;
+}
+
+.re-paper.re-classic .r-header-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.re-paper.re-classic .r-avatar {
+  width: 88px;
+  height: 112px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--background-modifier-border);
+  flex: none;
+}
+
+.re-paper.re-classic .r-name {
+  font-size: 26px;
+  font-weight: 700;
+  margin: 0 0 2px;
+  color: var(--text-normal);
+}
+
+.re-paper.re-classic .r-role {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-bottom: 0;
+}
+
+.re-paper.re-classic .r-contact-grid-classic {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 20px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.re-paper.re-classic .r-cic-classic {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.re-paper.re-classic .r-cic-classic .r-ci-icon {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  color: var(--text-normal);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.re-paper.re-classic .r-cic-classic .r-ci-icon svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+.re-paper.re-classic .r-ci-label {
+  color: var(--text-faint);
+  flex: none;
+}
+
+.re-paper.re-classic .r-ci-value {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.re-paper.re-classic h3.r-sec-classic {
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  border-bottom: 2px solid var(--text-normal);
+  padding-bottom: 3px;
+  margin: 16px 0 8px;
+  color: var(--text-normal);
+}
+
+.re-paper.re-classic .r-item-classic {
+  margin-bottom: 10px;
+}
+
+.re-paper.re-classic .r-item-classic .r-top-classic {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.re-paper.re-classic .r-item-classic .r-nm {
+  font-weight: 600;
+}
+
+.re-paper.re-classic .r-item-classic .r-dt {
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+.re-paper.re-classic .r-item-classic .r-sub {
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.re-paper.re-classic ul {
+  margin: 3px 0 0;
+  padding-left: 18px;
+}
+
+.re-paper.re-classic ul li {
+  font-size: 12.5px;
+  margin: 2px 0;
+}
+
+.re-paper.re-classic .r-skills-list {
+  margin: 4px 0 0;
+  padding-left: 18px;
 }

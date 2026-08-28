@@ -3,6 +3,7 @@
 import { Plugin, Notice, TFile } from "obsidian";
 import { t } from "./i18n";
 import { registerResumeIcons } from "./ui/icons";
+import { registerContactIcons } from "./ui/contact-icons";
 import {
   DEFAULT_RESUME,
   createResumeMarkdown,
@@ -23,6 +24,7 @@ export default class ResumeEditorPlugin extends Plugin {
 
   async onload(): Promise<void> {
     registerResumeIcons();
+    registerContactIcons();
 
     await this.loadSettings();
 

@@ -2,7 +2,7 @@
 
 import { App, TFile } from "obsidian";
 
-export type TemplateId = "single" | "twoCol" | "academic";
+export type TemplateId = "single" | "twoCol" | "academic" | "classic";
 export type ResumeLayout = "left" | "top" | "right";
 
 /** 模块类型：内置固定模块 + 用户自定义模块 */
@@ -66,6 +66,12 @@ export interface ResumeData {
   role: string;
   phone: string;
   email: string;
+  /** 在职状态，如「离职」「在职」 */
+  employmentStatus: string;
+  /** 所在地 */
+  location: string;
+  /** 出生年月 */
+  birthDate: string;
   layout: ResumeLayout;
   avatar: string;
   customFields: ResumeCustomField[];
@@ -85,6 +91,9 @@ export const DEFAULT_RESUME: ResumeData = {
   role: "",
   phone: "",
   email: "",
+  employmentStatus: "",
+  location: "",
+  birthDate: "",
   layout: "left",
   avatar: "",
   customFields: [],
@@ -176,6 +185,9 @@ export function parseResume(
     role: typeof fm.role === "string" ? fm.role : "",
     phone: typeof fm.phone === "string" ? fm.phone : "",
     email: typeof fm.email === "string" ? fm.email : "",
+    employmentStatus: typeof fm.employmentStatus === "string" ? fm.employmentStatus : "",
+    location: typeof fm.location === "string" ? fm.location : "",
+    birthDate: typeof fm.birthDate === "string" ? fm.birthDate : "",
     layout,
     avatar: typeof fm.avatar === "string" ? fm.avatar : "",
     customFields: asCustomFields(fm.customFields),
@@ -224,6 +236,9 @@ export function toFrontmatter(data: ResumeData): Record<string, unknown> {
     role: data.role,
     phone: data.phone,
     email: data.email,
+    employmentStatus: data.employmentStatus,
+    location: data.location,
+    birthDate: data.birthDate,
     layout: data.layout,
     avatar: data.avatar,
     sections,
@@ -301,6 +316,9 @@ function serializeConfig(data: ResumeData): string {
     "<!-- obsidian-resume-editor",
     `layout: ${data.layout}`,
     `avatar: ${data.avatar}`,
+    `employmentStatus: ${data.employmentStatus}`,
+    `location: ${data.location}`,
+    `birthDate: ${data.birthDate}`,
     `customFields: ${cfJson}`,
     "-->",
   ].join("\n");
@@ -319,6 +337,12 @@ function parseConfig(content: string): Partial<ResumeData> {
     }
     const avatarMatch = line.match(/^avatar:\s*(.*)$/);
     if (avatarMatch) cfg.avatar = avatarMatch[1].trim();
+    const esMatch = line.match(/^employmentStatus:\s*(.*)$/);
+    if (esMatch) cfg.employmentStatus = esMatch[1].trim();
+    const locMatch = line.match(/^location:\s*(.*)$/);
+    if (locMatch) cfg.location = locMatch[1].trim();
+    const bdMatch = line.match(/^birthDate:\s*(.*)$/);
+    if (bdMatch) cfg.birthDate = bdMatch[1].trim();
     const cfMatch = line.match(/^customFields:\s*(\[.*\])\s*$/);
     if (cfMatch) {
       try {
@@ -382,6 +406,9 @@ export function parseResumeMarkdown(content: string): ResumeData {
   const cfg = parseConfig(content);
   if (cfg.layout) data.layout = cfg.layout;
   if (cfg.avatar !== undefined) data.avatar = cfg.avatar;
+  if (cfg.employmentStatus !== undefined) data.employmentStatus = cfg.employmentStatus;
+  if (cfg.location !== undefined) data.location = cfg.location;
+  if (cfg.birthDate !== undefined) data.birthDate = cfg.birthDate;
   if (cfg.customFields) data.customFields = cfg.customFields;
 
   const body = stripFrontmatter(content).trim();

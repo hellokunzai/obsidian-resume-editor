@@ -1,7 +1,7 @@
 // LaTeX 导出：模板字符串生成（无需第三方库）
 
 import { App, Notice } from "obsidian";
-import { ResumeData, ResumeEntry } from "../data/resume-model";
+import { ResumeData, ResumeEntry, TemplateId } from "../data/resume-model";
 import { t } from "../i18n";
 
 function escTex(s: string): string {
@@ -12,14 +12,17 @@ function escTex(s: string): string {
     .replace(/\^/g, "\\textasciicircum{}");
 }
 
-function entryTex(title: string, entries: ResumeEntry[]): string {
+function entryTex(title: string, entries: ResumeEntry[], classic: boolean): string {
   if (!entries.length) return "";
-  const lines: string[] = [`\\subsection*{${escTex(title)}}`];
+  const head = classic
+    ? `\\subsection*{${escTex(title)}}\n\\noindent\\rule{\\linewidth}{0.6pt}\n`
+    : `\\subsection*{${escTex(title)}}`;
+  const lines: string[] = [head];
   for (const e of entries) {
-    const head = e.time
+    const top = e.time
       ? `${escTex(e.org)} \\hfill \\textit{${escTex(e.time)}}`
       : escTex(e.org);
-    lines.push(head);
+    lines.push(top);
     if (e.title) lines.push(escTex(e.title));
     if (e.details) {
       for (const line of e.details.split("\n")) {
@@ -31,11 +34,29 @@ function entryTex(title: string, entries: ResumeEntry[]): string {
   return lines.join("\n");
 }
 
+/** Classic 模板：带标签的联系信息行 */
+function classicContactTex(data: ResumeData): string {
+  const c: string[] = [];
+  if (data.employmentStatus) c.push(t("field.employmentStatus") + "：" + data.employmentStatus);
+  if (data.email) c.push(t("field.email") + "：" + data.email);
+  if (data.birthDate) c.push(t("field.birthDate") + "：" + data.birthDate);
+  if (data.phone) c.push(t("field.phone") + "：" + data.phone);
+  if (data.location) c.push(t("field.location") + "：" + data.location);
+  for (const f of data.customFields) {
+    if (!f.visible || !f.value) continue;
+    c.push((f.showLabel && f.label ? f.label + "：" : "") + f.value);
+  }
+  if (!c.length) return "";
+  return c.join("\\quad ") + "\\\\";
+}
+
 export async function exportLatex(
   app: App,
   data: ResumeData,
-  baseName: string
+  baseName: string,
+  template?: TemplateId
 ): Promise<void> {
+  const classic = template === "classic";
   const lines: string[] = [];
   lines.push("\\documentclass[a4paper,11pt]{article}");
   lines.push("\\usepackage[utf8]{inputenc}");
@@ -45,17 +66,32 @@ export async function exportLatex(
   lines.push("\\begin{CJK}{UTF8}{gbsn}");
   lines.push(`\\section*{${escTex(data.name || " ")}}`);
   if (data.role) lines.push(`\\textbf{${escTex(data.role)}}\\\\`);
-  if (data.phone || data.email) {
-    const c: string[] = [];
-    if (data.phone) c.push(t("field.phone") + "：" + data.phone);
-    if (data.email) c.push(t("field.email") + "：" + data.email);
-    lines.push(c.join("\\quad "));
+  if (classic) {
+    const contact = classicContactTex(data);
+    if (contact) lines.push(contact);
+  } else {
+    if (data.phone || data.email) {
+      const c: string[] = [];
+      if (data.phone) c.push(t("field.phone") + "：" + data.phone);
+      if (data.email) c.push(t("field.email") + "：" + data.email);
+      lines.push(c.join("\\quad "));
+    }
   }
   lines.push("");
-  lines.push(entryTex(t("form.education"), data.education));
-  lines.push(entryTex(t("form.work"), data.work));
-  lines.push(entryTex(t("form.project"), data.projects));
-  if (data.skills) lines.push("\\noindent\\textbf{" + escTex(t("form.skills")) + "}：" + escTex(data.skills));
+  lines.push(entryTex(t("form.education"), data.education, classic));
+  lines.push(entryTex(t("form.work"), data.work, classic));
+  lines.push(entryTex(t("form.project"), data.projects, classic));
+  if (data.skills) {
+    if (classic) {
+      lines.push(`\\subsection*{${escTex(t("form.skills"))}}`);
+      lines.push("\\noindent\\rule{\\linewidth}{0.6pt}");
+      for (const line of data.skills.split("\n")) {
+        if (line.trim()) lines.push("\\quad\\textbullet\\; " + escTex(line.trim()));
+      }
+    } else {
+      lines.push("\\noindent\\textbf{" + escTex(t("form.skills")) + "}：" + escTex(data.skills));
+    }
+  }
   lines.push("\\end{CJK}");
   lines.push("\\end{document}");
 

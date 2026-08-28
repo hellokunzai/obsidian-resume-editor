@@ -99,6 +99,7 @@ export class ResumeSettingTab extends PluginSettingTab {
           .addOption("single", t("template.single"))
           .addOption("twoCol", t("template.twoCol"))
           .addOption("academic", t("template.academic"))
+          .addOption("classic", t("template.classic"))
           .setValue(this.plugin.settings.template)
           .onChange(async (v) => {
             this.plugin.settings.template = v as TemplateId;

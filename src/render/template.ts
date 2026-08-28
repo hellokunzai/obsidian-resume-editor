@@ -1,8 +1,14 @@
 // 模板引擎：ResumeData -> 预览 DOM（createEl 构造，禁用 innerHTML）/ 导出 HTML 字符串
 
-import { App, TFile } from "obsidian";
-import { ResumeData, ResumeEntry, ResumeCustomField, ResumeLayout, TemplateId } from "../data/resume-model";
+import { App, TFile, setIcon } from "obsidian";
+import { ResumeData, ResumeEntry, ResumeCustomField, ResumeLayout, TemplateId, ResumeSection } from "../data/resume-model";
 import { t } from "../i18n";
+import {
+  CONTACT_ICONS,
+  contactIconId,
+  contactIconSvg,
+  normalizeCustomFieldIcon,
+} from "../ui/contact-icons";
 
 /* ---------- 预览 DOM 构建（合规：全部用 createEl，无 innerHTML） ---------- */
 
@@ -38,31 +44,53 @@ function resolveAvatarUrl(app: App | undefined, avatarPath: string): string {
 }
 
 interface ContactItem {
-  icon: string;
+  iconKey: string;
   label: string;
   value: string;
   showLabel: boolean;
 }
 
+const ICON_EMOJI: Record<string, string> = {
+  phone: "📞",
+  mail: "✉",
+  location: "📍",
+  birthDate: "📅",
+  employmentStatus: "💼",
+  link: "🔗",
+};
+
+/** 联系信息：固定顺序（含新增字段），customFields 置后 */
 function buildContactItems(data: ResumeData): ContactItem[] {
+  const order: { key: keyof ResumeData; iconKey: string }[] = [
+    { key: "employmentStatus", iconKey: "employmentStatus" },
+    { key: "email", iconKey: "mail" },
+    { key: "birthDate", iconKey: "birthDate" },
+    { key: "phone", iconKey: "phone" },
+    { key: "location", iconKey: "location" },
+  ];
   const items: ContactItem[] = [];
-  if (data.phone) items.push({ icon: "📞", label: t("field.phone"), value: data.phone, showLabel: false });
-  if (data.email) items.push({ icon: "✉", label: t("field.email"), value: data.email, showLabel: false });
-  for (const f of data.customFields) {
-    if (!f.visible || (!f.value && !f.icon)) continue;
-    items.push({
-      icon: f.icon || "•",
-      label: f.label,
-      value: f.value,
-      showLabel: f.showLabel,
-    });
+  for (const f of order) {
+    const v = data[f.key];
+    if (typeof v === "string" && v) {
+      items.push({ iconKey: f.iconKey, label: t("field." + f.key), value: v, showLabel: false });
+    }
+  }
+  for (const cf of data.customFields) {
+    if (!cf.visible || (!cf.value && !cf.icon)) continue;
+    const iconKey = normalizeCustomFieldIcon(cf.icon);
+    items.push({ iconKey, label: cf.label, value: cf.value, showLabel: cf.showLabel });
   }
   return items;
 }
 
 function renderContactItem(parent: HTMLElement, item: ContactItem): void {
   const el = parent.createDiv({ cls: "r-contact-item" });
-  if (item.icon) el.createSpan({ cls: "r-ci-icon", text: item.icon });
+  const iconSpan = el.createSpan({ cls: "r-ci-icon" });
+  if (CONTACT_ICONS[item.iconKey]) {
+    setIcon(iconSpan, contactIconId(item.iconKey));
+  } else {
+    iconSpan.setText(ICON_EMOJI[item.iconKey] || "•");
+  }
   if (item.showLabel && item.label) {
     el.createSpan({ cls: "r-ci-label", text: item.label + "：" });
   }
@@ -91,6 +119,111 @@ function renderHeaderDom(
   }
 }
 
+/* ---------- Classic 模板（迁移自 magic-resume） ---------- */
+
+function splitSkills(skills: string): string[] {
+  if (!skills.trim()) return [];
+  const out: string[] = [];
+  for (const line of skills.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const parts = trimmed
+      .split(/[、；;,.]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    out.push(...parts);
+  }
+  return out;
+}
+
+function renderContactItemClassic(parent: HTMLElement, item: ContactItem): void {
+  const el = parent.createDiv({ cls: "r-contact-item r-cic-classic" });
+  const iconSpan = el.createSpan({ cls: "r-ci-icon" });
+  setIcon(iconSpan, contactIconId(item.iconKey));
+  if (item.showLabel && item.label) {
+    el.createSpan({ cls: "r-ci-label", text: item.label + "：" });
+  }
+  el.createSpan({ cls: "r-ci-value", text: item.value });
+}
+
+function renderHeaderClassic(
+  paper: HTMLElement,
+  data: ResumeData,
+  app?: App
+): void {
+  const header = paper.createDiv({ cls: "r-header r-header-classic" });
+  const main = header.createDiv({ cls: "r-header-main" });
+  const avatarUrl = resolveAvatarUrl(app, data.avatar);
+  if (avatarUrl) main.createEl("img", { cls: "r-avatar", attr: { src: avatarUrl } });
+
+  const headText = main.createDiv({ cls: "r-header-text" });
+  headText.createEl("div", { cls: "r-name", text: data.name || " " });
+  if (data.role) headText.createEl("div", { cls: "r-role", text: data.role });
+
+  const contacts = buildContactItems(data);
+  if (contacts.length) {
+    const grid = header.createDiv({ cls: "r-contact-grid r-contact-grid-classic" });
+    for (const c of contacts) renderContactItemClassic(grid, c);
+  }
+}
+
+function sectionDomClassic(parent: HTMLElement, title: string, entries: ResumeEntry[]): void {
+  if (!entries.length) return;
+  parent.createEl("h3", { cls: "r-sec r-sec-classic", text: title });
+  for (const e of entries) {
+    const item = parent.createDiv({ cls: "r-item r-item-classic" });
+    const top = item.createDiv({ cls: "r-top r-top-classic" });
+    top.createSpan({ cls: "r-nm", text: e.org });
+    if (e.time) top.createSpan({ cls: "r-dt", text: e.time });
+    if (e.title) item.createDiv({ cls: "r-sub", text: e.title });
+    if (e.details) {
+      const ul = item.createEl("ul");
+      for (const line of e.details.split("\n")) {
+        if (line.trim()) ul.createEl("li", { text: line.trim() });
+      }
+    }
+  }
+}
+
+function renderSkillsClassic(parent: HTMLElement, skills: string): void {
+  const lines = splitSkills(skills);
+  if (!lines.length) return;
+  parent.createEl("h3", { cls: "r-sec r-sec-classic", text: t("form.skills") });
+  const ul = parent.createEl("ul", { cls: "r-skills-list" });
+  for (const l of lines) ul.createEl("li", { text: l });
+}
+
+function renderCustomClassic(parent: HTMLElement, sec: ResumeSection): void {
+  if (!sec.content.trim()) return;
+  parent.createEl("h3", { cls: "r-sec r-sec-classic", text: sec.title || t("form.customModule") });
+  const ul = parent.createEl("ul");
+  sec.content
+    .split("\n")
+    .filter((l) => l.trim())
+    .forEach((l) => ul.createEl("li", { text: l.trim() }));
+}
+
+function renderResumeClassic(paper: HTMLElement, data: ResumeData, app?: App): void {
+  const basicVisible = data.sections.find((s) => s.type === "basic")?.visible !== false;
+  if (basicVisible) renderHeaderClassic(paper, data, app);
+
+  for (const sec of data.sections) {
+    if (!sec.visible) continue;
+    if (sec.type === "basic") continue;
+    if (sec.type === "skills") {
+      renderSkillsClassic(paper, data.skills);
+    } else if (sec.type === "education") {
+      sectionDomClassic(paper, t("form.education"), data.education);
+    } else if (sec.type === "work") {
+      sectionDomClassic(paper, t("form.work"), data.work);
+    } else if (sec.type === "projects") {
+      sectionDomClassic(paper, t("form.project"), data.projects);
+    } else if (sec.type === "custom") {
+      renderCustomClassic(paper, sec);
+    }
+  }
+}
+
 export function renderResumeDom(
   root: HTMLElement,
   data: ResumeData,
@@ -98,6 +231,13 @@ export function renderResumeDom(
   app?: App
 ): void {
   root.empty();
+
+  if (template === "classic") {
+    const paper = root.createDiv({ cls: "re-paper re-classic" });
+    renderResumeClassic(paper, data, app);
+    return;
+  }
+
   const paper = root.createDiv({
     cls: template === "academic" ? "re-paper re-academic" : "re-paper",
   });
@@ -108,7 +248,7 @@ export function renderResumeDom(
   for (const sec of data.sections) {
     if (!sec.visible) continue;
     if (sec.type === "basic") continue;
-    if (  sec.type === "skills") {
+    if (sec.type === "skills") {
       if (data.skills) {
         paper.createEl("div", {
           cls: "r-skills",
@@ -170,9 +310,11 @@ function sectionHtml(title: string, entries: ResumeEntry[]): string {
 }
 
 function contactItemHtml(item: ContactItem): string {
-  const icon = item.icon ? `<span class="r-ci-icon">${esc(item.icon)}</span>` : "";
+  const iconHtml = CONTACT_ICONS[item.iconKey]
+    ? `<span class="r-ci-icon">${contactIconSvg(item.iconKey)}</span>`
+    : `<span class="r-ci-icon">${esc(ICON_EMOJI[item.iconKey] || "•")}</span>`;
   const label = item.showLabel && item.label ? `<span class="r-ci-label">${esc(item.label)}：</span>` : "";
-  return `<div class="r-contact-item">${icon}${label}<span class="r-ci-value">${esc(item.value)}</span></div>`;
+  return `<div class="r-contact-item">${iconHtml}${label}<span class="r-ci-value">${esc(item.value)}</span></div>`;
 }
 
 function headerHtml(data: ResumeData, app?: App): string {
@@ -197,7 +339,103 @@ function headerHtml(data: ResumeData, app?: App): string {
   `;
 }
 
+/* ---------- Classic 模板导出 HTML ---------- */
+
+function contactItemHtmlClassic(item: ContactItem): string {
+  const icon = `<span class="r-ci-icon">${contactIconSvg(item.iconKey)}</span>`;
+  const label = item.showLabel && item.label ? `<span class="r-ci-label">${esc(item.label)}：</span>` : "";
+  return `<div class="r-contact-item r-cic-classic">${icon}${label}<span class="r-ci-value">${esc(item.value)}</span></div>`;
+}
+
+function headerHtmlClassic(data: ResumeData, app?: App): string {
+  const avatarUrl = app ? resolveAvatarUrl(app, data.avatar) : "";
+  const contacts = buildContactItems(data);
+  const contactGrid = contacts.length
+    ? `<div class="r-contact-grid r-contact-grid-classic">${contacts.map(contactItemHtmlClassic).join("")}</div>`
+    : "";
+  const avatar = avatarUrl ? `<img class="r-avatar" src="${esc(avatarUrl)}">` : "";
+  const role = data.role ? `<div class="r-role">${esc(data.role)}</div>` : "";
+  return `
+    <div class="r-header r-header-classic">
+      <div class="r-header-main">
+        ${avatar}
+        <div class="r-header-text">
+          <div class="r-name">${esc(data.name || " ")}</div>
+          ${role}
+        </div>
+      </div>
+      ${contactGrid}
+    </div>
+  `;
+}
+
+function sectionHtmlClassic(title: string, entries: ResumeEntry[]): string {
+  if (!entries.length) return "";
+  const items = entries
+    .map((e) => {
+      const top =
+        `<div class="r-top r-top-classic"><span class="r-nm">${esc(e.org)}</span>` +
+        (e.time ? `<span class="r-dt">${esc(e.time)}</span>` : "") +
+        `</div>`;
+      const sub = e.title ? `<div class="r-sub">${esc(e.title)}</div>` : "";
+      const details = e.details
+        ? `<ul>${e.details
+            .split("\n")
+            .filter((l) => l.trim())
+            .map((l) => `<li>${esc(l.trim())}</li>`)
+            .join("")}</ul>`
+        : "";
+      return `<div class="r-item r-item-classic">${top}${sub}${details}</div>`;
+    })
+    .join("");
+  return `<h3 class="r-sec r-sec-classic">${esc(title)}</h3>${items}`;
+}
+
+function skillsHtmlClassic(skills: string): string {
+  const lines = splitSkills(skills);
+  if (!lines.length) return "";
+  return `<h3 class="r-sec r-sec-classic">${esc(t("form.skills"))}</h3><ul class="r-skills-list">${lines
+    .map((l) => `<li>${esc(l)}</li>`)
+    .join("")}</ul>`;
+}
+
+function customHtmlClassic(sec: ResumeSection): string {
+  if (!sec.content.trim()) return "";
+  const title = sec.title || t("form.customModule");
+  const items = sec.content
+    .split("\n")
+    .filter((l) => l.trim())
+    .map((l) => `<li>${esc(l.trim())}</li>`)
+    .join("");
+  return `<h3 class="r-sec r-sec-classic">${esc(title)}</h3><ul>${items}</ul>`;
+}
+
+function resumeToHtmlClassic(data: ResumeData, app?: App): string {
+  const parts: string[] = [];
+  const basicVisible = data.sections.find((s) => s.type === "basic")?.visible !== false;
+  if (basicVisible) parts.push(headerHtmlClassic(data, app));
+
+  for (const sec of data.sections) {
+    if (!sec.visible) continue;
+    if (sec.type === "basic") continue;
+    if (sec.type === "skills") {
+      parts.push(skillsHtmlClassic(data.skills));
+    } else if (sec.type === "education") {
+      parts.push(sectionHtmlClassic(t("form.education"), data.education));
+    } else if (sec.type === "work") {
+      parts.push(sectionHtmlClassic(t("form.work"), data.work));
+    } else if (sec.type === "projects") {
+      parts.push(sectionHtmlClassic(t("form.project"), data.projects));
+    } else if (sec.type === "custom") {
+      parts.push(customHtmlClassic(sec));
+    }
+  }
+  return `<div class="re-paper re-classic">${parts.join("")}</div>`;
+}
+
 export function resumeToHtml(data: ResumeData, template: TemplateId, app?: App): string {
+  if (template === "classic") return resumeToHtmlClassic(data, app);
+
   const cls = template === "academic" ? "re-paper re-academic" : "re-paper";
   const parts: string[] = [`<div class="${cls}">`];
 
@@ -258,7 +496,8 @@ body{margin:0;font-family:"PingFang SC","Microsoft YaHei",-apple-system,"Segoe U
 .re-paper .r-contact-grid{display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:8px 18px;font-size:12px;color:#555;}
 .re-paper .r-header.r-layout-top .r-contact-grid{grid-template-columns:repeat(auto-fit, minmax(140px, auto));justify-content:center;}
 .re-paper .r-contact-item{display:flex;align-items:center;gap:5px;min-width:0;}
-.re-paper .r-ci-icon{flex:none;}
+.re-paper .r-ci-icon{flex:none;width:14px;height:14px;display:inline-flex;align-items:center;justify-content:center;}
+.re-paper .r-ci-icon svg{width:14px;height:14px;display:block;}
 .re-paper .r-ci-label{color:#888;flex:none;}
 .re-paper .r-ci-value{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 
@@ -276,4 +515,27 @@ body{margin:0;font-family:"PingFang SC","Microsoft YaHei",-apple-system,"Segoe U
 .re-paper.re-two-col h3.r-sec{border-bottom:1px solid #7c5cff;}
 .re-paper.re-academic{font-family:Georgia,"Songti SC",serif;}
 .re-paper.re-academic .r-name{text-align:center;border-bottom:3px double #333;padding-bottom:6px;}
+
+/* ===== Classic 模板（迁移自 magic-resume） ===== */
+.re-paper.re-classic .r-header-classic{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:24px;margin-bottom:18px;}
+.re-paper.re-classic .r-header-main{display:flex;align-items:center;gap:14px;min-width:0;}
+.re-paper.re-classic .r-avatar{width:88px;height:112px;object-fit:cover;border-radius:6px;border:1px solid #e0e0e0;flex:none;}
+.re-paper.re-classic .r-name{font-size:26px;font-weight:700;margin:0 0 2px;color:#1a1a1a;}
+.re-paper.re-classic .r-role{color:#555;font-size:13px;}
+.re-paper.re-classic .r-contact-grid-classic{display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:6px 20px;font-size:12px;color:#444;}
+.re-paper.re-classic .r-cic-classic{display:flex;align-items:center;gap:6px;min-width:0;}
+.re-paper.re-classic .r-cic-classic .r-ci-icon{width:14px;height:14px;flex:none;color:#222;display:inline-flex;align-items:center;justify-content:center;}
+.re-paper.re-classic .r-cic-classic .r-ci-icon svg{width:14px;height:14px;display:block;}
+.re-paper.re-classic .r-ci-label{color:#666;flex:none;}
+.re-paper.re-classic .r-ci-value{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.re-paper.re-classic h3.r-sec-classic{font-size:14px;letter-spacing:.04em;border-bottom:2px solid #222;padding-bottom:3px;margin:16px 0 8px;color:#1a1a1a;}
+.re-paper.re-classic .r-item-classic{margin-bottom:10px;}
+.re-paper.re-classic .r-item-classic .r-top-classic{display:flex;justify-content:space-between;font-size:13px;}
+.re-paper.re-classic .r-item-classic .r-nm{font-weight:600;color:#1a1a1a;}
+.re-paper.re-classic .r-item-classic .r-dt{color:#888;font-size:12px;}
+.re-paper.re-classic .r-item-classic .r-sub{color:#555;font-size:12.5px;}
+.re-paper.re-classic ul{margin:3px 0 0;padding-left:18px;}
+.re-paper.re-classic ul li{font-size:12.5px;margin:2px 0;color:#333;}
+.re-paper.re-classic .r-skills-list{margin:4px 0 0;padding-left:18px;}
+.re-paper.re-classic .r-skills-list li{font-size:12.5px;margin:2px 0;color:#333;}
 `;

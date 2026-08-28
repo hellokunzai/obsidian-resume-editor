@@ -17,6 +17,12 @@ import {
 } from "../data/resume-model";
 import { renderResumeDom } from "../render/template";
 import { t } from "../i18n";
+import {
+  CUSTOM_FIELD_ICON_KEYS,
+  DEFAULT_CUSTOM_FIELD_ICON,
+  contactIconId,
+  normalizeCustomFieldIcon,
+} from "../ui/contact-icons";
 import { exportPdf } from "../export/pdf";
 import { exportHtml } from "../export/html";
 import { exportDocx } from "../export/docx";
@@ -60,6 +66,7 @@ export class ResumeEditorView extends ItemView {
   private sectionList!: HTMLElement;
   private previewPaper!: HTMLElement;
   private saveTimer: number | null = null;
+  private activeIconPicker: HTMLElement | null = null;
 
   constructor(leaf: WorkspaceLeaf, plugin: ResumeEditorPlugin) {
     super(leaf);
@@ -91,10 +98,10 @@ export class ResumeEditorView extends ItemView {
     header.createEl("div", { cls: "re-title", text: t("view.title") });
 
     const tplSwitch = header.createDiv({ cls: "re-tpl-switch" });
-    (["single", "twoCol", "academic"] as TemplateId[]).forEach((id) => {
+    (["single", "twoCol", "academic", "classic"] as TemplateId[]).forEach((id) => {
       const chip = tplSwitch.createEl("span", {
         cls: "re-tpl-chip" + (this.plugin.settings.template === id ? " re-on" : ""),
-        text: t("template." + (id === "twoCol" ? "twoCol" : id === "academic" ? "academic" : "single")),
+        text: t("template." + id),
       });
       chip.addEventListener("click", () => this.switchTemplate(id));
     });
@@ -158,7 +165,7 @@ export class ResumeEditorView extends ItemView {
       .forEach((c) => c.removeClass("re-on"));
     const chips = this.contentEl.querySelectorAll(".re-tpl-chip");
     chips.forEach((c, i) => {
-      const order: TemplateId[] = ["single", "twoCol", "academic"];
+      const order: TemplateId[] = ["single", "twoCol", "academic", "classic"];
       if (order[i] === id) c.addClass("re-on");
     });
     this.renderPreview();
@@ -342,6 +349,9 @@ export class ResumeEditorView extends ItemView {
     this.basicField(parent, "field.name", "name", this.model.name);
     this.basicField(parent, "field.role", "role", this.model.role);
     this.rowField(parent, "field.phone", "phone", this.model.phone, "field.email", "email", this.model.email);
+    this.basicField(parent, "field.employmentStatus", "employmentStatus", this.model.employmentStatus);
+    this.basicField(parent, "field.location", "location", this.model.location);
+    this.basicField(parent, "field.birthDate", "birthDate", this.model.birthDate);
     this.customFieldsBlock(parent);
   }
 
@@ -563,6 +573,9 @@ export class ResumeEditorView extends ItemView {
       role: get('[data-basic="role"]'),
       phone: get('[data-basic="phone"]'),
       email: get('[data-basic="email"]'),
+      employmentStatus: get('[data-basic="employmentStatus"]'),
+      location: get('[data-basic="location"]'),
+      birthDate: get('[data-basic="birthDate"]'),
       layout: this.model.layout,
       avatar: get('[data-basic="avatar"]'),
       customFields: this.readCustomFields(),
@@ -608,11 +621,23 @@ export class ResumeEditorView extends ItemView {
   private buildCustomField(parent: HTMLElement, f: ResumeCustomField): void {
     const row = parent.createDiv({ cls: "re-cf-row", attr: { "data-custom-field": "" } });
 
-    const iconInp = row.createEl("input", {
-      cls: "re-input re-cf-icon",
-      attr: { placeholder: t("field.cfIcon"), "data-cf": "icon" },
+    const iconKey = normalizeCustomFieldIcon(f.icon);
+    const iconBtn = row.createEl("button", {
+      cls: "re-icon-btn re-cf-icon-btn",
+      attr: { type: "button", title: t("field.cfIcon"), "aria-label": t("field.cfIcon") },
     });
-    iconInp.value = f.icon;
+    setIcon(iconBtn, contactIconId(iconKey));
+    const iconHidden = row.createEl("input", {
+      attr: { type: "hidden", "data-cf": "icon", value: iconKey },
+    });
+    iconBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.openIconPicker(iconBtn, iconKey, (newKey) => {
+        iconHidden.value = newKey;
+        setIcon(iconBtn, contactIconId(newKey));
+        this.syncFromForm();
+      });
+    });
 
     const labelInp = row.createEl("input", {
       cls: "re-input re-cf-label",
@@ -645,6 +670,58 @@ export class ResumeEditorView extends ItemView {
     row.addEventListener("input", () => this.syncFromForm());
     showLabelCb.addEventListener("change", () => this.syncFromForm());
     visibleCb.addEventListener("change", () => this.syncFromForm());
+  }
+
+  private openIconPicker(
+    anchor: HTMLElement,
+    currentKey: string,
+    onSelect: (key: string) => void
+  ): void {
+    this.closeIconPicker();
+
+    const picker = document.createElement("div");
+    picker.className = "re-icon-picker";
+    picker.setAttribute("data-icon-picker", "");
+
+    const grid = picker.createDiv({ cls: "re-icon-picker-grid" });
+    for (const key of CUSTOM_FIELD_ICON_KEYS) {
+      const item = grid.createEl("button", {
+        cls: "re-icon-picker-item" + (key === currentKey ? " re-on" : ""),
+        attr: { type: "button", title: key, "data-key": key },
+      });
+      setIcon(item, contactIconId(key));
+      item.addEventListener("click", (e) => {
+        e.stopPropagation();
+        onSelect(key);
+        this.closeIconPicker();
+      });
+    }
+
+    document.body.appendChild(picker);
+    this.activeIconPicker = picker;
+
+    const rect = anchor.getBoundingClientRect();
+    const pickerHeight = Math.ceil(CUSTOM_FIELD_ICON_KEYS.length / 6) * 36 + 12;
+    const top = rect.bottom + pickerHeight > window.innerHeight
+      ? rect.top - pickerHeight - 4
+      : rect.bottom + 4;
+    picker.style.left = `${Math.min(rect.left, window.innerWidth - 240)}px`;
+    picker.style.top = `${Math.max(4, top)}px`;
+
+    const close = (ev: MouseEvent) => {
+      if (!picker.contains(ev.target as Node)) {
+        this.closeIconPicker();
+        document.removeEventListener("click", close);
+      }
+    };
+    setTimeout(() => document.addEventListener("click", close), 0);
+  }
+
+  private closeIconPicker(): void {
+    if (this.activeIconPicker) {
+      this.activeIconPicker.remove();
+      this.activeIconPicker = null;
+    }
   }
 
   private readCustomFields(): ResumeCustomField[] {
@@ -778,10 +855,10 @@ export class ResumeEditorView extends ItemView {
         void exportHtml(this.app, data, tpl, base);
         break;
       case "docx":
-        void exportDocx(this.app, data, base);
+        void exportDocx(this.app, data, base, tpl);
         break;
       case "latex":
-        void exportLatex(this.app, data, base);
+        void exportLatex(this.app, data, base, tpl);
         break;
     }
   }
