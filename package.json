@@ -1,6 +1,6 @@
 {
   "name": "obsidian-resume-editor",
-  "version": "0.7.5",
+  "version": "0.7.6",
   "description": "Form-driven resume editor with live preview, Chinese templates and PDF/HTML/DOCX/LaTeX export, plus a configurable resume directory.",
   "main": "main.js",
   "scripts": {

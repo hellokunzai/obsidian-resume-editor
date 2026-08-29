@@ -59,6 +59,12 @@
   - 修正 `avatarImageRun` 和 `iconImageRun`，直接传入像素值（`width: st.width, height: st.height` / `width: size, height: size`）。
 - 版本号同步：0.7.4 → 0.7.5。
 
+## 第五轮修复（2026-08-29）
+- 修复 `twoCol` / `leftRight` 分栏布局边距不足问题：
+  - `twoCol` 页面边距从 0 改为跟随 `globalSettings.pagePadding`，使文档两侧留出白边。
+  - 增大表格单元格内边距：左侧边栏左内边距 0.3 英寸、右内边距 0.22 英寸；右侧内容区四边 0.28 英寸；`leftRight` 同步增大。
+- 版本号同步：0.7.5 → 0.7.6。
+
 ## 未执行项
 - 未在真实 Obsidian 环境中进行端到端导出验证（需在测试 vault 中手动验证）。
 - 证书作品模块目前以图片 URL 文字占位，未嵌入实际图片（docx 图片嵌入已预留，可待后续增强）。
