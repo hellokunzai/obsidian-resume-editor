@@ -110,6 +110,11 @@ const translations: Record<string, Record<string, string>> = {
     "field.position": "Position",
     "field.details": "Description (one per line)",
     "field.skills": "Skills (one per line)",
+    "field.selfEvaluation": "Self evaluation (one per line)",
+    "field.certificates.placeholder": "Image URL (vault path or https://...)",
+    "field.certificates.width": "Width",
+    "field.certificates.empty": "No certificates yet. Click below to add one.",
+    "field.certificates.hint": "Supports vault path, https image, or Obsidian attachment URL",
     "field.cfIcon": "Icon",
     "field.cfLabel": "Label",
     "field.cfValue": "Value",
@@ -128,6 +133,7 @@ const translations: Record<string, Record<string, string>> = {
     "btn.addWork": "Add work",
     "btn.addProject": "Add project",
     "btn.addModule": "Add module",
+    "btn.addCertificate": "Add certificate",
 
     "basicField.allAdded": "All contact fields already added",
 
@@ -277,6 +283,11 @@ const translations: Record<string, Record<string, string>> = {
     "field.position": "职位",
     "field.details": "简介（每行一条）",
     "field.skills": "专业技能（每行一条）",
+    "field.selfEvaluation": "自我评价（每行一条）",
+    "field.certificates.placeholder": "图片 URL（vault 路径或 https://...）",
+    "field.certificates.width": "宽度",
+    "field.certificates.empty": "暂无证书，点击下方按钮添加",
+    "field.certificates.hint": "支持 vault 路径、https 图片或 Obsidian 附件链接",
     "field.cfIcon": "图标",
     "field.cfLabel": "标签",
     "field.cfValue": "值",
@@ -295,6 +306,7 @@ const translations: Record<string, Record<string, string>> = {
     "btn.addWork": "添加工作",
     "btn.addProject": "添加项目",
     "btn.addModule": "添加模块",
+    "btn.addCertificate": "添加证书",
 
     "basicField.allAdded": "所有联系方式已添加",
 

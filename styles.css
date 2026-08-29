@@ -1784,4 +1784,84 @@
   color: var(--text-muted);
 }
 
+/* ---------- 证书模块编辑卡片 ---------- */
+.re-entry-list[data-section-list="certificates"] .re-entry-card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--size-4-2, 8px);
+  padding: 8px;
+}
+
+.re-entry-list[data-section-list="certificates"] .re-entry-drag {
+  margin-top: 2px;
+}
+
+.re-cert-thumb {
+  width: 80px;
+  height: 60px;
+  flex: none;
+  border-radius: var(--radius, 6px);
+  overflow: hidden;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.re-cert-thumb-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.re-cert-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.re-cert-url-row {
+  display: flex;
+}
+
+.re-cert-width-row {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2, 8px);
+}
+
+.re-cert-width-label {
+  font-size: var(--font-ui-smaller, 12px);
+  color: var(--text-muted);
+  flex: none;
+}
+
+.re-cert-width-row .re-range {
+  flex: 1;
+  min-width: 0;
+}
+
+.re-cert-width-val {
+  font-size: var(--font-ui-smaller, 12px);
+  color: var(--text-normal);
+  flex: none;
+  width: 38px;
+  text-align: right;
+}
+
+.re-cert-empty {
+  font-size: var(--font-ui-smaller, 12px);
+  color: var(--text-faint);
+  padding: 8px 2px;
+}
+
+.re-cert-hint {
+  font-size: var(--font-ui-smaller, 12px);
+  color: var(--text-faint);
+  margin: 6px 2px 0;
+}
+
 

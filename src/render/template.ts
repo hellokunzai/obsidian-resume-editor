@@ -449,7 +449,7 @@ function renderCertificatesDom(
   app: App | undefined,
   tpl: TemplateId
 ): void {
-  const certs = (data.certificates || []).filter((c) => c.url && c.url.trim());
+  const certs = (data.certificates || []).filter((c) => c.url && c.url.trim() && c.visible !== false);
   if (!certs.length) return;
   const cls = tpl === "classic" ? "r-sec r-sec-classic" : "r-sec";
   parent.createEl("h3", { cls, text: t("form.certificates") });
@@ -746,7 +746,7 @@ function selfEvaluationHtml(data: ResumeData): string {
 }
 
 function certificatesHtml(data: ResumeData, app?: App): string {
-  const certs = (data.certificates || []).filter((c) => c.url && c.url.trim());
+  const certs = (data.certificates || []).filter((c) => c.url && c.url.trim() && c.visible !== false);
   if (!certs.length) return "";
   const imgs = certs
     .map((c) => {

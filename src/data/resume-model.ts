@@ -210,6 +210,8 @@ export interface Certificate {
   id: string;
   url: string;
   width: number;
+  /** 是否在预览/导出中显示（默认显示） */
+  visible?: boolean;
 }
 
 /** 可调整顺序/显示/删除的基础字段 key 集合（姓名、职位固定，不参与） */

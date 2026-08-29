@@ -14,6 +14,7 @@ import {
   ResumeData,
   ResumeEntry,
   ResumeCustomField,
+  Certificate,
   ResumeLayout,
   SectionType,
   MenuSection,
@@ -143,6 +144,7 @@ export class ResumeEditorView extends ItemView {
   private dragEl: HTMLElement | null = null;
   private basicFieldDragEl: HTMLElement | null = null;
   private entryDragEl: HTMLElement | null = null;
+  private certDragEl: HTMLElement | null = null;
 
   constructor(leaf: WorkspaceLeaf, plugin: ResumeEditorPlugin) {
     super(leaf);
@@ -522,6 +524,12 @@ export class ResumeEditorView extends ItemView {
       case "skills":
         this.basicField(parent, "field.skills", "skillContent", this.model.skillContent, true);
         break;
+      case "selfEvaluation":
+        this.basicField(parent, "field.selfEvaluation", "selfEvaluationContent", this.model.selfEvaluationContent, true);
+        break;
+      case "certificates":
+        this.certificatesBlock(parent);
+        break;
       case "custom":
         const ta = parent.createEl("textarea", {
           cls: "re-textarea",
@@ -764,6 +772,8 @@ export class ResumeEditorView extends ItemView {
       { type: "experience", label: t("form.work") },
       { type: "projects", label: t("form.project") },
       { type: "skills", label: t("form.skills") },
+      { type: "selfEvaluation", label: t("form.selfEvaluation") },
+      { type: "certificates", label: t("form.certificates") },
       { type: "custom", label: t("form.customModule") },
     ];
     let added = false;
@@ -986,6 +996,196 @@ export class ResumeEditorView extends ItemView {
         this.scheduleSave();
       });
     }
+  }
+
+  private certificatesBlock(parent: HTMLElement): void {
+    if (!this.model.certificates) this.model.certificates = [];
+
+    const listEl = parent.createDiv({
+      cls: "re-entry-list",
+      attr: { "data-section-list": "certificates" },
+    });
+    if (this.model.certificates.length === 0) {
+      listEl.createDiv({ cls: "re-cert-empty", text: t("field.certificates.empty") });
+    } else {
+      for (const cert of this.model.certificates) {
+        this.buildCertificateRow(cert, listEl);
+      }
+    }
+
+    parent.createEl("div", {
+      cls: "re-cert-hint",
+      text: t("field.certificates.hint"),
+    });
+
+    const addBtn = parent.createEl("button", {
+      cls: "re-btn re-btn-block",
+      text: "+ " + t("btn.addCertificate"),
+    });
+    addBtn.addEventListener("click", () => {
+      const cert: Certificate = {
+        id: "cert-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        url: "",
+        width: 50,
+        visible: true,
+      };
+      this.model.certificates.push(cert);
+      listEl.querySelector(".re-cert-empty")?.remove();
+      this.buildCertificateRow(cert, listEl);
+      this.renderPreview();
+      this.scheduleSave();
+    });
+  }
+
+  private buildCertificateRow(cert: Certificate, listEl: HTMLElement): void {
+    const card = listEl.createDiv({
+      cls: "re-entry-card" + (cert.visible === false ? " re-hidden" : ""),
+      attr: { "data-cert-id": cert.id },
+    });
+
+    const handle = card.createEl("span", {
+      cls: "re-entry-drag",
+      attr: { title: t("module.drag") },
+    });
+    setIcon(handle, "re-grip-vertical");
+
+    // 缩略图预览
+    const thumb = card.createEl("div", { cls: "re-cert-thumb" });
+    const img = thumb.createEl("img", { cls: "re-cert-thumb-img", attr: { alt: "" } });
+    const applyImg = (url: string) => {
+      if (url && url.trim()) {
+        img.setAttribute("src", url);
+        img.style.visibility = "visible";
+      } else {
+        img.removeAttribute("src");
+        img.style.visibility = "hidden";
+      }
+    };
+    applyImg(cert.url);
+    img.addEventListener("error", () => {
+      img.style.visibility = "hidden";
+    });
+    img.addEventListener("load", () => {
+      img.style.visibility = "visible";
+    });
+
+    const body = card.createEl("div", { cls: "re-cert-body" });
+
+    const urlRow = body.createDiv({ cls: "re-cert-url-row" });
+    const urlInput = urlRow.createEl("input", {
+      cls: "re-input",
+      attr: { "data-cert": "url", placeholder: t("field.certificates.placeholder") },
+    });
+    urlInput.value = cert.url;
+    urlInput.addEventListener("input", () => {
+      cert.url = urlInput.value;
+      applyImg(cert.url);
+      this.syncFromForm();
+    });
+
+    const widthRow = body.createDiv({ cls: "re-cert-width-row" });
+    widthRow.createEl("span", { cls: "re-cert-width-label", text: t("field.certificates.width") });
+    const slider = widthRow.createEl("input", {
+      cls: "re-range",
+      attr: { type: "range", min: "10", max: "100", step: "1", "data-cert": "width" },
+    });
+    slider.value = String(cert.width);
+    const widthVal = widthRow.createSpan({ cls: "re-cert-width-val", text: cert.width + "%" });
+    slider.addEventListener("input", () => {
+      const w = Number(slider.value);
+      cert.width = w;
+      widthVal.setText(w + "%");
+      this.syncFromForm();
+    });
+
+    const actions = card.createEl("div", { cls: "re-entry-actions" });
+    const hideBtn = actions.createEl("button", {
+      cls: "re-icon-btn",
+      attr: { title: cert.visible === false ? t("module.show") : t("module.hide"), type: "button" },
+    });
+    setIcon(hideBtn, cert.visible === false ? "re-eye-off" : "re-eye");
+    hideBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      cert.visible = cert.visible === false ? true : false;
+      card.classList.toggle("re-hidden", cert.visible === false);
+      hideBtn.setAttribute("title", cert.visible === false ? t("module.show") : t("module.hide"));
+      setIcon(hideBtn, cert.visible === false ? "re-eye-off" : "re-eye");
+      this.renderPreview();
+      this.scheduleSave();
+    });
+    const delBtn = actions.createEl("button", {
+      cls: "re-icon-btn",
+      attr: { title: t("module.delete"), type: "button" },
+    });
+    setIcon(delBtn, "re-trash");
+    delBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.model.certificates = this.model.certificates.filter((c) => c.id !== cert.id);
+      card.remove();
+      if (this.model.certificates.length === 0) {
+        listEl.createDiv({ cls: "re-cert-empty", text: t("field.certificates.empty") });
+      }
+      this.renderPreview();
+      this.scheduleSave();
+    });
+
+    this.bindCertDnd(card, listEl);
+  }
+
+  private bindCertDnd(card: HTMLElement, listEl: HTMLElement): void {
+    const handle = card.querySelector(".re-entry-drag") as HTMLElement | null;
+    if (!handle) return;
+    if ((handle as unknown as Record<string, boolean>)["__re-cert-dnd-bound"]) return;
+    (handle as unknown as Record<string, boolean>)["__re-cert-dnd-bound"] = true;
+    handle.addEventListener("pointerdown", (e: PointerEvent) => {
+      if (e.button !== 0 && e.pointerType === "mouse") return;
+      e.preventDefault();
+      this.startCertDrag(card, listEl);
+    });
+  }
+
+  private startCertDrag(card: HTMLElement, listEl: HTMLElement): void {
+    this.certDragEl = card;
+    card.addClass("re-dragging");
+
+    const onMove = (ev: PointerEvent) => {
+      if (!this.certDragEl) return;
+      const after = this.getEntryDragAfterElement(listEl, ev.clientY);
+      if (after == null) {
+        if (listEl.lastElementChild !== this.certDragEl) listEl.appendChild(this.certDragEl);
+      } else if (after !== this.certDragEl) {
+        listEl.insertBefore(this.certDragEl, after);
+      }
+    };
+
+    const onUp = () => {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.removeEventListener("pointercancel", onUp);
+      if (!this.certDragEl) return;
+      const cards = Array.from(listEl.querySelectorAll(".re-entry-card")) as HTMLElement[];
+      const order: Certificate[] = [];
+      const used = new Set<string>();
+      const all = this.model.certificates || [];
+      for (const c of cards) {
+        const id = c.getAttribute("data-cert-id");
+        const found = all.find((x) => x.id === id);
+        if (found && !used.has(found.id)) {
+          order.push(found);
+          used.add(found.id);
+        }
+      }
+      for (const c of all) if (!used.has(c.id)) order.push(c);
+      this.model.certificates = order;
+      this.certDragEl.removeClass("re-dragging");
+      this.certDragEl = null;
+      this.renderPreview();
+      this.scheduleSave();
+    };
+
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+    document.addEventListener("pointercancel", onUp);
   }
 
   private avatarField(parent: HTMLElement): void {
@@ -1400,7 +1600,7 @@ export class ResumeEditorView extends ItemView {
       certificates: this.model.certificates,
       customData: this.model.customData,
       skillContent: get('[data-basic="skillContent"]'),
-      selfEvaluationContent: this.model.selfEvaluationContent,
+      selfEvaluationContent: get('[data-basic="selfEvaluationContent"]'),
       menuSections: this.model.menuSections,
       globalSettings: this.model.globalSettings,
     };
