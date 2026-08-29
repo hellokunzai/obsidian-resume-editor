@@ -5,9 +5,10 @@
 
 import { App, Notice } from "obsidian";
 import { ResumeData, TemplateId } from "../data/resume-model";
-import { resumeToHtml, RESUME_CSS } from "../render/template";
+import { resumeToHtml, RESUME_CSS, globalSettingsCss } from "../render/template";
 import { t } from "../i18n";
 import { safeFileName } from "./utils";
+import { computeOnePageScale, pageAvailableHeight } from "../utils/auto-one-page";
 import html2pdf from "./vendor/html2pdf.bundle.min.js";
 
 export async function exportPdf(
@@ -26,10 +27,25 @@ export async function exportPdf(
   const holder = document.createElement("div");
   holder.className = "re-pdf-capture";
   holder.style.cssText = `position:fixed;left:-10000px;top:0;width:${paperPx}px;z-index:-1;background:#fff;`;
-  holder.innerHTML = `<style>${RESUME_CSS}</style>${body}`;
+  holder.innerHTML = `<style>${RESUME_CSS}${globalSettingsCss(data.globalSettings)}</style>${body}`;
   document.body.appendChild(holder);
 
   const el = holder.querySelector(".re-paper") as HTMLElement | null;
+
+  // 自动一页纸：内容超出单页可用高度时整体缩放（下限 90%）
+  if (el && data.globalSettings && data.globalSettings.autoOnePage) {
+    const avail = pageAvailableHeight(paperSize);
+    const result = computeOnePageScale(el.scrollHeight, avail);
+    if (result.scale < 1) {
+      el.style.setProperty("transform-origin", "top left");
+      el.style.setProperty("transform", `scale(${result.scale})`);
+      holder.style.setProperty("overflow", "hidden");
+      holder.style.setProperty("height", `${Math.round(el.offsetHeight * result.scale)}px`);
+    }
+    if (!result.fits) {
+      new Notice(t("style.onePageOverflow"));
+    }
+  }
 
   try {
     if (!el) throw new Error(t("error.emptyExport"));

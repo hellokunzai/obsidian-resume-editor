@@ -2,7 +2,7 @@
 
 import { App, Notice } from "obsidian";
 import { ResumeData, TemplateId } from "../data/resume-model";
-import { resumeToHtml, RESUME_CSS } from "../render/template";
+import { resumeToHtml, RESUME_CSS, globalSettingsCss } from "../render/template";
 import { t } from "../i18n";
 
 export async function exportHtml(
@@ -14,7 +14,7 @@ export async function exportHtml(
   const body = resumeToHtml(data, template, app);
   const full =
     `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">` +
-    `<title>${baseName}</title><style>${RESUME_CSS}</style></head>` +
+    `<title>${baseName}</title><style>${RESUME_CSS}${globalSettingsCss(data.globalSettings)}</style></head>` +
     `<body>${body}</body></html>`;
   const path = `${baseName}.html`;
   await app.vault.adapter.write(path, full);

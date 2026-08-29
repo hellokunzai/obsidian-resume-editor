@@ -2,8 +2,81 @@
 
 import { App, TFile } from "obsidian";
 
-export type TemplateId = "single" | "twoCol" | "academic" | "classic";
+export type TemplateId = "single" | "twoCol" | "academic" | "classic" | "timeline" | "swiss";
 export type ResumeLayout = "left" | "top" | "right";
+
+/* ---------- 全局样式设置（参考 magic-resume 的 GlobalSettings 设计，原生重写） ---------- */
+
+/** 全局样式：主题色 / 字号 / 行距 / 模块间距 / 页边距 / 自动一页纸 */
+export interface GlobalSettings {
+  /** 主题色（#rrggbb） */
+  themeColor: string;
+  /** 正文字号（px） */
+  baseFontSize: number;
+  /** 行高（倍数） */
+  lineHeight: number;
+  /** 模块间距（px，模块标题上间距） */
+  sectionSpacing: number;
+  /** 页边距（px，四边） */
+  pagePadding: number;
+  /** 自动一页纸：内容超出一页时自动整体缩放 */
+  autoOnePage: boolean;
+}
+
+/** 主题色板（12 色，来自 magic-resume 的配色思路） */
+export const THEME_COLORS: string[] = [
+  "#7c5cff", "#2563eb", "#0891b2", "#059669",
+  "#65a30d", "#ca8a04", "#ea580c", "#dc2626",
+  "#db2777", "#9333ea", "#0f766e", "#475569",
+];
+
+export const FONT_SIZE_MIN = 11;
+export const FONT_SIZE_MAX = 16;
+export const LINE_HEIGHT_MIN = 1.2;
+export const LINE_HEIGHT_MAX = 2;
+export const SECTION_SPACING_MIN = 8;
+export const SECTION_SPACING_MAX = 32;
+export const PAGE_PADDING_MIN = 16;
+export const PAGE_PADDING_MAX = 48;
+
+export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
+  themeColor: "#7c5cff",
+  baseFontSize: 13,
+  lineHeight: 1.5,
+  sectionSpacing: 16,
+  pagePadding: 30,
+  autoOnePage: true,
+};
+
+function clamp(n: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, n));
+}
+
+/** 清洗外部读入的 globalSettings，字段缺失/越界时回落默认值（向后兼容） */
+export function sanitizeGlobalSettings(raw: unknown): GlobalSettings {
+  const out = { ...DEFAULT_GLOBAL_SETTINGS };
+  if (!raw || typeof raw !== "object") return out;
+  const o = raw as Record<string, unknown>;
+  if (typeof o.themeColor === "string" && /^#[0-9a-fA-F]{6}$/.test(o.themeColor)) {
+    out.themeColor = o.themeColor.toLowerCase();
+  }
+  if (typeof o.baseFontSize === "number" && isFinite(o.baseFontSize)) {
+    out.baseFontSize = clamp(Math.round(o.baseFontSize), FONT_SIZE_MIN, FONT_SIZE_MAX);
+  }
+  if (typeof o.lineHeight === "number" && isFinite(o.lineHeight)) {
+    out.lineHeight = Math.round(clamp(o.lineHeight, LINE_HEIGHT_MIN, LINE_HEIGHT_MAX) * 100) / 100;
+  }
+  if (typeof o.sectionSpacing === "number" && isFinite(o.sectionSpacing)) {
+    out.sectionSpacing = clamp(Math.round(o.sectionSpacing), SECTION_SPACING_MIN, SECTION_SPACING_MAX);
+  }
+  if (typeof o.pagePadding === "number" && isFinite(o.pagePadding)) {
+    out.pagePadding = clamp(Math.round(o.pagePadding), PAGE_PADDING_MIN, PAGE_PADDING_MAX);
+  }
+  if (typeof o.autoOnePage === "boolean") {
+    out.autoOnePage = o.autoOnePage;
+  }
+  return out;
+}
 
 /** 头像宽高比选项 */
 export type AvatarRatio = "1:1" | "4:5" | "3:4";
@@ -150,6 +223,7 @@ export interface ResumeData {
   projects: ResumeEntry[];
   skills: string;
   sections: ResumeSection[];
+  globalSettings: GlobalSettings;
 }
 
 export const RESUME_MARK = "resume";
@@ -176,6 +250,7 @@ export const DEFAULT_RESUME: ResumeData = {
   projects: [],
   skills: "",
   sections: [...DEFAULT_SECTIONS.map((s) => ({ ...s }))],
+  globalSettings: { ...DEFAULT_GLOBAL_SETTINGS },
 };
 
 export function isResumeFrontmatter(
@@ -338,6 +413,7 @@ export function parseResume(
     projects: asEntries(fm.projects),
     skills: typeof fm.skills === "string" ? fm.skills : "",
     sections,
+    globalSettings: sanitizeGlobalSettings(fm.globalSettings),
   };
 }
 
@@ -421,6 +497,7 @@ export function toFrontmatter(data: ResumeData): Record<string, unknown> {
     work: data.work.map(cloneEntry),
     projects: data.projects.map(cloneEntry),
     skills: data.skills,
+    globalSettings: { ...data.globalSettings },
   };
 }
 
@@ -507,6 +584,7 @@ function parseEntry(line: string): ResumeEntry | null {
 function serializeConfig(data: ResumeData): string {
   const cfJson = JSON.stringify(data.customFields);
   const bfJson = JSON.stringify(data.basicFields);
+  const gsJson = JSON.stringify(data.globalSettings);
   return [
     "<!-- obsidian-resume-editor",
     `layout: ${data.layout}`,
@@ -519,6 +597,7 @@ function serializeConfig(data: ResumeData): string {
     `birthDate: ${data.birthDate}`,
     `basicFields: ${bfJson}`,
     `customFields: ${cfJson}`,
+    `globalSettings: ${gsJson}`,
     "-->",
   ].join("\n");
 }
@@ -573,6 +652,14 @@ function parseConfig(content: string): Partial<ResumeData> {
         cfg.customFields = [];
       }
     }
+    const gsMatch = line.match(/^globalSettings:\s*(\{.*\})\s*$/);
+    if (gsMatch) {
+      try {
+        cfg.globalSettings = sanitizeGlobalSettings(JSON.parse(gsMatch[1]));
+      } catch {
+        cfg.globalSettings = { ...DEFAULT_GLOBAL_SETTINGS };
+      }
+    }
   }
   return cfg;
 }
@@ -621,11 +708,21 @@ export function serializeResumeMarkdown(data: ResumeData): string {
   lines.push(escapeMarkdown(data.skills) || "（暂无）");
   lines.push("");
 
+  // 头像配置：仅展示给用户看，非简历正文；权威数据在文件顶部 HTML 注释中
+  lines.push("## 头像配置");
+  lines.push("");
+  lines.push(`- 头像：${data.avatar ? "`" + data.avatar + "`" : "（未设置）"}`);
+  lines.push(`- 尺寸：${data.avatarSize}px（宽度基准）`);
+  lines.push(`- 宽高比：${data.avatarAspectRatio}`);
+  lines.push(`- 圆角：${data.avatarRadius}`);
+  lines.push("");
+
   return lines.join("\n");
 }
 
 export function parseResumeMarkdown(content: string): ResumeData {
-  const data: ResumeData = { ...DEFAULT_RESUME };
+  // 浅拷贝后必须单独深拷贝 globalSettings，避免与 DEFAULT_RESUME 共享引用被就地修改
+  const data: ResumeData = { ...DEFAULT_RESUME, globalSettings: { ...DEFAULT_GLOBAL_SETTINGS } };
   const cfg = parseConfig(content);
   if (cfg.layout) data.layout = cfg.layout;
   if (cfg.avatar !== undefined) data.avatar = cfg.avatar;
@@ -637,6 +734,7 @@ export function parseResumeMarkdown(content: string): ResumeData {
   if (cfg.birthDate !== undefined) data.birthDate = cfg.birthDate;
   if (cfg.basicFields && cfg.basicFields.length) data.basicFields = cfg.basicFields;
   if (cfg.customFields) data.customFields = cfg.customFields;
+  if (cfg.globalSettings) data.globalSettings = cfg.globalSettings;
 
   const body = stripFrontmatter(content).trim();
   if (!body) return data;
@@ -684,6 +782,7 @@ export function parseResumeMarkdown(content: string): ResumeData {
       else if (title === "工作经历") currentSection = "work";
       else if (title === "项目经历") currentSection = "projects";
       else if (title === "专业技能") currentSection = "skills";
+      else if (title === "头像配置") currentSection = null; // 仅展示，不解析进 model
       else currentSection = null;
       i++;
       continue;

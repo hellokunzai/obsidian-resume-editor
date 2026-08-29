@@ -30,6 +30,17 @@ import {
   BasicFieldConfig,
   BASIC_FIELD_KEYS,
   formatEntryTime,
+  GlobalSettings,
+  THEME_COLORS,
+  DEFAULT_GLOBAL_SETTINGS,
+  FONT_SIZE_MIN,
+  FONT_SIZE_MAX,
+  LINE_HEIGHT_MIN,
+  LINE_HEIGHT_MAX,
+  SECTION_SPACING_MIN,
+  SECTION_SPACING_MAX,
+  PAGE_PADDING_MIN,
+  PAGE_PADDING_MAX,
 } from "../data/resume-model";
 import { renderResumeDom, resolveAvatarUrl } from "../render/template";
 import { t } from "../i18n";
@@ -43,6 +54,9 @@ import { exportPdf } from "../export/pdf";
 import { exportHtml } from "../export/html";
 import { exportDocx } from "../export/docx";
 import { exportLatex } from "../export/latex";
+import { computeOnePageScale, pageAvailableHeight } from "../utils/auto-one-page";
+import { checkResume, CheckIssue } from "../ai/check";
+import { CheckModal } from "../ui/CheckModal";
 
 export const VIEW_TYPE_RESUME = "resume-editor-view";
 
@@ -120,6 +134,7 @@ export class ResumeEditorView extends ItemView {
   private formBody!: HTMLElement;
   private sectionList!: HTMLElement;
   private previewPaper!: HTMLElement;
+  private previewStatus!: HTMLElement;
   private saveTimer: number | null = null;
   private activeIconPicker: HTMLElement | null = null;
   private dragEl: HTMLElement | null = null;
@@ -156,7 +171,7 @@ export class ResumeEditorView extends ItemView {
     header.createEl("div", { cls: "re-title", text: t("view.title") });
 
     const tplSwitch = header.createDiv({ cls: "re-tpl-switch" });
-    (["single", "twoCol", "academic", "classic"] as TemplateId[]).forEach((id) => {
+    (["single", "twoCol", "academic", "classic", "timeline", "swiss"] as TemplateId[]).forEach((id) => {
       const chip = tplSwitch.createEl("span", {
         cls: "re-tpl-chip" + (this.plugin.settings.template === id ? " re-on" : ""),
         text: t("template." + id),
@@ -173,6 +188,9 @@ export class ResumeEditorView extends ItemView {
     const btnLatex = header.createEl("button", { cls: "re-btn", text: t("export.latex") });
     btnLatex.addEventListener("click", () => this.doExport("latex"));
 
+    const btnCheck = header.createEl("button", { cls: "re-btn", text: t("btn.aiCheck") });
+    btnCheck.addEventListener("click", () => void this.runAiCheck());
+
     const btnSave = header.createEl("button", { cls: "re-btn re-primary", text: t("btn.save") });
     btnSave.addEventListener("click", () => this.saveNow());
 
@@ -185,7 +203,8 @@ export class ResumeEditorView extends ItemView {
 
     const previewPane = dual.createDiv({ cls: "re-pane" });
     const scroll = previewPane.createDiv({ cls: "re-preview-scroll" });
-    this.previewPaper = scroll.createDiv();
+    this.previewPaper = scroll.createDiv({ cls: "re-preview-holder" });
+    this.previewStatus = scroll.createDiv({ cls: "re-preview-status" });
 
     // 监听活动文件变化
     this.registerEvent(
@@ -223,7 +242,7 @@ export class ResumeEditorView extends ItemView {
       .forEach((c) => c.removeClass("re-on"));
     const chips = this.contentEl.querySelectorAll(".re-tpl-chip");
     chips.forEach((c, i) => {
-      const order: TemplateId[] = ["single", "twoCol", "academic", "classic"];
+      const order: TemplateId[] = ["single", "twoCol", "academic", "classic", "timeline", "swiss"];
       if (order[i] === id) c.addClass("re-on");
     });
     this.renderPreview();
@@ -232,6 +251,14 @@ export class ResumeEditorView extends ItemView {
   private renderForm(): void {
     const b = this.formBody;
     b.empty();
+
+    // 兜底：旧文件可能没有 globalSettings
+    if (!this.model.globalSettings) {
+      this.model.globalSettings = { ...DEFAULT_GLOBAL_SETTINGS };
+    }
+
+    // 全局样式面板（主题色 / 字号 / 行距 / 间距 / 页边距 / 自动一页纸）
+    this.buildStylePanel(b);
 
     // 模块列表（按 sections 顺序渲染）
     this.sectionList = b.createDiv({ cls: "re-section-list" });
@@ -249,6 +276,99 @@ export class ResumeEditorView extends ItemView {
   private sectionTitle(sec: ResumeSection): string {
     if (sec.type === "custom") return sec.title || t("form.customModule");
     return t(SECTION_TITLE_KEY[sec.type as Exclude<SectionType, "custom">]);
+  }
+
+  /* ---------- 全局样式面板 ---------- */
+
+  private buildStylePanel(parent: HTMLElement): void {
+    const gs = this.model.globalSettings;
+
+    const det = parent.createEl("details", { cls: "re-sect re-style-panel" });
+    det.createEl("summary", { text: t("style.heading") });
+    const body = det.createDiv({ cls: "re-sect-body" });
+
+    // 主题色色板
+    const colorRow = body.createDiv({ cls: "re-style-row" });
+    colorRow.createEl("span", { cls: "re-style-label", text: t("style.themeColor") });
+    const swatches = colorRow.createDiv({ cls: "re-swatch-grid" });
+    for (const c of THEME_COLORS) {
+      const sw = swatches.createEl("button", {
+        cls: "re-swatch" + (c === gs.themeColor ? " re-on" : ""),
+        attr: { type: "button", "aria-label": c, "data-color": c },
+      });
+      sw.style.setProperty("background-color", c);
+      sw.addEventListener("click", () => {
+        gs.themeColor = c;
+        swatches.querySelectorAll(".re-swatch").forEach((n) => n.removeClass("re-on"));
+        sw.addClass("re-on");
+        this.renderPreview();
+        this.scheduleSave();
+      });
+    }
+
+    this.styleRange(body, "style.fontSize", gs.baseFontSize, FONT_SIZE_MIN, FONT_SIZE_MAX, 1,
+      (v) => (gs.baseFontSize = v), (v) => `${v}px`);
+    this.styleRange(body, "style.lineHeight", gs.lineHeight, LINE_HEIGHT_MIN, LINE_HEIGHT_MAX, 0.05,
+      (v) => (gs.lineHeight = Math.round(v * 100) / 100), (v) => v.toFixed(2));
+    this.styleRange(body, "style.sectionSpacing", gs.sectionSpacing, SECTION_SPACING_MIN, SECTION_SPACING_MAX, 1,
+      (v) => (gs.sectionSpacing = v), (v) => `${v}px`);
+    this.styleRange(body, "style.pagePadding", gs.pagePadding, PAGE_PADDING_MIN, PAGE_PADDING_MAX, 1,
+      (v) => (gs.pagePadding = v), (v) => `${v}px`);
+
+    // 自动一页纸开关
+    const toggleRow = body.createDiv({ cls: "re-style-row" });
+    const labelWrap = toggleRow.createDiv({ cls: "re-style-toggle-label" });
+    labelWrap.createEl("span", { cls: "re-style-label", text: t("style.autoOnePage") });
+    labelWrap.createSpan({ cls: "re-style-hint", text: t("style.autoOnePage.desc") });
+    const cbWrap = toggleRow.createDiv({ cls: "re-style-toggle" });
+    const cb = cbWrap.createEl("input", {
+      attr: { type: "checkbox", "data-style": "autoOnePage" },
+    });
+    cb.checked = gs.autoOnePage;
+    const toggleBtn = cbWrap.createEl("button", {
+      cls: "re-icon-btn re-style-toggle-btn" + (gs.autoOnePage ? " re-on" : ""),
+      attr: { type: "button", "aria-label": t("style.autoOnePage") },
+    });
+    setIcon(toggleBtn, gs.autoOnePage ? "re-eye" : "re-eye-off");
+    toggleBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      cb.checked = !cb.checked;
+      gs.autoOnePage = cb.checked;
+      toggleBtn.toggleClass("re-on", cb.checked);
+      setIcon(toggleBtn, cb.checked ? "re-eye" : "re-eye-off");
+      this.renderPreview();
+      this.scheduleSave();
+    });
+  }
+
+  /** 全局样式滑块行：label + range + 当前值 */
+  private styleRange(
+    parent: HTMLElement,
+    labelKey: string,
+    current: number,
+    min: number,
+    max: number,
+    step: number,
+    onChange: (v: number) => void,
+    format: (v: number) => string
+  ): void {
+    const row = parent.createDiv({ cls: "re-style-row" });
+    row.createEl("span", { cls: "re-style-label", text: t(labelKey) });
+    const input = row.createEl("input", {
+      cls: "re-range re-style-range",
+      attr: { type: "range", min: String(min), max: String(max), step: String(step) },
+    });
+    input.value = String(current);
+    const val = row.createSpan({ cls: "re-style-val", text: format(current) });
+    const apply = () => {
+      const v = Number(input.value);
+      onChange(v);
+      val.setText(format(v));
+      this.renderPreview();
+      this.scheduleSave();
+    };
+    input.addEventListener("input", apply);
+    input.addEventListener("change", apply);
   }
 
   private renderModules(): void {
@@ -1242,6 +1362,7 @@ export class ResumeEditorView extends ItemView {
       projects: this.readEntries("projects"),
       skills: get('[data-basic="skills"]'),
       sections: this.model.sections,
+      globalSettings: this.model.globalSettings,
     };
     this.model = data;
     this.renderPreview();
@@ -1458,8 +1579,117 @@ export class ResumeEditorView extends ItemView {
     return out;
   }
 
+  /* ---------- AI 简历体检 ---------- */
+
+  private async runAiCheck(): Promise<void> {
+    const s = this.plugin.settings;
+    if (!s.aiEnabled) {
+      new Notice(t("check.notice.disabled"));
+      return;
+    }
+    if (!s.aiKey) {
+      new Notice(t("error.noKey"));
+      return;
+    }
+    const running = new Notice(t("check.notice.running"), 0);
+    try {
+      const issues = await checkResume(this.model, s);
+      running.hide();
+      if (!issues.length) {
+        new Notice(t("check.notice.clean"));
+        return;
+      }
+      new CheckModal(this.app, issues, (issue) => this.jumpToIssueField(issue)).open();
+    } catch (e) {
+      running.hide();
+      const msg = e instanceof Error ? e.message : String(e);
+      new Notice(t("error.export", { msg }));
+    }
+  }
+
+  /** 点击体检问题 -> 展开对应模块并滚动定位到具体字段 */
+  private jumpToIssueField(issue: CheckIssue): void {
+    const [section, idxRaw] = issue.field.split(".");
+    const hasIdx = idxRaw !== undefined && idxRaw !== "";
+
+    // 展开目标模块（手风琴：仅目标展开，其余折叠）
+    if (["basic", "skills", "education", "work", "projects"].includes(section)) {
+      for (const sec of this.model.sections) {
+        sec.collapsed = sec.type !== section;
+      }
+      this.renderModules();
+    }
+
+    const flash = (el: HTMLElement | null, focusEl?: HTMLElement | null): void => {
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.addClass("re-jump-flash");
+      window.setTimeout(() => el.removeClass("re-jump-flash"), 1600);
+      if (focusEl) focusEl.focus();
+    };
+
+    // renderModules 重建 DOM 后再定位
+    requestAnimationFrame(() => {
+      if (section === "basic") {
+        flash(this.formBody.querySelector('[data-basic="name"]') as HTMLElement | null);
+        return;
+      }
+      if (section === "skills") {
+        flash(this.formBody.querySelector('[data-basic="skills"]') as HTMLElement | null);
+        return;
+      }
+      if (hasIdx) {
+        const card = this.formBody.querySelector(
+          `.re-entry-card[data-section="${section}"][data-index="${idxRaw}"]`
+        ) as HTMLElement | null;
+        const field = (card?.querySelector('[data-key="details"]') as HTMLElement | null) ?? null;
+        flash(card ?? field, field);
+        return;
+      }
+      const mod = this.formBody.querySelector(
+        `.re-module[data-type="${section}"]`
+      ) as HTMLElement | null;
+      flash(mod);
+    });
+  }
+
   private renderPreview(): void {
     renderResumeDom(this.previewPaper, this.model, this.plugin.settings.template, this.app);
+    this.applyPreviewOnePage();
+  }
+
+  /** 自动一页纸：内容超出单页可用高度时整体缩放，并在预览下方给出状态提示 */
+  private applyPreviewOnePage(): void {
+    const paper = this.previewPaper.querySelector(".re-paper") as HTMLElement | null;
+    if (!paper || !this.previewStatus) return;
+
+    // 先复位
+    paper.style.removeProperty("transform");
+    paper.style.removeProperty("transform-origin");
+    this.previewPaper.style.removeProperty("height");
+    this.previewStatus.empty();
+    this.previewStatus.addClass("re-hidden");
+
+    const gs = this.model.globalSettings;
+    if (!gs || !gs.autoOnePage) return;
+
+    const avail = pageAvailableHeight("A4");
+    const result = computeOnePageScale(paper.scrollHeight, avail);
+    if (result.scale >= 1) return;
+
+    paper.style.setProperty("transform-origin", "top center");
+    paper.style.setProperty("transform", `scale(${result.scale})`);
+    // transform 不改变布局高度，手动收拢外层高度避免底部大片空白
+    this.previewPaper.style.setProperty("height", `${Math.round(paper.offsetHeight * result.scale)}px`);
+
+    this.previewStatus.removeClass("re-hidden");
+    if (result.fits) {
+      this.previewStatus.addClass("re-status-scaled");
+      this.previewStatus.setText(t("style.scaled", { percent: String(Math.round(result.scale * 100)) }));
+    } else {
+      this.previewStatus.addClass("re-status-overflow");
+      this.previewStatus.setText(t("style.onePageOverflow"));
+    }
   }
 
   private scheduleSave(): void {

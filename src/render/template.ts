@@ -1,7 +1,7 @@
 // 模板引擎：ResumeData -> 预览 DOM（createEl 构造，禁用 innerHTML）/ 导出 HTML 字符串
 
 import { App, TFile, normalizePath, setIcon } from "obsidian";
-import { ResumeData, ResumeEntry, ResumeCustomField, ResumeLayout, TemplateId, ResumeSection, computeAvatarStyle, visibleEntries, formatEntryTime } from "../data/resume-model";
+import { ResumeData, ResumeEntry, ResumeCustomField, ResumeLayout, TemplateId, ResumeSection, SectionType, computeAvatarStyle, visibleEntries, formatEntryTime, GlobalSettings, DEFAULT_GLOBAL_SETTINGS } from "../data/resume-model";
 import { t } from "../i18n";
 import {
   CONTACT_ICONS,
@@ -9,6 +9,28 @@ import {
   contactIconSvg,
   normalizeCustomFieldIcon,
 } from "../ui/contact-icons";
+
+/* ---------- 全局样式 -> CSS 变量（预览与导出共用） ---------- */
+
+/** 全局样式 -> CSS 变量名值对（预览时逐个 setProperty 注入到 .re-paper） */
+export function globalSettingsCssProps(gs: GlobalSettings): Record<string, string> {
+  const s = gs ?? DEFAULT_GLOBAL_SETTINGS;
+  return {
+    "--r-theme": s.themeColor,
+    "--r-font-size": `${s.baseFontSize}px`,
+    "--r-line-height": String(s.lineHeight),
+    "--r-sec-spacing": `${s.sectionSpacing}px`,
+    "--r-page-padding": `${s.pagePadding}px`,
+  };
+}
+
+/** 全局样式 -> CSS 文本（导出 HTML/PDF 时拼进 <style>，作用于 .re-paper） */
+export function globalSettingsCss(gs: GlobalSettings): string {
+  const decls = Object.entries(globalSettingsCssProps(gs))
+    .map(([k, v]) => `${k}:${v};`)
+    .join("");
+  return `.re-paper{${decls}}`;
+}
 
 /* ---------- 预览 DOM 构建（合规：全部用 createEl，无 innerHTML） ---------- */
 
@@ -267,6 +289,91 @@ function renderSkills(parent: HTMLElement, skills: string): void {
   for (const l of lines) ul.createEl("li", { text: l });
 }
 
+/* ---------- Timeline 模板（参考 magic-resume 时间轴布局原生重写） ---------- */
+
+function sectionDomTimeline(parent: HTMLElement, title: string, entries: ResumeEntry[]): void {
+  const items = visibleEntries(entries);
+  if (!items.length) return;
+  parent.createEl("h3", { cls: "r-sec r-sec-tl", text: title });
+  const list = parent.createDiv({ cls: "r-tl-list" });
+  for (const e of items) {
+    const item = list.createDiv({ cls: "r-tl-item" });
+    const timeStr = formatEntryTime(e);
+    item.createDiv({ cls: "r-tl-time", text: timeStr || " " });
+    item.createDiv({ cls: "r-tl-dot" });
+    const body = item.createDiv({ cls: "r-tl-body" });
+    const head = body.createDiv({ cls: "r-tl-head" });
+    head.createSpan({ cls: "r-nm", text: e.org });
+    if (e.title) head.createSpan({ cls: "r-tl-title", text: e.title });
+    const subParts: string[] = [];
+    if (e.degree) subParts.push(e.degree);
+    if (e.gpa) subParts.push(`GPA ${e.gpa}`);
+    if (subParts.length) body.createDiv({ cls: "r-sub", text: subParts.join(" · ") });
+    if (e.details.trim()) {
+      const ul = body.createEl("ul", { cls: "r-details" });
+      for (const line of e.details.split("\n")) {
+        if (line.trim()) ul.createEl("li", { text: line.trim() });
+      }
+    }
+  }
+}
+
+/* ---------- Swiss 模板（瑞士网格风格原生重写） ---------- */
+
+function renderHeaderSwiss(paper: HTMLElement, data: ResumeData, app?: App): void {
+  const header = paper.createDiv({ cls: "r-header-swiss" });
+  const top = header.createDiv({ cls: "r-swiss-top" });
+
+  const nameBlock = top.createDiv({ cls: "r-swiss-name-block" });
+  nameBlock.createEl("div", { cls: "r-swiss-name", text: data.name || " " });
+  if (data.role) nameBlock.createEl("div", { cls: "r-swiss-role", text: data.role });
+
+  const avatarUrl = resolveAvatarUrl(app, data.avatar);
+  if (avatarUrl) {
+    const st = computeAvatarStyle(data);
+    top.createEl("img", {
+      cls: "r-avatar",
+      attr: {
+        src: avatarUrl,
+        style: `width:${st.width}px;height:${st.height}px;border-radius:${st.radius};`,
+      },
+    });
+  }
+
+  const contacts = buildContactItems(data);
+  if (contacts.length) {
+    const row = header.createDiv({ cls: "r-swiss-contacts" });
+    contacts.forEach((c, i) => {
+      if (i > 0) row.createSpan({ cls: "r-swiss-sep", text: "/" });
+      renderContactItem(row, c);
+    });
+  }
+}
+
+function sectionDomSwiss(parent: HTMLElement, title: string, entries: ResumeEntry[]): void {
+  const items = visibleEntries(entries);
+  if (!items.length) return;
+  parent.createEl("h3", { cls: "r-sec r-sec-swiss", text: title });
+  for (const e of items) {
+    const item = parent.createDiv({ cls: "r-item r-item-swiss" });
+    const top = item.createDiv({ cls: "r-top r-top-swiss" });
+    top.createSpan({ cls: "r-nm", text: e.org });
+    const timeStr = formatEntryTime(e);
+    if (timeStr) top.createSpan({ cls: "r-dt", text: timeStr });
+    const subParts: string[] = [];
+    if (e.title) subParts.push(e.title);
+    if (e.degree) subParts.push(e.degree);
+    if (e.gpa) subParts.push(`GPA ${e.gpa}`);
+    if (subParts.length) item.createDiv({ cls: "r-sub", text: subParts.join(" · ") });
+    if (e.details.trim()) {
+      const ul = item.createEl("ul", { cls: "r-details" });
+      for (const line of e.details.split("\n")) {
+        if (line.trim()) ul.createEl("li", { text: line.trim() });
+      }
+    }
+  }
+}
+
 function renderCustomClassic(parent: HTMLElement, sec: ResumeSection): void {
   if (!sec.content.trim()) return;
   parent.createEl("h3", { cls: "r-sec r-sec-classic", text: sec.title || t("form.customModule") });
@@ -275,6 +382,83 @@ function renderCustomClassic(parent: HTMLElement, sec: ResumeSection): void {
     .split("\n")
     .filter((l) => l.trim())
     .forEach((l) => ul.createEl("li", { text: l.trim() }));
+}
+
+/* ---------- 双栏模板（左：专业技能 / 教育经历；右：工作 / 项目 / 自定义） ---------- */
+
+/** 归入左栏的模块类型（其余非 basic 模块进右栏） */
+const TWO_COL_LEFT = new Set<SectionType>(["skills", "education"]);
+
+/** 按类型渲染单个非 basic 模块到指定容器（单栏内容渲染器，供双栏复用） */
+function renderSectionIntoDom(
+  host: HTMLElement,
+  sec: ResumeSection,
+  data: ResumeData
+): void {
+  if (sec.type === "skills") {
+    renderSkills(host, data.skills);
+  } else if (sec.type === "education") {
+    sectionDom(host, t("form.education"), data.education);
+  } else if (sec.type === "work") {
+    sectionDom(host, t("form.work"), data.work);
+  } else if (sec.type === "projects") {
+    sectionDom(host, t("form.project"), data.projects);
+  } else if (sec.type === "custom" && sec.content.trim()) {
+    host.createEl("h3", { cls: "r-sec", text: sec.title || t("form.customModule") });
+    const ul = host.createEl("ul");
+    sec.content
+      .split("\n")
+      .filter((l) => l.trim())
+      .forEach((l) => ul.createEl("li", { text: l.trim() }));
+  }
+}
+
+function renderTwoColDom(paper: HTMLElement, data: ResumeData, app?: App): void {
+  // header 跨两栏（CSS: grid-column: 1 / -1）
+  if (data.sections.some((s) => s.visible && s.type === "basic")) {
+    renderHeaderDom(paper, data, app);
+  }
+
+  const left = paper.createDiv({ cls: "r-col-left" });
+  const right = paper.createDiv({ cls: "r-col-right" });
+  for (const sec of data.sections) {
+    if (!sec.visible || sec.type === "basic") continue;
+    renderSectionIntoDom(TWO_COL_LEFT.has(sec.type) ? left : right, sec, data);
+  }
+
+  // 左栏为空（技能与教育均被隐藏）时退回单栏，避免右侧被挤进窄列
+  if (!left.childElementCount) {
+    left.remove();
+    paper.addClass("re-two-col-nogrid");
+  }
+}
+
+function sectionIntoHtml(sec: ResumeSection, data: ResumeData): string {
+  if (sec.type === "skills") return skillsHtml(data.skills);
+  if (sec.type === "education") return sectionHtml(t("form.education"), data.education);
+  if (sec.type === "work") return sectionHtml(t("form.work"), data.work);
+  if (sec.type === "projects") return sectionHtml(t("form.project"), data.projects);
+  if (sec.type === "custom") return customHtml(sec);
+  return "";
+}
+
+/** 双栏布局 HTML。noGrid 为真表示左栏无内容，需退回单列（与预览 childElementCount 判定对齐） */
+function twoColHtml(data: ResumeData, app?: App): { html: string; noGrid: boolean } {
+  const parts: string[] = [];
+  if (data.sections.some((s) => s.visible && s.type === "basic")) {
+    parts.push(headerHtml(data, app));
+  }
+  const left: string[] = [];
+  const right: string[] = [];
+  for (const sec of data.sections) {
+    if (!sec.visible || sec.type === "basic") continue;
+    const html = sectionIntoHtml(sec, data);
+    if (html) (TWO_COL_LEFT.has(sec.type) ? left : right).push(html);
+  }
+  const noGrid = left.length === 0;
+  if (!noGrid) parts.push(`<div class="r-col-left">${left.join("")}</div>`);
+  parts.push(`<div class="r-col-right">${right.join("")}</div>`);
+  return { html: parts.join(""), noGrid };
 }
 
 export function renderResumeDom(
@@ -290,19 +474,35 @@ export function renderResumeDom(
       ? "re-paper re-classic"
       : template === "academic"
       ? "re-paper re-academic"
+      : template === "timeline"
+      ? "re-paper re-timeline"
+      : template === "swiss"
+      ? "re-paper re-swiss"
       : "re-paper";
   const paper = root.createDiv({ cls: paperClass });
+  // 注入全局样式 CSS 变量（主题色 / 字号 / 行距 / 模块间距 / 页边距）
+  const gs = data.globalSettings ?? DEFAULT_GLOBAL_SETTINGS;
+  for (const [k, v] of Object.entries(globalSettingsCssProps(gs))) {
+    paper.style.setProperty(k, v);
+  }
   // 调试：在 DOM 上暴露当前渲染顺序，便于排查顺序是否生效
   paper.setAttribute(
     "data-section-order",
     data.sections.filter((s) => s.visible).map((s) => s.type).join(",")
   );
 
+  // 双栏模板走独立布局：header 跨两栏，其余模块按类型分列
+  if (template === "twoCol") {
+    renderTwoColDom(paper, data, app);
+    return;
+  }
+
   for (const sec of data.sections) {
     if (!sec.visible) continue;
 
     if (sec.type === "basic") {
       if (template === "classic") renderHeaderClassic(paper, data, app);
+      else if (template === "swiss") renderHeaderSwiss(paper, data, app);
       else renderHeaderDom(paper, data, app);
       continue;
     }
@@ -316,18 +516,30 @@ export function renderResumeDom(
     } else if (sec.type === "education") {
       if (template === "classic") {
         sectionDomClassic(paper, t("form.education"), data.education);
+      } else if (template === "timeline") {
+        sectionDomTimeline(paper, t("form.education"), data.education);
+      } else if (template === "swiss") {
+        sectionDomSwiss(paper, t("form.education"), data.education);
       } else {
         sectionDom(paper, t("form.education"), data.education);
       }
     } else if (sec.type === "work") {
       if (template === "classic") {
         sectionDomClassic(paper, t("form.work"), data.work);
+      } else if (template === "timeline") {
+        sectionDomTimeline(paper, t("form.work"), data.work);
+      } else if (template === "swiss") {
+        sectionDomSwiss(paper, t("form.work"), data.work);
       } else {
         sectionDom(paper, t("form.work"), data.work);
       }
     } else if (sec.type === "projects") {
       if (template === "classic") {
         sectionDomClassic(paper, t("form.project"), data.projects);
+      } else if (template === "timeline") {
+        sectionDomTimeline(paper, t("form.project"), data.projects);
+      } else if (template === "swiss") {
+        sectionDomSwiss(paper, t("form.project"), data.projects);
       } else {
         sectionDom(paper, t("form.project"), data.projects);
       }
@@ -503,12 +715,113 @@ function customHtmlClassic(sec: ResumeSection): string {
   return `<h3 class="r-sec r-sec-classic">${esc(title)}</h3><ul>${items}</ul>`;
 }
 
+function customHtml(sec: ResumeSection): string {
+  if (!sec.content.trim()) return "";
+  const title = sec.title || t("form.customModule");
+  const items = sec.content
+    .split("\n")
+    .filter((l) => l.trim())
+    .map((l) => `<li>${esc(l.trim())}</li>`)
+    .join("");
+  return `<h3 class="r-sec">${esc(title)}</h3><ul>${items}</ul>`;
+}
+
+/* ---------- Timeline / Swiss 模板导出 HTML ---------- */
+
+function sectionHtmlTimeline(title: string, entries: ResumeEntry[]): string {
+  const items = visibleEntries(entries);
+  if (!items.length) return "";
+  const html = items
+    .map((e) => {
+      const timeStr = formatEntryTime(e);
+      const subParts: string[] = [];
+      if (e.degree) subParts.push(e.degree);
+      if (e.gpa) subParts.push(`GPA ${e.gpa}`);
+      const sub = subParts.length ? `<div class="r-sub">${esc(subParts.join(" · "))}</div>` : "";
+      const titleSpan = e.title ? `<span class="r-tl-title">${esc(e.title)}</span>` : "";
+      const details = e.details.trim() ? `<div class="r-details">${detailsToHtml(e.details)}</div>` : "";
+      return (
+        `<div class="r-tl-item">` +
+        `<div class="r-tl-time">${esc(timeStr || " ")}</div>` +
+        `<div class="r-tl-dot"></div>` +
+        `<div class="r-tl-body">` +
+        `<div class="r-tl-head"><span class="r-nm">${esc(e.org)}</span>${titleSpan}</div>` +
+        `${sub}${details}` +
+        `</div></div>`
+      );
+    })
+    .join("");
+  return `<h3 class="r-sec r-sec-tl">${esc(title)}</h3><div class="r-tl-list">${html}</div>`;
+}
+
+function headerHtmlSwiss(data: ResumeData, app?: App): string {
+  const avatarUrl = app ? resolveAvatarUrl(app, data.avatar) : "";
+  const avatarStyle = avatarUrl ? computeAvatarStyle(data) : null;
+  const avatar = avatarStyle
+    ? `<img class="r-avatar" src="${esc(avatarUrl)}" style="width:${avatarStyle.width}px;height:${avatarStyle.height}px;border-radius:${avatarStyle.radius};">`
+    : "";
+  const role = data.role ? `<div class="r-swiss-role">${esc(data.role)}</div>` : "";
+  const contacts = buildContactItems(data);
+  const contactRow = contacts.length
+    ? `<div class="r-swiss-contacts">${contacts
+        .map((c) => contactItemHtml(c))
+        .join(`<span class="r-swiss-sep">/</span>`)}</div>`
+    : "";
+  return `
+    <div class="r-header-swiss">
+      <div class="r-swiss-top">
+        <div class="r-swiss-name-block">
+          <div class="r-swiss-name">${esc(data.name || " ")}</div>
+          ${role}
+        </div>
+        ${avatar}
+      </div>
+      ${contactRow}
+    </div>
+  `;
+}
+
+function sectionHtmlSwiss(title: string, entries: ResumeEntry[]): string {
+  const items = visibleEntries(entries);
+  if (!items.length) return "";
+  const html = items
+    .map((e) => {
+      const timeStr = formatEntryTime(e);
+      const top =
+        `<div class="r-top r-top-swiss"><span class="r-nm">${esc(e.org)}</span>` +
+        (timeStr ? `<span class="r-dt">${esc(timeStr)}</span>` : "") +
+        `</div>`;
+      const subParts: string[] = [];
+      if (e.title) subParts.push(e.title);
+      if (e.degree) subParts.push(e.degree);
+      if (e.gpa) subParts.push(`GPA ${e.gpa}`);
+      const sub = subParts.length ? `<div class="r-sub">${esc(subParts.join(" · "))}</div>` : "";
+      const details = e.details.trim() ? `<div class="r-details">${detailsToHtml(e.details)}</div>` : "";
+      return `<div class="r-item r-item-swiss">${top}${sub}${details}</div>`;
+    })
+    .join("");
+  return `<h3 class="r-sec r-sec-swiss">${esc(title)}</h3>${html}`;
+}
+
 export function resumeToHtml(data: ResumeData, template: TemplateId, app?: App): string {
+  // 双栏模板走独立布局（与预览 renderTwoColDom 保持一致）
+  if (template === "twoCol") {
+    const { html, noGrid } = twoColHtml(data, app);
+    const cls = noGrid
+      ? "re-paper re-two-col re-two-col-nogrid"
+      : "re-paper re-two-col";
+    return `<div class="${cls}">${html}</div>`;
+  }
+
   const cls =
     template === "classic"
       ? "re-paper re-classic"
       : template === "academic"
       ? "re-paper re-academic"
+      : template === "timeline"
+      ? "re-paper re-timeline"
+      : template === "swiss"
+      ? "re-paper re-swiss"
       : "re-paper";
   const parts: string[] = [`<div class="${cls}">`];
 
@@ -516,7 +829,9 @@ export function resumeToHtml(data: ResumeData, template: TemplateId, app?: App):
     if (!sec.visible) continue;
 
     if (sec.type === "basic") {
-      parts.push(template === "classic" ? headerHtmlClassic(data, app) : headerHtml(data, app));
+      if (template === "classic") parts.push(headerHtmlClassic(data, app));
+      else if (template === "swiss") parts.push(headerHtmlSwiss(data, app));
+      else parts.push(headerHtml(data, app));
       continue;
     }
 
@@ -530,18 +845,30 @@ export function resumeToHtml(data: ResumeData, template: TemplateId, app?: App):
       parts.push(
         template === "classic"
           ? sectionHtmlClassic(t("form.education"), data.education)
+          : template === "timeline"
+          ? sectionHtmlTimeline(t("form.education"), data.education)
+          : template === "swiss"
+          ? sectionHtmlSwiss(t("form.education"), data.education)
           : sectionHtml(t("form.education"), data.education)
       );
     } else if (sec.type === "work") {
       parts.push(
         template === "classic"
           ? sectionHtmlClassic(t("form.work"), data.work)
+          : template === "timeline"
+          ? sectionHtmlTimeline(t("form.work"), data.work)
+          : template === "swiss"
+          ? sectionHtmlSwiss(t("form.work"), data.work)
           : sectionHtml(t("form.work"), data.work)
       );
     } else if (sec.type === "projects") {
       parts.push(
         template === "classic"
           ? sectionHtmlClassic(t("form.project"), data.projects)
+          : template === "timeline"
+          ? sectionHtmlTimeline(t("form.project"), data.projects)
+          : template === "swiss"
+          ? sectionHtmlSwiss(t("form.project"), data.projects)
           : sectionHtml(t("form.project"), data.projects)
       );
     } else if (sec.type === "custom") {
@@ -562,12 +889,14 @@ export function resumeToHtml(data: ResumeData, template: TemplateId, app?: App):
   return parts.join("");
 }
 
-/* 导出用独立样式（脱离 Obsidian 主题，打印友好） */
+/* 导出用独立样式（脱离 Obsidian 主题，打印友好）。
+   主题色/字号/行距/模块间距/页边距由 globalSettingsCss() 输出的
+   .re-paper{--r-*} 变量块控制，变量缺省值与这里的 fallback 保持一致。 */
 export const RESUME_CSS = `
 *{box-sizing:border-box;}
 body{margin:0;font-family:"PingFang SC","Microsoft YaHei",-apple-system,"Segoe UI",sans-serif;color:#222;}
 @page{size:A4;margin:14mm;}
-.re-paper{background:#fff;width:100%;max-width:720px;margin:0 auto;padding:30px 36px;min-height:900px;}
+.re-paper{background:#fff;width:100%;max-width:720px;margin:0 auto;padding:var(--r-page-padding,30px 36px);min-height:900px;font-size:var(--r-font-size,13px);line-height:var(--r-line-height,1.5);}
 
 /* header 布局 */
 .re-paper .r-header{display:grid;align-items:center;gap:24px;margin-bottom:22px;}
@@ -580,9 +909,9 @@ body{margin:0;font-family:"PingFang SC","Microsoft YaHei",-apple-system,"Segoe U
 .re-paper .r-header.r-layout-top{display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;}
 .re-paper .r-header-text{min-width:0;}
 .re-paper .r-avatar{width:90px;height:110px;object-fit:cover;border-radius:8px;border:1px solid #e0e0e0;flex:none;}
-.re-paper .r-name{font-size:26px;font-weight:700;margin:0 0 2px;}
-.re-paper .r-role{color:#666;font-size:13px;}
-.re-paper .r-contact-grid{display:grid;grid-template-columns:repeat(2, minmax(0, auto));gap:8px 18px;font-size:12px;color:#555;}
+.re-paper .r-name{font-size:calc(var(--r-font-size,13px) * 2);font-weight:700;margin:0 0 2px;}
+.re-paper .r-role{color:#666;font-size:1em;}
+.re-paper .r-contact-grid{display:grid;grid-template-columns:repeat(2, minmax(0, auto));gap:8px 18px;font-size:0.92em;color:#555;}
 .re-paper .r-header.r-layout-top .r-contact-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 22px;width:100%;}
 .re-paper .r-header.r-layout-top .r-contact-item{flex:0 1 auto;white-space:nowrap;}
 .re-paper .r-contact-item{display:flex;align-items:center;gap:5px;min-width:0;}
@@ -591,22 +920,25 @@ body{margin:0;font-family:"PingFang SC","Microsoft YaHei",-apple-system,"Segoe U
 .re-paper .r-ci-label{color:#888;flex:none;}
 .re-paper .r-ci-value{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 
-.re-paper h3.r-sec{font-size:14px;letter-spacing:.04em;border-bottom:2px solid #7c5cff;padding-bottom:3px;margin:16px 0 8px;}
+.re-paper h3.r-sec{font-size:1.08em;letter-spacing:.04em;border-bottom:2px solid var(--r-theme,#7c5cff);padding-bottom:3px;margin:var(--r-sec-spacing,16px) 0 8px;}
 .re-paper .r-item{margin-bottom:10px;}
-.re-paper .r-item .r-top{display:flex;justify-content:space-between;font-size:13px;}
+.re-paper .r-item .r-top{display:flex;justify-content:space-between;font-size:1em;}
 .re-paper .r-item .r-nm{font-weight:600;}
-.re-paper .r-item .r-dt{color:#999;font-size:12px;}
-.re-paper .r-item .r-sub{color:#555;font-size:12.5px;}
+.re-paper .r-item .r-dt{color:#999;font-size:0.92em;}
+.re-paper .r-item .r-sub{color:#555;font-size:0.96em;}
 .re-paper ul{margin:3px 0 0;padding-left:18px;}
-.re-paper ul li{font-size:12.5px;margin:2px 0;}
-.re-paper .r-skills{font-size:12.5px;color:#555;}
-.re-paper.re-two-col{display:grid;grid-template-columns:34% 64%;gap:20px;padding:26px 30px;}
-.re-paper.re-two-col .r-col-left{background:#f3f0ff;padding:12px;border-radius:8px;align-self:start;}
-.re-paper.re-two-col h3.r-sec{border-bottom:1px solid #7c5cff;}
+.re-paper ul li{font-size:0.96em;margin:2px 0;}
+.re-paper .r-skills{font-size:0.96em;color:#555;}
+.re-paper.re-two-col{display:grid;grid-template-columns:34% 64%;gap:20px;padding:var(--r-page-padding,26px 30px);align-items:start;}
+.re-paper.re-two-col .r-header{grid-column:1/-1;}
+.re-paper.re-two-col .r-col-left{background:#f3f0ff;background:color-mix(in srgb, var(--r-theme,#7c5cff) 8%, #fff);padding:12px;border-radius:8px;align-self:start;}
+.re-paper.re-two-col .r-col-right{min-width:0;}
+.re-paper.re-two-col h3.r-sec{border-bottom:1px solid var(--r-theme,#7c5cff);}
+.re-paper.re-two-col.re-two-col-nogrid{grid-template-columns:1fr;}
 .re-paper.re-academic{font-family:Georgia,"Songti SC",serif;}
 .re-paper.re-academic .r-name{text-align:center;border-bottom:3px double #333;padding-bottom:6px;}
 
-/* ===== Classic 模板（迁移自 magic-resume） ===== */
+/* ===== Classic 模板（迁移自 magic-resume；刻意保留黑白气质，主题色不染标题线） ===== */
 .re-paper.re-classic .r-header-classic{display:grid;align-items:center;gap:24px;margin-bottom:18px;}
 .re-paper.re-classic .r-header.r-layout-left{grid-template-columns:auto 1fr auto;}
 .re-paper.re-classic .r-header.r-layout-left .r-header-text{justify-self:start;}
@@ -616,23 +948,53 @@ body{margin:0;font-family:"PingFang SC","Microsoft YaHei",-apple-system,"Segoe U
 .re-paper.re-classic .r-header.r-layout-right .r-avatar{order:3;}
 .re-paper.re-classic .r-header.r-layout-top{display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;}
 .re-paper.re-classic .r-avatar{width:88px;height:112px;object-fit:cover;border-radius:6px;border:1px solid #e0e0e0;flex:none;}
-.re-paper.re-classic .r-name{font-size:26px;font-weight:700;margin:0 0 2px;color:#1a1a1a;}
-.re-paper.re-classic .r-role{color:#555;font-size:13px;}
-.re-paper.re-classic .r-contact-grid-classic{display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:6px 20px;font-size:12px;color:#444;}
+.re-paper.re-classic .r-name{font-size:calc(var(--r-font-size,13px) * 2);font-weight:700;margin:0 0 2px;color:#1a1a1a;}
+.re-paper.re-classic .r-role{color:#555;font-size:1em;}
+.re-paper.re-classic .r-contact-grid-classic{display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:6px 20px;font-size:0.92em;color:#444;}
 .re-paper.re-classic .r-header.r-layout-top .r-contact-grid-classic{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 20px;width:100%;}
 .re-paper.re-classic .r-cic-classic{display:flex;align-items:center;gap:6px;min-width:0;}
 .re-paper.re-classic .r-cic-classic .r-ci-icon{width:14px;height:14px;flex:none;color:#222;display:inline-flex;align-items:center;justify-content:center;}
 .re-paper.re-classic .r-cic-classic .r-ci-icon svg{width:14px;height:14px;display:block;}
 .re-paper.re-classic .r-ci-label{color:#666;flex:none;}
 .re-paper.re-classic .r-ci-value{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.re-paper.re-classic h3.r-sec-classic{font-size:14px;letter-spacing:.04em;border-bottom:2px solid #222;padding-bottom:3px;margin:16px 0 8px;color:#1a1a1a;}
+.re-paper.re-classic h3.r-sec-classic{font-size:1.08em;letter-spacing:.04em;border-bottom:2px solid #222;padding-bottom:3px;margin:var(--r-sec-spacing,16px) 0 8px;color:#1a1a1a;}
 .re-paper.re-classic .r-item-classic{margin-bottom:10px;}
-.re-paper.re-classic .r-item-classic .r-top-classic{display:flex;justify-content:space-between;font-size:13px;}
+.re-paper.re-classic .r-item-classic .r-top-classic{display:flex;justify-content:space-between;font-size:1em;}
 .re-paper.re-classic .r-item-classic .r-nm{font-weight:600;color:#1a1a1a;}
-.re-paper.re-classic .r-item-classic .r-dt{color:#888;font-size:12px;}
-.re-paper.re-classic .r-item-classic .r-sub{color:#555;font-size:12.5px;}
+.re-paper.re-classic .r-item-classic .r-dt{color:#888;font-size:0.92em;}
+.re-paper.re-classic .r-item-classic .r-sub{color:#555;font-size:0.96em;}
 .re-paper.re-classic ul{margin:3px 0 0;padding-left:18px;}
-.re-paper.re-classic ul li{font-size:12.5px;margin:2px 0;color:#333;}
+.re-paper.re-classic ul li{font-size:0.96em;margin:2px 0;color:#333;}
 .re-paper.re-classic .r-skills-list{margin:4px 0 0;padding-left:18px;}
-.re-paper.re-classic .r-skills-list li{font-size:12.5px;margin:2px 0;color:#333;}
+.re-paper.re-classic .r-skills-list li{font-size:0.96em;margin:2px 0;color:#333;}
+
+/* ===== Timeline 模板（参考 magic-resume 时间轴布局原生重写） ===== */
+.re-paper.re-timeline .r-tl-list{position:relative;}
+.re-paper.re-timeline .r-tl-item{position:relative;display:grid;grid-template-columns:88px 16px 1fr;column-gap:10px;padding-bottom:12px;}
+.re-paper.re-timeline .r-tl-item::before{content:"";position:absolute;left:105px;top:8px;bottom:-4px;width:2px;background:#e5e1f2;background:color-mix(in srgb, var(--r-theme,#7c5cff) 18%, #fff);}
+.re-paper.re-timeline .r-tl-item:last-child::before{display:none;}
+.re-paper.re-timeline .r-tl-time{font-size:0.9em;color:#777;text-align:right;padding-top:2px;line-height:1.35;}
+.re-paper.re-timeline .r-tl-dot{position:relative;}
+.re-paper.re-timeline .r-tl-dot::after{content:"";position:absolute;left:50%;top:6px;transform:translateX(-50%);width:10px;height:10px;border-radius:50%;background:var(--r-theme,#7c5cff);border:2px solid #fff;box-shadow:0 0 0 2px color-mix(in srgb, var(--r-theme,#7c5cff) 45%, #fff);}
+.re-paper.re-timeline .r-tl-body{min-width:0;}
+.re-paper.re-timeline .r-tl-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;font-size:1em;}
+.re-paper.re-timeline .r-tl-head .r-nm{font-weight:600;}
+.re-paper.re-timeline .r-tl-title{color:#666;font-size:0.95em;}
+.re-paper.re-timeline h3.r-sec-tl{border-bottom:1px solid var(--r-theme,#7c5cff);}
+
+/* ===== Swiss 模板（瑞士网格风格原生重写：粗黑规则线 + 大字标题 + 主题色方块标记） ===== */
+.re-paper.re-swiss .r-header-swiss{border-top:4px solid #111;padding-top:12px;margin-bottom:12px;}
+.re-paper.re-swiss .r-swiss-top{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;}
+.re-paper.re-swiss .r-swiss-name-block{min-width:0;}
+.re-paper.re-swiss .r-swiss-name{font-size:calc(var(--r-font-size,13px) * 2.6);font-weight:800;letter-spacing:.02em;line-height:1.05;color:#111;}
+.re-paper.re-swiss .r-swiss-role{font-size:1.05em;color:#444;margin-top:3px;}
+.re-paper.re-swiss .r-swiss-contacts{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;font-size:0.9em;color:#444;border-top:1px solid #111;margin-top:10px;padding-top:8px;}
+.re-paper.re-swiss .r-swiss-sep{color:#bbb;}
+.re-paper.re-swiss h3.r-sec-swiss{display:flex;align-items:center;gap:8px;border-top:2px solid #111;border-bottom:none;padding-top:6px;margin:var(--r-sec-spacing,16px) 0 6px;font-size:0.95em;letter-spacing:.12em;text-transform:uppercase;color:#111;}
+.re-paper.re-swiss h3.r-sec-swiss::before{content:"";width:9px;height:9px;background:var(--r-theme,#7c5cff);flex:none;}
+.re-paper.re-swiss .r-item-swiss{margin-bottom:10px;}
+.re-paper.re-swiss .r-item-swiss .r-top-swiss{display:flex;justify-content:space-between;align-items:baseline;font-size:1em;}
+.re-paper.re-swiss .r-item-swiss .r-nm{font-weight:700;text-transform:uppercase;letter-spacing:.02em;color:#111;}
+.re-paper.re-swiss .r-item-swiss .r-dt{color:#777;font-size:0.9em;}
+.re-paper.re-swiss ul li{font-size:0.96em;margin:2px 0;color:#333;}
 `;

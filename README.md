@@ -8,11 +8,14 @@ Form-driven resume editor for Obsidian. Edit structured fields on the left, see 
 
 - **Form-driven editing** — no need to learn a custom Markdown syntax. Fill name, contact, education, work, projects and skills; data is stored as plain Markdown in the note body (no YAML frontmatter properties).
 - **Live preview** — updates instantly as you type.
-- **Chinese-first templates** — Single column / Two columns / Academic, styled with A4-friendly typography.
+- **Chinese-first templates** — Single column / Two columns / Academic / Classic / Timeline / Swiss, styled with A4-friendly typography.
 - **Multi-format export** — PDF (via Electron `printToPDF`), HTML, DOCX, LaTeX.
 - **Resume directory** — point to a vault folder and every Markdown file inside it is automatically treated as a resume (no need for the `resume: true` frontmatter tag). Clicking any file in this folder automatically opens the resume editor; new resume notes are created here when no file is active.
 - **ATS pre-check** — a light heuristic panel scores ATS-friendliness (text-copyable, no graphic separators, quantified results).
-- **AI polish** (optional) — rewrite descriptions via an OpenAI-compatible API. See *Network usage* below.
+- **Global style panel** — theme color (12-swatch palette), base font size, line height, section spacing and page padding, driven by CSS variables so preview and exports stay in sync. Stored per resume in the note's config block; old notes fall back to defaults.
+- **Auto fit one page** — when content exceeds one page, the resume is scaled down automatically (down to 90%) in both preview and PDF export, with a status hint below the preview.
+- **AI polish** (optional) — rewrite descriptions via an OpenAI-compatible API, with quick presets for OpenAI / DeepSeek / Doubao (Ark). See *Network usage* below.
+- **AI resume review** (optional) — sends the whole resume to an OpenAI-compatible API and lists concrete issues (missing quantified results, weak verbs, redundancy, ATS-unfriendly wording). Clicking an issue jumps to and highlights the corresponding form field.
 
 ## Install (BRAT)
 
@@ -31,15 +34,17 @@ Form-driven resume editor for Obsidian. Edit structured fields on the left, see 
 
 Settings → Resume Editor:
 
-- Default template (single / two-column / academic)
+- Default template (single / two-column / academic / classic / timeline / swiss)
 - PDF paper size (A4 / Letter)
 - Resume directory (vault-relative path; Markdown files in this folder are automatically treated as resumes; new resume notes are created here when set)
 - Auto save toggle (on by default; when off, use the Save button)
-- AI polish endpoint, key, model
+- AI provider preset (Custom / OpenAI / DeepSeek / Doubao), plus endpoint, key and model
+
+Per-resume settings live in the **Global style** panel at the top of the editor's left column: theme color (12-swatch palette), base font size, line height, section spacing, page padding, and the **Auto fit one page** toggle. They are stored inside the note's config block, so each resume keeps its own look — old notes without these fields fall back to defaults.
 
 ## Network usage
 
-The **AI polish** feature sends the resume text to a user-configured HTTP endpoint (default: OpenAI-compatible `chat/completions`). This requires network access and a valid API key, and is **disabled by default**. No data leaves your machine unless you enable it and provide credentials.
+The **AI polish** and **AI resume review** features send the resume text to a user-configured HTTP endpoint (default: OpenAI-compatible `chat/completions`). This requires network access and a valid API key, and is **disabled by default**. No data leaves your machine unless you enable it and provide credentials.
 
 ## Platform
 
