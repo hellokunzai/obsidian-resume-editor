@@ -20,12 +20,19 @@ export async function exportPdf(
   const body = resumeToHtml(data, app);
 
   // 离屏捕获容器：必须在文档中且可见（不能 display:none），html2canvas 才能读取布局。
-  // 宽度按纸张内容区设置，让 .re-paper（max-width:720px）居中排版与预览一致。
+  // 宽度按纸张宽度设置；导出时取消 .re-paper 的 max-width 限制，让简历内容占满整个 A4/Letter
+  // 页面，避免在页面中再套一层居中的“纸片”导致两侧出现双重白边。页面边距由 --r-page-padding
+  // （.re-paper 的 padding）控制，与打印预览/其他 PDF 阅读器保持一致。
+  const marginMm = 0;
   const paperPx = paperSize === "Letter" ? 816 : 794; // 96dpi 下的页宽（px）
   const holder = document.createElement("div");
   holder.className = "re-pdf-capture";
   holder.style.cssText = `position:fixed;left:-10000px;top:0;width:${paperPx}px;z-index:-1;background:#fff;`;
-  holder.innerHTML = `<style>${RESUME_CSS}${globalSettingsCss(data.globalSettings)}</style>${body}`;
+  const overrideCss = `
+    @page { size: ${paperSize === "Letter" ? "letter" : "A4"}; margin: ${marginMm}mm; }
+    .re-paper { max-width: none !important; width: 100% !important; margin-left: 0 !important; margin-right: 0 !important; }
+  `;
+  holder.innerHTML = `<style>${RESUME_CSS}${globalSettingsCss(data.globalSettings)}${overrideCss}</style>${body}`;
   document.body.appendChild(holder);
 
   const el = holder.querySelector(".re-paper") as HTMLElement | null;
@@ -37,7 +44,7 @@ export async function exportPdf(
     new Notice(t("notice.exportingPdf"));
 
     const opt = {
-      margin: 14, // mm，与 RESUME_CSS 的 @page margin:14mm 对齐
+      margin: marginMm, // mm：0 表示由 .re-paper 的 padding（--r-page-padding）控制页面边距
       image: { type: "jpeg", quality: 0.98 },
       html2canvas: {
         scale: 2,

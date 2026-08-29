@@ -1,6 +1,6 @@
 // 插件入口：生命周期、注册视图 / 命令 / Ribbon / 设置
 
-import { Plugin, Notice, TFile } from "obsidian";
+import { Plugin, Menu, Notice, TAbstractFile, TFile, TFolder } from "obsidian";
 import { t } from "./i18n";
 import { registerResumeIcons } from "./ui/icons";
 import { registerContactIcons } from "./ui/contact-icons";
@@ -35,10 +35,6 @@ export default class ResumeEditorPlugin extends Plugin {
     // 把 .resume 扩展名注册到简历编辑器视图：点击该文件 Obsidian 原生打开编辑器，
     // 多标签 / 复用 / 聚焦全部由 Obsidian 框架管理，无需手动拦截 file-open。
     this.registerExtensions([RESUME_EXT], VIEW_TYPE_RESUME);
-
-    this.addRibbonIcon("file-text", t("ribbon.tooltip"), () => {
-      void this.activateView();
-    });
 
     this.addCommand({
       id: "open-resume-editor",
@@ -95,6 +91,20 @@ export default class ResumeEditorPlugin extends Plugin {
         this.getView()?.doExport("latex");
       },
     });
+
+    // 在文件列表右键菜单中注入「新建简历」
+    this.registerEvent(
+      this.app.workspace.on("file-menu", (menu: Menu, file: TAbstractFile) => {
+        menu.addItem((item) => {
+          item.setTitle(t("menu.newResume"))
+            .setIcon("file-plus")
+            .onClick(async () => {
+              const dir = file instanceof TFolder ? file.path : file.parent?.path ?? "";
+              void this.newResumeNote(dir);
+            });
+        });
+      })
+    );
   }
 
   onunload(): void {
@@ -104,13 +114,6 @@ export default class ResumeEditorPlugin extends Plugin {
   async loadSettings(): Promise<void> {
     const data = (await this.loadData()) ?? {};
     this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
-    // 旧配置项迁移：persistDir -> resumeDir
-    if (!this.settings.resumeDir && data.persistDir) {
-      const oldDir = data.persistDir;
-      if (typeof oldDir === "string") {
-        this.settings.resumeDir = oldDir;
-      }
-    }
   }
 
   async saveSettings(): Promise<void> {
@@ -134,9 +137,9 @@ export default class ResumeEditorPlugin extends Plugin {
     workspace.revealLeaf(leaf);
   }
 
-  private async newResumeNote(): Promise<void> {
+  private async newResumeNote(targetDir?: string): Promise<void> {
     const name = "简历-" + new Date().toISOString().slice(0, 10);
-    const dir = this.settings.resumeDir.trim().replace(/\/+$/, "");
+    const dir = (targetDir ?? "").trim().replace(/\/+$/, "");
     if (dir && !this.app.vault.getAbstractFileByPath(dir)) {
       try {
         await this.app.vault.createFolder(dir);

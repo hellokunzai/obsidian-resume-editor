@@ -245,7 +245,7 @@ export class ResumeEditorView extends ItemView {
 
   private async loadFile(file: TFile): Promise<void> {
     this.currentFile = file;
-    const data = await readResume(this.app, file, this.plugin.settings.resumeDir);
+    const data = await readResume(this.app, file);
     if (data) {
       this.model = data;
     } else {
@@ -2036,18 +2036,13 @@ export class ResumeEditorView extends ItemView {
   }
 
   private async persist(): Promise<void> {
-    // 没有当前文件时，若设置了简历目录且内容非空，则在目录下新建文件
+    // 没有当前文件时，若内容非空则在 vault 根目录新建文件
     if (!this.currentFile) {
-      const dir = (this.plugin.settings.resumeDir ?? "").trim();
-      if (!dir) {
-        new Notice(t("notice.noActive"));
-        return;
-      }
       if (this.isModelEmpty()) {
         // 自动保存模式下空内容不创建文件，避免无输入时自动生成
         return;
       }
-      const file = await this.createResumeInDir(dir);
+      const file = await this.createResumeInDir("");
       if (!file) return;
       this.currentFile = file;
       new Notice(t("notice.created", { name: file.basename }));

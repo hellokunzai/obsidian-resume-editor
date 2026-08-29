@@ -14,6 +14,7 @@ const translations: Record<string, Record<string, string>> = {
     "command.exportHtml": "Export resume as HTML",
     "command.exportDocx": "Export resume as DOCX",
     "command.exportLatex": "Export resume as LaTeX",
+    "menu.newResume": "New resume",
     "ribbon.tooltip": "Resume Editor",
     "view.title": "Resume Editor",
 
@@ -28,11 +29,6 @@ const translations: Record<string, Record<string, string>> = {
     "settings.ai.endpoint.name": "API endpoint",
     "settings.ai.key.name": "API key",
     "settings.ai.model.name": "Model",
-    "settings.resumeDir.heading": "Resume directory",
-    "settings.resumeDir.dir.name": "Resume directory",
-    "settings.resumeDir.dir.desc":
-      "Vault-relative path. New resume files (.resume) are created here by default. Recognition now uses the file extension, so this only affects where new files go. Leave empty to create in vault root.",
-    "settings.resumeDir.dir.placeholder": "e.g. _resumes (leave empty to disable)",
     "settings.autoSave.name": "Auto save",
     "settings.autoSave.desc": "Automatically save changes after you stop typing",
     "settings.ai.provider.name": "AI provider preset",
@@ -64,7 +60,6 @@ const translations: Record<string, Record<string, string>> = {
     "check.notice.clean": "No issues found — looking good",
     "check.notice.parseError": "Could not parse the AI response",
 
-    "notice.pickedFolder": "Resume directory set to: {{path}}",
     "notice.saved": "Saved: {{name}}",
     "notice.imageSelected": "Image selected: {{name}}",
 
@@ -190,6 +185,7 @@ const translations: Record<string, Record<string, string>> = {
     "command.exportHtml": "导出简历为 HTML",
     "command.exportDocx": "导出简历为 DOCX",
     "command.exportLatex": "导出简历为 LaTeX",
+    "menu.newResume": "新建简历",
     "ribbon.tooltip": "简历编辑器",
     "view.title": "简历编辑器",
 
@@ -204,11 +200,6 @@ const translations: Record<string, Record<string, string>> = {
     "settings.ai.endpoint.name": "API 地址",
     "settings.ai.key.name": "API Key",
     "settings.ai.model.name": "模型",
-    "settings.resumeDir.heading": "简历目录",
-    "settings.resumeDir.dir.name": "简历目录",
-    "settings.resumeDir.dir.desc":
-      "vault 内的相对路径。新建简历文件（.resume）默认保存到此处；识别现依据文件扩展名，此设置仅影响新建位置，留空则在 vault 根目录创建。",
-    "settings.resumeDir.dir.placeholder": "例如 _resumes（留空则不启用）",
     "settings.autoSave.name": "自动保存",
     "settings.autoSave.desc": "停止输入后自动保存修改",
     "settings.ai.provider.name": "AI 供应商预设",
@@ -240,7 +231,6 @@ const translations: Record<string, Record<string, string>> = {
     "check.notice.clean": "未发现问题，简历状态良好",
     "check.notice.parseError": "无法解析 AI 返回结果",
 
-    "notice.pickedFolder": "简历目录已设置为：{{path}}",
     "notice.saved": "已保存：{{name}}",
     "notice.imageSelected": "已选择图片：{{name}}",
 
