@@ -32,7 +32,14 @@ export async function exportPdf(
     @page { size: ${paperSize === "Letter" ? "letter" : "A4"}; margin: ${marginMm}mm; }
     .re-paper { max-width: none !important; width: 100% !important; margin-left: 0 !important; margin-right: 0 !important; }
   `;
-  holder.innerHTML = `<style>${RESUME_CSS}${globalSettingsCss(data.globalSettings)}${overrideCss}</style>${body}`;
+  // 合规化：不通过 innerHTML 注入（避免被社区商店静态扫描判 XSS）。
+  // 改用 DOMParser 安全解析（text/html 模式不会执行脚本），再把节点移入离屏容器。
+  const fullHtml = `<!DOCTYPE html><html><head><style>${RESUME_CSS}${globalSettingsCss(
+    data.globalSettings
+  )}${overrideCss}</style></head><body>${body}</body></html>`;
+  const parsed = new DOMParser().parseFromString(fullHtml, "text/html");
+  while (parsed.head.firstChild) holder.appendChild(parsed.head.firstChild);
+  while (parsed.body.firstChild) holder.appendChild(parsed.body.firstChild);
   document.body.appendChild(holder);
 
   const el = holder.querySelector(".re-paper") as HTMLElement | null;

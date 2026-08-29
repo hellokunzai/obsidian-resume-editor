@@ -61,6 +61,7 @@ const translations: Record<string, Record<string, string>> = {
     "check.notice.parseError": "Could not parse the AI response",
 
     "notice.saved": "Saved: {{name}}",
+    "notice.savedMigrated": "Saved: {{name}} (migrated to .resume format)",
     "notice.imageSelected": "Image selected: {{name}}",
 
     "avatar.clickToSelect": "Click to select image",
@@ -232,6 +233,7 @@ const translations: Record<string, Record<string, string>> = {
     "check.notice.parseError": "无法解析 AI 返回结果",
 
     "notice.saved": "已保存：{{name}}",
+    "notice.savedMigrated": "已保存：{{name}}（已迁移至 .resume 格式）",
     "notice.imageSelected": "已选择图片：{{name}}",
 
     "avatar.clickToSelect": "点击选择图片",

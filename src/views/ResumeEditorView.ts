@@ -2061,7 +2061,7 @@ export class ResumeEditorView extends ItemView {
         this.currentFile = newFile;
         // 删除旧的 .md 文件
         await this.app.vault.delete(oldFile);
-        new Notice(t("notice.saved", { name: newFile.basename }) + "（已迁移至 .resume 格式）");
+        new Notice(t("notice.savedMigrated", { name: newFile.basename }));
         return;
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
