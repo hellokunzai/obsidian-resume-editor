@@ -230,6 +230,9 @@ export const RESUME_MARK = "resume";
 export const RESUME_MARKER = "<!-- obsidian-resume-editor -->";
 export const RESUME_MARKER_OPEN = "<!-- obsidian-resume-editor";
 
+/** 简历数据文件扩展名（注册到 Obsidian 后由原生视图接管打开） */
+export const RESUME_EXT = "resume";
+
 export const DEFAULT_RESUME: ResumeData = {
   name: "",
   role: "",
@@ -828,11 +831,19 @@ export function isResumeMarkdownContent(content: string): boolean {
   return content.includes(RESUME_MARKER_OPEN) || content.includes(RESUME_MARKER);
 }
 
+/** 是否我们注册的简历数据文件（靠扩展名识别，最可靠） */
+export function isResumeExt(file: TFile): boolean {
+  return file.extension === RESUME_EXT;
+}
+
 export function isResumeFile(
   app: App,
   file: TFile,
   resumeDir: string
 ): boolean {
+  // 1) 扩展名优先：.resume 文件一律视为简历
+  if (isResumeExt(file)) return true;
+  // 2) 向后兼容：旧版用 frontmatter 标记或放在简历目录下的 .md 文件
   const fm = app.metadataCache.getFileCache(file)?.frontmatter;
   if (isResumeFrontmatter(fm)) return true;
   if (isInResumeDir(file.path, resumeDir)) return true;
@@ -844,7 +855,18 @@ export async function readResume(
   file: TFile,
   resumeDir?: string
 ): Promise<ResumeData | null> {
-  // 兼容旧 frontmatter 数据
+  // 1) .resume 文件：直接 JSON 解析
+  if (isResumeExt(file)) {
+    const content = await app.vault.cachedRead(file);
+    try {
+      const parsed = JSON.parse(content) as Record<string, unknown>;
+      return parseResume(parsed);
+    } catch {
+      return null;
+    }
+  }
+
+  // 2) 兼容旧 frontmatter 数据
   const fm = app.metadataCache.getFileCache(file)?.frontmatter;
   if (isResumeFrontmatter(fm)) {
     return parseResume(fm);
@@ -865,10 +887,20 @@ export async function writeResume(
   file: TFile,
   data: ResumeData
 ): Promise<void> {
+  // .resume 文件：序列化为格式化 JSON
+  if (isResumeExt(file)) {
+    await app.vault.modify(file, JSON.stringify(data, null, 2));
+    return;
+  }
   const content = serializeResumeMarkdown(data);
   await app.vault.modify(file, content);
 }
 
 export function createResumeMarkdown(data?: ResumeData): string {
   return serializeResumeMarkdown(data ?? { ...DEFAULT_RESUME });
+}
+
+/** 新建 .resume 文件的初始内容（格式化 JSON） */
+export function createResumeJson(data?: ResumeData): string {
+  return JSON.stringify(data ?? { ...DEFAULT_RESUME }, null, 2);
 }

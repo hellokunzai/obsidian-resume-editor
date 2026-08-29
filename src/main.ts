@@ -6,8 +6,8 @@ import { registerResumeIcons } from "./ui/icons";
 import { registerContactIcons } from "./ui/contact-icons";
 import {
   DEFAULT_RESUME,
-  createResumeMarkdown,
-  isResumeFile,
+  createResumeJson,
+  RESUME_EXT,
   isResumeFrontmatter,
   readResume,
   writeResume,
@@ -32,31 +32,13 @@ export default class ResumeEditorPlugin extends Plugin {
 
     this.registerView(VIEW_TYPE_RESUME, (leaf) => new ResumeEditorView(leaf, this));
 
+    // 把 .resume 扩展名注册到简历编辑器视图：点击该文件 Obsidian 原生打开编辑器，
+    // 多标签 / 复用 / 聚焦全部由 Obsidian 框架管理，无需手动拦截 file-open。
+    this.registerExtensions([RESUME_EXT], VIEW_TYPE_RESUME);
+
     this.addRibbonIcon("file-text", t("ribbon.tooltip"), () => {
       void this.activateView();
     });
-
-    // 点击简历目录下的文件时，找到真正显示该文件的 markdown leaf 并替换为简历编辑器视图
-    // 用 setTimeout(0) 延迟到 Obsidian 完成 leaf 状态初始化后再替换，避免被内部状态覆盖
-    this.registerEvent(
-      this.app.workspace.on("file-open", (file) => {
-        if (
-          file &&
-          isResumeFile(this.app, file, this.settings.resumeDir)
-        ) {
-          setTimeout(() => {
-            const targetLeaf =
-              this.app.workspace
-                .getLeavesOfType("markdown")
-                .find((leaf) => (leaf.view as { file?: TFile }).file?.path === file.path) ??
-              this.app.workspace.activeLeaf;
-            if (targetLeaf) {
-              void targetLeaf.setViewState({ type: VIEW_TYPE_RESUME, active: true });
-            }
-          }, 0);
-        }
-      })
-    );
 
     this.addCommand({
       id: "open-resume-editor",
@@ -162,10 +144,10 @@ export default class ResumeEditorPlugin extends Plugin {
         // 目录可能已存在，忽略
       }
     }
-    const path = dir ? `${dir}/${name}.md` : `${name}.md`;
+    const path = dir ? `${dir}/${name}.${RESUME_EXT}` : `${name}.${RESUME_EXT}`;
     const file = await this.app.vault.create(
       path,
-      createResumeMarkdown({ ...DEFAULT_RESUME, name })
+      createResumeJson({ ...DEFAULT_RESUME, name })
     );
     await this.app.workspace.getLeaf(false).openFile(file);
     new Notice(t("notice.created", { name: file.basename }));

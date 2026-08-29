@@ -31,7 +31,7 @@ const translations: Record<string, Record<string, string>> = {
     "settings.resumeDir.heading": "Resume directory",
     "settings.resumeDir.dir.name": "Resume directory",
     "settings.resumeDir.dir.desc":
-      "Vault-relative path. Markdown files in this folder are automatically treated as resumes. Leave empty to disable.",
+      "Vault-relative path. New resume files (.resume) are created here by default. Recognition now uses the file extension, so this only affects where new files go. Leave empty to create in vault root.",
     "settings.resumeDir.dir.placeholder": "e.g. _resumes (leave empty to disable)",
     "settings.autoSave.name": "Auto save",
     "settings.autoSave.desc": "Automatically save changes after you stop typing",
@@ -190,7 +190,7 @@ const translations: Record<string, Record<string, string>> = {
     "settings.resumeDir.heading": "简历目录",
     "settings.resumeDir.dir.name": "简历目录",
     "settings.resumeDir.dir.desc":
-      "vault 内的相对路径。该目录下的 Markdown 文件会被自动识别为简历；留空则不启用。",
+      "vault 内的相对路径。新建简历文件（.resume）默认保存到此处；识别现依据文件扩展名，此设置仅影响新建位置，留空则在 vault 根目录创建。",
     "settings.resumeDir.dir.placeholder": "例如 _resumes（留空则不启用）",
     "settings.autoSave.name": "自动保存",
     "settings.autoSave.desc": "停止输入后自动保存修改",

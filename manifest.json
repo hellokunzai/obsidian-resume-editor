@@ -1,7 +1,7 @@
 {
   "id": "resume-editor",
   "name": "Resume Editor",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "minAppVersion": "1.7.2",
   "description": "Form-driven resume editor with live preview, Chinese templates and PDF/HTML/DOCX/LaTeX export, plus a configurable resume directory.",
   "author": "hellokunzai",

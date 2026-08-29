@@ -22,6 +22,8 @@ import {
   DEFAULT_RESUME,
   readResume,
   writeResume,
+  isResumeExt,
+  RESUME_EXT,
   AvatarRatio,
   AvatarRadius,
   AVATAR_RATIO_OPTIONS,
@@ -151,11 +153,29 @@ export class ResumeEditorView extends ItemView {
   }
 
   getDisplayText(): string {
-    return t("view.title");
+    return this.currentFile?.basename || t("view.title");
   }
 
   getIcon(): string {
     return "file-text";
+  }
+
+  getState(): Record<string, unknown> {
+    return {
+      file: this.currentFile?.path,
+    };
+  }
+
+  async setState(state: Record<string, unknown>): Promise<void> {
+    if (state.file && typeof state.file === "string") {
+      const file = this.app.vault.getAbstractFileByPath(state.file);
+      if (file instanceof TFile) {
+        await this.loadFile(file);
+        return;
+      }
+    }
+    // 兜底：尝试从当前激活文件加载（兼容 Obsidian 不同调用路径）
+    await this.loadActive();
   }
 
   async onOpen(): Promise<void> {
@@ -218,20 +238,32 @@ export class ResumeEditorView extends ItemView {
     if (this.saveTimer !== null) window.clearTimeout(this.saveTimer);
   }
 
-  private async loadActive(): Promise<void> {
-    const file = this.app.workspace.getActiveFile();
-    this.currentFile = file ?? null;
-    if (file) {
-      const data = await readResume(this.app, file, this.plugin.settings.resumeDir);
-      if (data) {
-        this.model = data;
-        this.renderForm();
-        this.renderPreview();
-        return;
-      }
+  private async loadFile(file: TFile): Promise<void> {
+    this.currentFile = file;
+    const data = await readResume(this.app, file, this.plugin.settings.resumeDir);
+    if (data) {
+      this.model = data;
+    } else {
+      this.model = { ...DEFAULT_RESUME };
     }
     this.renderForm();
     this.renderPreview();
+    // 刷新标签页标题，让 tab 显示文件名而非固定的"简历编辑器"
+    (this.leaf as unknown as { setTitle(title: string): void }).setTitle(this.getDisplayText());
+  }
+
+  private async loadActive(): Promise<void> {
+    const file = this.app.workspace.getActiveFile();
+    // 优先加载 .resume 文件；其他文件类型不响应（避免点普通 md 把简历清空）
+    if (file && isResumeExt(file)) {
+      await this.loadFile(file);
+    } else {
+      // 无文件或非简历文件 → 用默认数据渲染空表单（保证界面不空白）
+      this.currentFile = null;
+      this.model = { ...DEFAULT_RESUME };
+      this.renderForm();
+      this.renderPreview();
+    }
   }
 
   private switchTemplate(id: TemplateId): void {
@@ -1734,10 +1766,11 @@ export class ResumeEditorView extends ItemView {
         }
       }
       const name = "简历-" + new Date().toISOString().slice(0, 10);
-      const path = `${normalizedDir}/${name}.md`;
+      // 新格式：.resume 文件（纯 JSON）
+      const path = `${normalizedDir}/${name}.${RESUME_EXT}`;
       const file = await this.app.vault.create(
         path,
-        "---\nresume: true\n---\n\n"
+        JSON.stringify({ ...DEFAULT_RESUME }, null, 2)
       );
       // 先把当前表单数据写进去，再打开，避免打开后加载空数据
       await writeResume(this.app, file, this.model);
@@ -1769,6 +1802,28 @@ export class ResumeEditorView extends ItemView {
       return;
     }
 
+    // 旧 .md 文件 → 自动迁移为 .resume 格式（首次保存时转换）
+    if (this.currentFile.extension !== RESUME_EXT) {
+      const oldFile = this.currentFile;
+      const newPath = oldFile.path.replace(/\.[^.]+$/, `.${RESUME_EXT}`);
+      try {
+        const newFile = await this.app.vault.create(
+          newPath,
+          JSON.stringify(this.model, null, 2)
+        );
+        this.currentFile = newFile;
+        // 删除旧的 .md 文件
+        await this.app.vault.delete(oldFile);
+        new Notice(t("notice.saved", { name: newFile.basename }) + "（已迁移至 .resume 格式）");
+        return;
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        new Notice(t("error.export", { msg }));
+        return;
+      }
+    }
+
+    // 正常 .resume 文件 → 直接 JSON 写入
     try {
       await writeResume(this.app, this.currentFile, this.model);
       new Notice(t("notice.saved", { name: this.currentFile.basename }));
