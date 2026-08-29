@@ -193,13 +193,12 @@ export class ResumeEditorView extends ItemView {
     const header = shell.createDiv({ cls: "re-header" });
     header.createEl("div", { cls: "re-title", text: t("view.title") });
 
-    // 模板下拉选择
+    // 模板下拉选择（放在 header 右侧，与导出按钮同行）
     const tplWrap = header.createDiv({ cls: "re-tpl-select-wrap" });
     tplWrap.createEl("span", { cls: "re-tpl-select-label", text: t("template.label") });
     const tplSelect = tplWrap.createEl("select", { cls: "re-select re-tpl-select", attr: { "data-tpl-select": "" } });
     for (const id of TEMPLATE_IDS) {
-      const opt = tplSelect.createEl("option", { value: id, text: t("template." + id) });
-      if (id === this.model.templateId) opt.selected = true;
+      tplSelect.createEl("option", { value: id, text: t("template." + id) });
     }
     tplSelect.addEventListener("change", () => this.switchTemplate(tplSelect.value as TemplateId));
 
@@ -255,11 +254,6 @@ export class ResumeEditorView extends ItemView {
     this.renderPreview();
     // 刷新标签页标题，让 tab 显示文件名而非固定的"简历编辑器"
     (this.leaf as unknown as { setTitle(title: string): void }).setTitle(this.getDisplayText());
-    // 同步模板下拉选中值
-    const select = this.contentEl.querySelector('[data-tpl-select]') as HTMLSelectElement | null;
-    if (select && select.value !== this.model.templateId) {
-      select.value = this.model.templateId;
-    }
   }
 
   private async loadActive(): Promise<void> {
@@ -273,19 +267,11 @@ export class ResumeEditorView extends ItemView {
       this.model = { ...DEFAULT_RESUME };
       this.renderForm();
       this.renderPreview();
-      const select = this.contentEl.querySelector('[data-tpl-select]') as HTMLSelectElement | null;
-      if (select && select.value !== this.model.templateId) {
-        select.value = this.model.templateId;
-      }
     }
   }
 
   private switchTemplate(id: TemplateId): void {
     this.model.templateId = id;
-    const select = this.contentEl.querySelector('[data-tpl-select]') as HTMLSelectElement | null;
-    if (select && select.value !== id) {
-      select.value = id;
-    }
     this.renderPreview();
     this.scheduleSave();
   }
@@ -293,6 +279,12 @@ export class ResumeEditorView extends ItemView {
   private renderForm(): void {
     const b = this.formBody;
     b.empty();
+
+    // 同步 header 中模板选择器的选中值（select 在 onOpen 创建，此处只更新值）
+    const headerSelect = this.contentEl.querySelector('[data-tpl-select]') as HTMLSelectElement | null;
+    if (headerSelect && headerSelect.value !== this.model.templateId) {
+      headerSelect.value = this.model.templateId;
+    }
 
     // 兜底：旧文件可能没有 globalSettings
     if (!this.model.globalSettings) {
