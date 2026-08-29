@@ -107,3 +107,33 @@ export function normalizeCustomFieldIcon(value: string | undefined): string {
   if (CONTACT_ICONS[key]) return key;
   return DEFAULT_CUSTOM_FIELD_ICON;
 }
+
+/** 将图标 SVG 渲染为 PNG ArrayBuffer，用于 DOCX 内嵌；失败时返回 null */
+export async function contactIconPng(key: string, size = 16): Promise<ArrayBuffer | null> {
+  const svg = CONTACT_ICONS[key] ?? CONTACT_ICONS[DEFAULT_CUSTOM_FIELD_ICON];
+  if (typeof document === "undefined") return null;
+  return new Promise((resolve) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return resolve(null);
+    const img = new Image();
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0, size, size);
+      canvas.toBlob((blob) => {
+        if (!blob) return resolve(null);
+        blob
+          .arrayBuffer()
+          .then(resolve)
+          .catch(() => resolve(null));
+      }, "image/png");
+    };
+    img.onerror = () => resolve(null);
+    try {
+      img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svg)));
+    } catch {
+      resolve(null);
+    }
+  });
+}
