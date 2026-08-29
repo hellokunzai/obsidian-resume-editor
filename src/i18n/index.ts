@@ -127,6 +127,7 @@ const translations: Record<string, Record<string, string>> = {
     "layout.right": "Avatar right",
 
     "btn.save": "Save",
+    "btn.export": "Export",
     "btn.chooseImage": "Choose image",
     "btn.addCustomField": "Add custom field",
     "btn.addBasicField": "Add contact field",
@@ -163,6 +164,7 @@ const translations: Record<string, Record<string, string>> = {
     "template.creative": "Creative",
     "template.editorial": "Editorial",
 
+    "template.label": "Template",
     "export.pdf": "Export PDF",
     "export.html": "Export HTML",
     "export.docx": "Export DOCX",
@@ -301,6 +303,7 @@ const translations: Record<string, Record<string, string>> = {
     "layout.right": "头像在右",
 
     "btn.save": "保存",
+    "btn.export": "导出",
     "btn.chooseImage": "选择图片",
     "btn.addCustomField": "添加自定义字段",
     "btn.addBasicField": "添加联系方式",
@@ -309,6 +312,8 @@ const translations: Record<string, Record<string, string>> = {
     "btn.addProject": "添加项目",
     "btn.addModule": "添加模块",
     "btn.addCertificate": "添加证书",
+
+    "template.label": "模板",
 
     "basicField.allAdded": "所有联系方式已添加",
 

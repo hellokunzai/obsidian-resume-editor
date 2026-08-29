@@ -193,23 +193,25 @@ export class ResumeEditorView extends ItemView {
     const header = shell.createDiv({ cls: "re-header" });
     header.createEl("div", { cls: "re-title", text: t("view.title") });
 
-    const tplSwitch = header.createDiv({ cls: "re-tpl-switch" });
-    TEMPLATE_IDS.forEach((id) => {
-      const chip = tplSwitch.createEl("span", {
-        cls: "re-tpl-chip" + (this.model.templateId === id ? " re-on" : ""),
-        text: t("template." + id),
-      });
-      chip.addEventListener("click", () => this.switchTemplate(id));
-    });
+    // 模板下拉选择
+    const tplWrap = header.createDiv({ cls: "re-tpl-select-wrap" });
+    tplWrap.createEl("span", { cls: "re-tpl-select-label", text: t("template.label") });
+    const tplSelect = tplWrap.createEl("select", { cls: "re-select re-tpl-select", attr: { "data-tpl-select": "" } });
+    for (const id of TEMPLATE_IDS) {
+      const opt = tplSelect.createEl("option", { value: id, text: t("template." + id) });
+      if (id === this.model.templateId) opt.selected = true;
+    }
+    tplSelect.addEventListener("change", () => this.switchTemplate(tplSelect.value as TemplateId));
 
-    const btnPdf = header.createEl("button", { cls: "re-btn re-primary", text: t("export.pdf") });
-    btnPdf.addEventListener("click", () => this.doExport("pdf"));
-    const btnHtml = header.createEl("button", { cls: "re-btn", text: t("export.html") });
-    btnHtml.addEventListener("click", () => this.doExport("html"));
-    const btnDocx = header.createEl("button", { cls: "re-btn", text: t("export.docx") });
-    btnDocx.addEventListener("click", () => this.doExport("docx"));
-    const btnLatex = header.createEl("button", { cls: "re-btn", text: t("export.latex") });
-    btnLatex.addEventListener("click", () => this.doExport("latex"));
+    // 导出下拉菜单
+    const exportWrap = header.createDiv({ cls: "re-export-wrap" });
+    const exportBtn = exportWrap.createEl("button", {
+      cls: "re-btn re-export-btn",
+      attr: { type: "button", "aria-label": t("btn.export") },
+    });
+    exportBtn.createSpan({ text: t("btn.export") });
+    setIcon(exportBtn, "re-download");
+    exportBtn.addEventListener("click", () => this.openExportMenu(exportBtn, exportWrap));
 
     const btnCheck = header.createEl("button", { cls: "re-btn", text: t("btn.aiCheck") });
     btnCheck.addEventListener("click", () => void this.runAiCheck());
@@ -253,6 +255,11 @@ export class ResumeEditorView extends ItemView {
     this.renderPreview();
     // 刷新标签页标题，让 tab 显示文件名而非固定的"简历编辑器"
     (this.leaf as unknown as { setTitle(title: string): void }).setTitle(this.getDisplayText());
+    // 同步模板下拉选中值
+    const select = this.contentEl.querySelector('[data-tpl-select]') as HTMLSelectElement | null;
+    if (select && select.value !== this.model.templateId) {
+      select.value = this.model.templateId;
+    }
   }
 
   private async loadActive(): Promise<void> {
@@ -266,18 +273,19 @@ export class ResumeEditorView extends ItemView {
       this.model = { ...DEFAULT_RESUME };
       this.renderForm();
       this.renderPreview();
+      const select = this.contentEl.querySelector('[data-tpl-select]') as HTMLSelectElement | null;
+      if (select && select.value !== this.model.templateId) {
+        select.value = this.model.templateId;
+      }
     }
   }
 
   private switchTemplate(id: TemplateId): void {
     this.model.templateId = id;
-    this.contentEl
-      .querySelectorAll(".re-tpl-chip")
-      .forEach((c) => c.removeClass("re-on"));
-    const chips = this.contentEl.querySelectorAll(".re-tpl-chip");
-    chips.forEach((c, i) => {
-      if (TEMPLATE_IDS[i] === id) c.addClass("re-on");
-    });
+    const select = this.contentEl.querySelector('[data-tpl-select]') as HTMLSelectElement | null;
+    if (select && select.value !== id) {
+      select.value = id;
+    }
     this.renderPreview();
     this.scheduleSave();
   }
@@ -797,6 +805,38 @@ export class ResumeEditorView extends ItemView {
     const close = (ev: MouseEvent) => {
       const target = ev.target as Node;
       if (!menu.contains(target) && !(target as HTMLElement).closest(".re-add-module")) {
+        menu.remove();
+        document.removeEventListener("click", close);
+      }
+    };
+    setTimeout(() => document.addEventListener("click", close), 0);
+  }
+
+  private openExportMenu(anchor: HTMLElement, wrap: HTMLElement): void {
+    const existing = wrap.querySelector(".re-export-menu");
+    if (existing) {
+      existing.remove();
+      return;
+    }
+
+    const menu = wrap.createEl("div", { cls: "re-export-menu" });
+    const items: { kind: "pdf" | "html" | "docx" | "latex"; label: string }[] = [
+      { kind: "pdf", label: t("export.pdf") },
+      { kind: "html", label: t("export.html") },
+      { kind: "docx", label: t("export.docx") },
+      { kind: "latex", label: t("export.latex") },
+    ];
+    for (const item of items) {
+      const row = menu.createEl("div", { cls: "re-export-item", text: item.label });
+      row.addEventListener("click", () => {
+        this.doExport(item.kind);
+        menu.remove();
+      });
+    }
+
+    const close = (ev: MouseEvent) => {
+      const target = ev.target as Node;
+      if (!menu.contains(target) && !(target as HTMLElement).closest(".re-export-btn")) {
         menu.remove();
         document.removeEventListener("click", close);
       }
