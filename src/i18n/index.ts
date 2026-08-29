@@ -48,8 +48,9 @@ const translations: Record<string, Record<string, string>> = {
     "style.pagePadding": "Page padding",
     "style.autoOnePage": "Auto fit one page",
     "style.autoOnePage.desc": "Scale down automatically when content exceeds one page",
-    "style.scaled": "Auto-scaled to {{percent}}%",
-    "style.onePageOverflow": "Content still exceeds one page at the 90% scale limit — consider trimming",
+    "style.showPageLines": "Show A4 page lines",
+    "style.showPageLines.desc": "Show dashed A4 page boundaries and total page count when content exceeds one page",
+    "style.pageCount": "Estimated {{count}} A4 page(s)",
 
     "btn.aiCheck": "AI review",
     "check.title": "AI resume review",
@@ -221,8 +222,9 @@ const translations: Record<string, Record<string, string>> = {
     "style.pagePadding": "页边距",
     "style.autoOnePage": "自动一页纸",
     "style.autoOnePage.desc": "内容超出一页时自动整体缩小",
-    "style.scaled": "已自动缩放至 {{percent}}%",
-    "style.onePageOverflow": "内容超出：已缩至 90% 下限仍放不下一页，建议精简内容",
+    "style.showPageLines": "显示 A4 分页线",
+    "style.showPageLines.desc": "内容超出一页时显示 A4 分页线与总页数",
+    "style.pageCount": "预计 {{count}} 页 A4",
 
     "btn.aiCheck": "AI 体检",
     "check.title": "AI 简历体检",

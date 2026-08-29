@@ -1472,7 +1472,7 @@
   color: var(--interactive-accent);
 }
 
-/* 预览状态栏（自动一页纸缩放提示） */
+/* 预览状态栏（多页页数提示） */
 .re-preview-holder {
   position: relative;
 }
@@ -1493,13 +1493,44 @@
   display: block;
 }
 
-.re-preview-status.re-status-scaled {
+.re-preview-status.re-status-pagecount {
   color: var(--text-faint);
 }
 
-.re-preview-status.re-status-overflow {
-  color: var(--text-warning, #b8860b);
-  font-weight: 600;
+/* A4 分页线：内容超出一页时，在 paper 上叠加横向虚线 + 右侧页码标签
+   虚线/标签都不响应鼠标事件，pointer-events 由 .re-page-overlay 统一设为 none */
+.re-paper {
+  position: relative;
+}
+
+.re-page-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.re-page-break {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 1px dashed rgba(124, 92, 255, 0.45);
+}
+
+.re-page-break-label {
+  position: absolute;
+  right: 6px;
+  top: -10px;
+  padding: 1px 6px;
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--text-faint);
+  background: var(--background-secondary, #f4f4f5);
+  border: 1px solid var(--background-modifier-border, #ddd);
+  border-radius: 4px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 /* ===== AI 简历体检弹窗（选择器统一加 .re-check-modal 前缀，压过 .modal 全局规则） ===== */

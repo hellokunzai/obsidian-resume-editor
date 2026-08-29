@@ -58,7 +58,7 @@ import { exportPdf } from "../export/pdf";
 import { exportHtml } from "../export/html";
 import { exportDocx } from "../export/docx";
 import { exportLatex } from "../export/latex";
-import { computeOnePageScale, pageAvailableHeight } from "../utils/auto-one-page";
+import { PAPER_SIZE_PX } from "../utils/auto-one-page";
 import { checkResume, CheckIssue } from "../ai/check";
 import { CheckModal } from "../ui/CheckModal";
 
@@ -349,25 +349,25 @@ export class ResumeEditorView extends ItemView {
     this.styleRange(body, "style.pagePadding", gs.pagePadding, PAGE_PADDING_MIN, PAGE_PADDING_MAX, 1,
       (v) => (gs.pagePadding = v), (v) => `${v}px`);
 
-    // 自动一页纸开关
+    // 多页显示开关
     const toggleRow = body.createDiv({ cls: "re-style-row" });
     const labelWrap = toggleRow.createDiv({ cls: "re-style-toggle-label" });
-    labelWrap.createEl("span", { cls: "re-style-label", text: t("style.autoOnePage") });
-    labelWrap.createSpan({ cls: "re-style-hint", text: t("style.autoOnePage.desc") });
+    labelWrap.createEl("span", { cls: "re-style-label", text: t("style.showPageLines") });
+    labelWrap.createSpan({ cls: "re-style-hint", text: t("style.showPageLines.desc") });
     const cbWrap = toggleRow.createDiv({ cls: "re-style-toggle" });
     const cb = cbWrap.createEl("input", {
-      attr: { type: "checkbox", "data-style": "autoOnePage" },
+      attr: { type: "checkbox", "data-style": "showPageLines" },
     });
-    cb.checked = gs.autoOnePage;
+    cb.checked = gs.showPageLines;
     const toggleBtn = cbWrap.createEl("button", {
-      cls: "re-icon-btn re-style-toggle-btn" + (gs.autoOnePage ? " re-on" : ""),
-      attr: { type: "button", "aria-label": t("style.autoOnePage") },
+      cls: "re-icon-btn re-style-toggle-btn" + (gs.showPageLines ? " re-on" : ""),
+      attr: { type: "button", "aria-label": t("style.showPageLines") },
     });
-    setIcon(toggleBtn, gs.autoOnePage ? "re-eye" : "re-eye-off");
+    setIcon(toggleBtn, gs.showPageLines ? "re-eye" : "re-eye-off");
     toggleBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       cb.checked = !cb.checked;
-      gs.autoOnePage = cb.checked;
+      gs.showPageLines = cb.checked;
       toggleBtn.toggleClass("re-on", cb.checked);
       setIcon(toggleBtn, cb.checked ? "re-eye" : "re-eye-off");
       this.renderPreview();
@@ -1897,41 +1897,43 @@ export class ResumeEditorView extends ItemView {
 
   private renderPreview(): void {
     renderResumeDom(this.previewPaper, this.model, this.app);
-    this.applyPreviewOnePage();
+    this.applyPreviewPageLines();
   }
 
-  /** 自动一页纸：内容超出单页可用高度时整体缩放，并在预览下方给出状态提示 */
-  private applyPreviewOnePage(): void {
+  /**
+   * 多页预览：内容超出一页时，在 paper 上画 A4 高度的横向虚线 + 右侧页码标签，
+   * 并在底部状态栏显示总页数；不再做整体缩放，内容始终铺开。
+   */
+  private applyPreviewPageLines(): void {
     const paper = this.previewPaper.querySelector(".re-paper") as HTMLElement | null;
     if (!paper || !this.previewStatus) return;
 
-    // 先复位
-    paper.style.removeProperty("transform");
-    paper.style.removeProperty("transform-origin");
-    this.previewPaper.style.removeProperty("height");
+    // 每次渲染都先复位
+    paper.classList.remove("re-paper-with-lines");
+    paper.querySelector(".re-page-overlay")?.remove();
     this.previewStatus.empty();
     this.previewStatus.addClass("re-hidden");
 
     const gs = this.model.globalSettings;
-    if (!gs || !gs.autoOnePage) return;
+    if (!gs?.showPageLines) return;
 
-    const avail = pageAvailableHeight("A4");
-    const result = computeOnePageScale(paper.scrollHeight, avail);
-    if (result.scale >= 1) return;
+    const PAGE_H = PAPER_SIZE_PX.A4.height; // 1123px（96dpi）
+    const contentH = paper.scrollHeight;
+    if (contentH <= PAGE_H) return; // 单页不需要分隔
 
-    paper.style.setProperty("transform-origin", "top center");
-    paper.style.setProperty("transform", `scale(${result.scale})`);
-    // transform 不改变布局高度，手动收拢外层高度避免底部大片空白
-    this.previewPaper.style.setProperty("height", `${Math.round(paper.offsetHeight * result.scale)}px`);
+    const totalPages = Math.ceil(contentH / PAGE_H);
+    const overlay = paper.createDiv({ cls: "re-page-overlay" });
+    for (let i = 1; i < totalPages; i++) {
+      const line = overlay.createDiv({ cls: "re-page-break" });
+      line.style.top = `${i * PAGE_H}px`;
+      const label = line.createDiv({ cls: "re-page-break-label" });
+      label.textContent = `${i} / ${totalPages}`;
+    }
+    paper.classList.add("re-paper-with-lines");
 
     this.previewStatus.removeClass("re-hidden");
-    if (result.fits) {
-      this.previewStatus.addClass("re-status-scaled");
-      this.previewStatus.setText(t("style.scaled", { percent: String(Math.round(result.scale * 100)) }));
-    } else {
-      this.previewStatus.addClass("re-status-overflow");
-      this.previewStatus.setText(t("style.onePageOverflow"));
-    }
+    this.previewStatus.addClass("re-status-pagecount");
+    this.previewStatus.setText(t("style.pageCount", { count: String(totalPages) }));
   }
 
   private scheduleSave(): void {

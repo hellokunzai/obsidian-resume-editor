@@ -42,8 +42,8 @@ export interface GlobalSettings {
   sectionSpacing: number;
   /** 页边距（px，四边） */
   pagePadding: number;
-  /** 自动一页纸：内容超出一页时自动整体缩放 */
-  autoOnePage: boolean;
+  /** 多页显示：内容超出一页时画出 A4 边界线 + 显示总页数（不再做整体缩放） */
+  showPageLines: boolean;
 }
 
 /** 主题色板（12 色，来自 magic-resume 的配色思路） */
@@ -72,7 +72,7 @@ export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   paragraphSpacing: 4,
   sectionSpacing: 16,
   pagePadding: 30,
-  autoOnePage: true,
+  showPageLines: true,
 };
 
 function clamp(n: number, min: number, max: number): number {
@@ -105,8 +105,11 @@ export function sanitizeGlobalSettings(raw: unknown): GlobalSettings {
   if (typeof o.pagePadding === "number" && isFinite(o.pagePadding)) {
     out.pagePadding = clamp(Math.round(o.pagePadding), PAGE_PADDING_MIN, PAGE_PADDING_MAX);
   }
-  if (typeof o.autoOnePage === "boolean") {
-    out.autoOnePage = o.autoOnePage;
+  // 兼容老字段 autoOnePage（旧版「自动一页纸」开关）；新字段 showPageLines 优先
+  if (typeof o.showPageLines === "boolean") {
+    out.showPageLines = o.showPageLines;
+  } else if (typeof (o as Record<string, unknown>).autoOnePage === "boolean") {
+    out.showPageLines = (o as Record<string, unknown>).autoOnePage as boolean;
   }
   return out;
 }
