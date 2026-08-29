@@ -16,7 +16,7 @@ import {
   ResumeCustomField,
   ResumeLayout,
   SectionType,
-  ResumeSection,
+  MenuSection,
   SECTION_TITLE_KEY,
   TemplateId,
   DEFAULT_RESUME,
@@ -45,6 +45,7 @@ import {
   PAGE_PADDING_MAX,
 } from "../data/resume-model";
 import { renderResumeDom, resolveAvatarUrl } from "../render/template";
+import { TEMPLATE_IDS } from "../render/templates/registry";
 import { t } from "../i18n";
 import {
   CUSTOM_FIELD_ICON_KEYS,
@@ -102,7 +103,7 @@ const SECTION_LABELS: Record<string, SectionCfg> = {
     time: "field.time",
     details: "field.details",
   },
-  work: {
+  experience: {
     org: "field.company",
     title: "field.position",
     time: "field.time",
@@ -191,9 +192,9 @@ export class ResumeEditorView extends ItemView {
     header.createEl("div", { cls: "re-title", text: t("view.title") });
 
     const tplSwitch = header.createDiv({ cls: "re-tpl-switch" });
-    (["single", "twoCol", "academic", "classic", "timeline", "swiss"] as TemplateId[]).forEach((id) => {
+    TEMPLATE_IDS.forEach((id) => {
       const chip = tplSwitch.createEl("span", {
-        cls: "re-tpl-chip" + (this.plugin.settings.template === id ? " re-on" : ""),
+        cls: "re-tpl-chip" + (this.model.templateId === id ? " re-on" : ""),
         text: t("template." + id),
       });
       chip.addEventListener("click", () => this.switchTemplate(id));
@@ -267,17 +268,16 @@ export class ResumeEditorView extends ItemView {
   }
 
   private switchTemplate(id: TemplateId): void {
-    this.plugin.settings.template = id;
-    void this.plugin.saveSettings();
+    this.model.templateId = id;
     this.contentEl
       .querySelectorAll(".re-tpl-chip")
       .forEach((c) => c.removeClass("re-on"));
     const chips = this.contentEl.querySelectorAll(".re-tpl-chip");
     chips.forEach((c, i) => {
-      const order: TemplateId[] = ["single", "twoCol", "academic", "classic", "timeline", "swiss"];
-      if (order[i] === id) c.addClass("re-on");
+      if (TEMPLATE_IDS[i] === id) c.addClass("re-on");
     });
     this.renderPreview();
+    this.scheduleSave();
   }
 
   private renderForm(): void {
@@ -305,7 +305,7 @@ export class ResumeEditorView extends ItemView {
     addBtn.addEventListener("click", () => this.openAddMenu(addWrap));
   }
 
-  private sectionTitle(sec: ResumeSection): string {
+  private sectionTitle(sec: MenuSection): string {
     if (sec.type === "custom") return sec.title || t("form.customModule");
     return t(SECTION_TITLE_KEY[sec.type as Exclude<SectionType, "custom">]);
   }
@@ -406,13 +406,13 @@ export class ResumeEditorView extends ItemView {
   private renderModules(): void {
     if (!this.sectionList) return;
     this.sectionList.empty();
-    for (const sec of this.model.sections) {
+    for (const sec of this.model.menuSections) {
       this.sectionList.appendChild(this.buildModule(sec));
     }
     this.bindDnd();
   }
 
-  private buildModule(sec: ResumeSection): HTMLElement {
+  private buildModule(sec: MenuSection): HTMLElement {
     const mod = document.createElement("div");
     mod.className = "re-module" + (sec.collapsed ? " re-collapsed" : "");
     mod.setAttribute("data-id", sec.id);
@@ -469,7 +469,7 @@ export class ResumeEditorView extends ItemView {
     } else {
       delBtn.addEventListener("click", (e) => {
         e.stopPropagation();
-        this.model.sections = this.model.sections.filter((s) => s.id !== sec.id);
+        this.model.menuSections = this.model.menuSections.filter((s) => s.id !== sec.id);
         this.renderModules();
         this.renderPreview();
         this.scheduleSave();
@@ -489,7 +489,7 @@ export class ResumeEditorView extends ItemView {
       sec.collapsed = !sec.collapsed;
       if (!sec.collapsed) {
         // 手风琴效果：仅保留当前模块展开
-        for (const s of this.model.sections) {
+        for (const s of this.model.menuSections) {
           if (s.id !== sec.id) s.collapsed = true;
         }
         this.renderModules();
@@ -505,7 +505,7 @@ export class ResumeEditorView extends ItemView {
     return mod;
   }
 
-  private buildModuleContent(sec: ResumeSection, parent: HTMLElement): void {
+  private buildModuleContent(sec: MenuSection, parent: HTMLElement): void {
     switch (sec.type) {
       case "basic":
         this.buildBasicContent(parent);
@@ -513,14 +513,14 @@ export class ResumeEditorView extends ItemView {
       case "education":
         this.sectionBlock(parent, "education", this.model.education, t("btn.addEducation"));
         break;
-      case "work":
-        this.sectionBlock(parent, "work", this.model.work, t("btn.addWork"));
+      case "experience":
+        this.sectionBlock(parent, "experience", this.model.experience, t("btn.addWork"));
         break;
       case "projects":
         this.sectionBlock(parent, "projects", this.model.projects, t("btn.addProject"));
         break;
       case "skills":
-        this.basicField(parent, "field.skills", "skills", this.model.skills, true);
+        this.basicField(parent, "field.skills", "skillContent", this.model.skillContent, true);
         break;
       case "custom":
         const ta = parent.createEl("textarea", {
@@ -758,10 +758,10 @@ export class ResumeEditorView extends ItemView {
     }
 
     const menu = wrap.createEl("div", { cls: "re-add-menu" });
-    const present = new Set(this.model.sections.map((s) => s.type));
+    const present = new Set(this.model.menuSections.map((s) => s.type));
     const candidates: { type: SectionType; label: string }[] = [
       { type: "education", label: t("form.education") },
-      { type: "work", label: t("form.work") },
+      { type: "experience", label: t("form.work") },
       { type: "projects", label: t("form.project") },
       { type: "skills", label: t("form.skills") },
       { type: "custom", label: t("form.customModule") },
@@ -773,7 +773,7 @@ export class ResumeEditorView extends ItemView {
       const item = menu.createEl("div", { cls: "re-add-item", text: c.label });
       item.addEventListener("click", () => {
         const id = c.type === "custom" ? "custom-" + Date.now().toString(36) : c.type;
-        this.model.sections.push({ id, type: c.type, visible: true, collapsed: false, title: "", content: "" });
+        this.model.menuSections.push({ id, type: c.type, visible: true, collapsed: false, title: "", content: "" });
         this.renderModules();
         this.renderPreview();
         this.scheduleSave();
@@ -835,7 +835,7 @@ export class ResumeEditorView extends ItemView {
       const ids = Array.from(list.querySelectorAll(".re-module")).map(
         (m) => (m as HTMLElement).getAttribute("data-id") as string
       );
-      this.model.sections.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+      this.model.menuSections.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
       this.dragEl.removeClass("re-dragging");
       this.dragEl = null;
       this.renderPreview();
@@ -1356,7 +1356,7 @@ export class ResumeEditorView extends ItemView {
 
     // 同步模块顺序 / 可见性 / 自定义模块内容（按当前 DOM 顺序）
     const mods = Array.from(this.sectionList.querySelectorAll(".re-module"));
-    this.model.sections.forEach((sec, i) => {
+    this.model.menuSections.forEach((sec, i) => {
       const el = mods[i] as HTMLElement | undefined;
       if (!el) return;
       sec.visible = !el.classList.contains("re-hidden");
@@ -1369,6 +1369,11 @@ export class ResumeEditorView extends ItemView {
     });
 
     const data: ResumeData = {
+      id: this.model.id,
+      title: this.model.title,
+      createdAt: this.model.createdAt,
+      updatedAt: new Date().toISOString(),
+      templateId: this.model.templateId,
       name: get('[data-basic="name"]'),
       role: get('[data-basic="role"]'),
       phone: get('[data-basic="phone"]'),
@@ -1390,10 +1395,13 @@ export class ResumeEditorView extends ItemView {
       basicFields: this.readBasicFields(),
       customFields: this.readCustomFields(),
       education: this.readEntries("education"),
-      work: this.readEntries("work"),
+      experience: this.readEntries("experience"),
       projects: this.readEntries("projects"),
-      skills: get('[data-basic="skills"]'),
-      sections: this.model.sections,
+      certificates: this.model.certificates,
+      customData: this.model.customData,
+      skillContent: get('[data-basic="skillContent"]'),
+      selfEvaluationContent: this.model.selfEvaluationContent,
+      menuSections: this.model.menuSections,
       globalSettings: this.model.globalSettings,
     };
     this.model = data;
@@ -1645,9 +1653,11 @@ export class ResumeEditorView extends ItemView {
     const hasIdx = idxRaw !== undefined && idxRaw !== "";
 
     // 展开目标模块（手风琴：仅目标展开，其余折叠）
-    if (["basic", "skills", "education", "work", "projects"].includes(section)) {
-      for (const sec of this.model.sections) {
-        sec.collapsed = sec.type !== section;
+    // AI 体检返回的工作经历 field 用 "work"，但数据模型与模块类型已统一为 "experience"
+    const jumpType = section === "work" ? "experience" : section;
+    if (["basic", "skills", "education", "experience", "projects"].includes(jumpType)) {
+      for (const sec of this.model.menuSections) {
+        sec.collapsed = sec.type !== jumpType;
       }
       this.renderModules();
     }
@@ -1667,26 +1677,26 @@ export class ResumeEditorView extends ItemView {
         return;
       }
       if (section === "skills") {
-        flash(this.formBody.querySelector('[data-basic="skills"]') as HTMLElement | null);
+        flash(this.formBody.querySelector('[data-basic="skillContent"]') as HTMLElement | null);
         return;
       }
       if (hasIdx) {
         const card = this.formBody.querySelector(
-          `.re-entry-card[data-section="${section}"][data-index="${idxRaw}"]`
+          `.re-entry-card[data-section="${jumpType}"][data-index="${idxRaw}"]`
         ) as HTMLElement | null;
         const field = (card?.querySelector('[data-key="details"]') as HTMLElement | null) ?? null;
         flash(card ?? field, field);
         return;
       }
       const mod = this.formBody.querySelector(
-        `.re-module[data-type="${section}"]`
+        `.re-module[data-type="${jumpType}"]`
       ) as HTMLElement | null;
       flash(mod);
     });
   }
 
   private renderPreview(): void {
-    renderResumeDom(this.previewPaper, this.model, this.plugin.settings.template, this.app);
+    renderResumeDom(this.previewPaper, this.model, this.app);
     this.applyPreviewOnePage();
   }
 
@@ -1748,9 +1758,9 @@ export class ResumeEditorView extends ItemView {
       !m.role &&
       !m.phone &&
       !m.email &&
-      !m.skills &&
+      !m.skillContent &&
       m.education.length === 0 &&
-      m.work.length === 0 &&
+      m.experience.length === 0 &&
       m.projects.length === 0
     );
   }
@@ -1845,20 +1855,19 @@ export class ResumeEditorView extends ItemView {
     }
     const base = this.baseName();
     const data = this.model;
-    const tpl = this.plugin.settings.template;
     const paper = this.plugin.settings.paperSize;
     switch (kind) {
       case "pdf":
-        void exportPdf(this.app, data, tpl, base, paper);
+        void exportPdf(this.app, data, base, paper);
         break;
       case "html":
-        void exportHtml(this.app, data, tpl, base);
+        void exportHtml(this.app, data, base);
         break;
       case "docx":
-        void exportDocx(this.app, data, base, tpl);
+        void exportDocx(this.app, data, base);
         break;
       case "latex":
-        void exportLatex(this.app, data, base, tpl);
+        void exportLatex(this.app, data, base);
         break;
     }
   }

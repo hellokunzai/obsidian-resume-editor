@@ -19,7 +19,7 @@ const translations: Record<string, Record<string, string>> = {
 
     "settings.title": "Resume Editor Settings",
     "settings.template.name": "Default template",
-    "settings.template.desc": "Template applied when opening a resume note",
+    "settings.template.desc": "Default template applied to new resumes (saved resumes use their own templateId)",
     "settings.paper.name": "PDF paper size",
     "settings.paper.desc": "A4 or Letter",
     "settings.ai.heading": "AI polish",
@@ -147,6 +147,12 @@ const translations: Record<string, Record<string, string>> = {
     "template.classic": "Classic",
     "template.timeline": "Timeline",
     "template.swiss": "Swiss",
+    "template.modern": "Modern",
+    "template.minimalist": "Minimalist",
+    "template.leftRight": "Left & right",
+    "template.elegant": "Elegant",
+    "template.creative": "Creative",
+    "template.editorial": "Editorial",
 
     "export.pdf": "Export PDF",
     "export.html": "Export HTML",
@@ -178,7 +184,7 @@ const translations: Record<string, Record<string, string>> = {
 
     "settings.title": "简历编辑器设置",
     "settings.template.name": "默认模板",
-    "settings.template.desc": "打开简历笔记时套用的模板",
+    "settings.template.desc": "新建简历时套用的默认模板（已保存的简历以自身 templateId 为准）",
     "settings.paper.name": "PDF 纸张尺寸",
     "settings.paper.desc": "A4 或信纸",
     "settings.ai.heading": "AI 润色",
@@ -306,6 +312,12 @@ const translations: Record<string, Record<string, string>> = {
     "template.classic": "经典",
     "template.timeline": "时间轴",
     "template.swiss": "瑞士",
+    "template.modern": "现代",
+    "template.minimalist": "极简",
+    "template.leftRight": "左右分栏",
+    "template.elegant": "优雅",
+    "template.creative": "创意",
+    "template.editorial": "杂志风",
 
     "export.pdf": "导出 PDF",
     "export.html": "导出 HTML",

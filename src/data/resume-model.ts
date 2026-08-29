@@ -1,20 +1,43 @@
 // 简历数据模型 + Markdown 正文读写
+// 数据模型已对齐 magic-resume 的 ResumeData 逻辑：
+//   - 顶层扁平基础字段（name/role/.../layout/avatar*）+ 结构化数组（education/experience/projects）
+//   - 自定义模块内容存入 customData: Record<string, CustomItem[]>
+//   - 模块顺序/可见性由 menuSections[] 控制（替代旧 sections）
+//   - 每份简历自带 templateId（替代旧的全局 settings.template）
+//   - 技能/自我评价为纯文本字符串（skillContent / selfEvaluationContent）
+//   - 兼容旧版 .resume / .md 文件（work→experience、skills→skillContent、sections→menuSections 自动迁移）
 
 import { App, TFile } from "obsidian";
 
-export type TemplateId = "single" | "twoCol" | "academic" | "classic" | "timeline" | "swiss";
+export type TemplateId =
+  | "single"
+  | "twoCol"
+  | "academic"
+  | "classic"
+  | "timeline"
+  | "swiss"
+  | "modern"
+  | "minimalist"
+  | "leftRight"
+  | "elegant"
+  | "creative"
+  | "editorial";
 export type ResumeLayout = "left" | "top" | "right";
 
-/* ---------- 全局样式设置（参考 magic-resume 的 GlobalSettings 设计，原生重写） ---------- */
+/* ---------- 全局样式设置（与 magic-resume 的 GlobalSettings 对齐） ---------- */
 
-/** 全局样式：主题色 / 字号 / 行距 / 模块间距 / 页边距 / 自动一页纸 */
+/** 全局样式：主题色 / 字体 / 字号 / 行距 / 段间距 / 模块间距 / 页边距 / 自动一页纸 */
 export interface GlobalSettings {
   /** 主题色（#rrggbb） */
   themeColor: string;
+  /** 字体族（可选，留空用默认） */
+  fontFamily?: string;
   /** 正文字号（px） */
   baseFontSize: number;
   /** 行高（倍数） */
   lineHeight: number;
+  /** 段间距（px，条目内多行之间的距离） */
+  paragraphSpacing?: number;
   /** 模块间距（px，模块标题上间距） */
   sectionSpacing: number;
   /** 页边距（px，四边） */
@@ -38,11 +61,15 @@ export const SECTION_SPACING_MIN = 8;
 export const SECTION_SPACING_MAX = 32;
 export const PAGE_PADDING_MIN = 16;
 export const PAGE_PADDING_MAX = 48;
+export const PARAGRAPH_SPACING_MIN = 0;
+export const PARAGRAPH_SPACING_MAX = 16;
 
 export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   themeColor: "#7c5cff",
+  fontFamily: "",
   baseFontSize: 13,
   lineHeight: 1.5,
+  paragraphSpacing: 4,
   sectionSpacing: 16,
   pagePadding: 30,
   autoOnePage: true,
@@ -60,11 +87,17 @@ export function sanitizeGlobalSettings(raw: unknown): GlobalSettings {
   if (typeof o.themeColor === "string" && /^#[0-9a-fA-F]{6}$/.test(o.themeColor)) {
     out.themeColor = o.themeColor.toLowerCase();
   }
+  if (typeof o.fontFamily === "string" && o.fontFamily.trim()) {
+    out.fontFamily = o.fontFamily.trim();
+  }
   if (typeof o.baseFontSize === "number" && isFinite(o.baseFontSize)) {
     out.baseFontSize = clamp(Math.round(o.baseFontSize), FONT_SIZE_MIN, FONT_SIZE_MAX);
   }
   if (typeof o.lineHeight === "number" && isFinite(o.lineHeight)) {
     out.lineHeight = Math.round(clamp(o.lineHeight, LINE_HEIGHT_MIN, LINE_HEIGHT_MAX) * 100) / 100;
+  }
+  if (typeof o.paragraphSpacing === "number" && isFinite(o.paragraphSpacing)) {
+    out.paragraphSpacing = clamp(Math.round(o.paragraphSpacing), PARAGRAPH_SPACING_MIN, PARAGRAPH_SPACING_MAX);
   }
   if (typeof o.sectionSpacing === "number" && isFinite(o.sectionSpacing)) {
     out.sectionSpacing = clamp(Math.round(o.sectionSpacing), SECTION_SPACING_MIN, SECTION_SPACING_MAX);
@@ -118,7 +151,7 @@ export function computeAvatarStyle(data: ResumeData): {
 export type SectionType =
   | "basic"
   | "education"
-  | "work"
+  | "experience"
   | "projects"
   | "skills"
   | "custom";
@@ -160,13 +193,30 @@ export interface BasicFieldConfig {
   visible: boolean;
 }
 
+/** 自定义模块条目（customData 中的单条内容） */
+export interface CustomItem {
+  id: string;
+  title: string;
+  subtitle: string;
+  dateRange: string;
+  description: string;
+  visible: boolean;
+}
+
+/** 证书（图片，按宽度百分比 flex 布局） */
+export interface Certificate {
+  id: string;
+  url: string;
+  width: number;
+}
+
 /** 可调整顺序/显示/删除的基础字段 key 集合（姓名、职位固定，不参与） */
 export const BASIC_FIELD_KEYS = ["phone", "email", "employmentStatus", "location", "birthDate"] as const;
 
 export const DEFAULT_BASIC_FIELDS: BasicFieldConfig[] = BASIC_FIELD_KEYS.map((key) => ({ key, visible: true }));
 
-/** 模块配置：控制顺序、预览/导出可见性与编辑区折叠 */
-export interface ResumeSection {
+/** 模块配置：控制顺序、预览/导出可见性与编辑区折叠（对齐 magic-resume 的 menuSections） */
+export interface MenuSection {
   /** 唯一标识。内置模块用 type；自定义模块用随机 id */
   id: string;
   type: SectionType;
@@ -176,7 +226,7 @@ export interface ResumeSection {
   collapsed: boolean;
   /** 自定义模块标题（仅 custom 类型生效） */
   title: string;
-  /** 自定义模块正文（仅 custom 类型生效，每行一条） */
+  /** 自定义模块正文（仅 custom 类型生效，每行一条，向后兼容保留） */
   content: string;
 }
 
@@ -184,20 +234,30 @@ export interface ResumeSection {
 export const SECTION_TITLE_KEY: Record<Exclude<SectionType, "custom">, string> = {
   basic: "form.basic",
   education: "form.education",
-  work: "form.work",
+  experience: "form.work",
   projects: "form.project",
   skills: "form.skills",
 };
 
-export const DEFAULT_SECTIONS: ResumeSection[] = [
+export const DEFAULT_MENU_SECTIONS: MenuSection[] = [
   { id: "basic", type: "basic", visible: true, collapsed: false, title: "", content: "" },
   { id: "education", type: "education", visible: true, collapsed: true, title: "", content: "" },
-  { id: "work", type: "work", visible: true, collapsed: true, title: "", content: "" },
+  { id: "experience", type: "experience", visible: true, collapsed: true, title: "", content: "" },
   { id: "projects", type: "projects", visible: true, collapsed: true, title: "", content: "" },
   { id: "skills", type: "skills", visible: true, collapsed: true, title: "", content: "" },
 ];
 
 export interface ResumeData {
+  /** 唯一 id（对齐 magic-resume，导出/互通用） */
+  id: string;
+  /** 简历标题（文件名来源） */
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  /** 每份简历自带模版（替代旧的全局 settings.template） */
+  templateId: TemplateId;
+
+  // —— 基础信息（扁平，保持编辑器改动最小）——
   name: string;
   role: string;
   phone: string;
@@ -217,12 +277,24 @@ export interface ResumeData {
   /** 头像圆角样式 */
   avatarRadius: AvatarRadius;
   basicFields: BasicFieldConfig[];
+  /** 额外联系方式（自定义字段，归到 basic 下展示） */
   customFields: ResumeCustomField[];
+
+  // —— 结构化内容 ——
   education: ResumeEntry[];
-  work: ResumeEntry[];
+  experience: ResumeEntry[];
   projects: ResumeEntry[];
-  skills: string;
-  sections: ResumeSection[];
+  certificates: Certificate[];
+  /** 自定义模块内容：key = 模块 id，value = 条目列表（对齐 magic-resume 的 customData） */
+  customData: Record<string, CustomItem[]>;
+  /** 专业技能（纯文本，对齐 magic-resume 的 skillContent） */
+  skillContent: string;
+  /** 自我评价（纯文本） */
+  selfEvaluationContent: string;
+
+  // —— 模块顺序/可见性 ——
+  menuSections: MenuSection[];
+
   globalSettings: GlobalSettings;
 }
 
@@ -233,7 +305,20 @@ export const RESUME_MARKER_OPEN = "<!-- obsidian-resume-editor";
 /** 简历数据文件扩展名（注册到 Obsidian 后由原生视图接管打开） */
 export const RESUME_EXT = "resume";
 
+function makeId(): string {
+  try {
+    return "r-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  } catch {
+    return "r-" + Math.random().toString(36).slice(2, 10);
+  }
+}
+
 export const DEFAULT_RESUME: ResumeData = {
+  id: makeId(),
+  title: "",
+  createdAt: "",
+  updatedAt: "",
+  templateId: "single",
   name: "",
   role: "",
   phone: "",
@@ -249,10 +334,13 @@ export const DEFAULT_RESUME: ResumeData = {
   basicFields: DEFAULT_BASIC_FIELDS.map((f) => ({ ...f })),
   customFields: [],
   education: [],
-  work: [],
+  experience: [],
   projects: [],
-  skills: "",
-  sections: [...DEFAULT_SECTIONS.map((s) => ({ ...s }))],
+  certificates: [],
+  customData: {},
+  skillContent: "",
+  selfEvaluationContent: "",
+  menuSections: [...DEFAULT_MENU_SECTIONS.map((s) => ({ ...s }))],
   globalSettings: { ...DEFAULT_GLOBAL_SETTINGS },
 };
 
@@ -328,6 +416,52 @@ function asCustomFields(raw: unknown): ResumeCustomField[] {
   return [];
 }
 
+function asCustomItem(raw: unknown): CustomItem {
+  const empty = { id: makeId(), title: "", subtitle: "", dateRange: "", description: "", visible: true };
+  if (raw && typeof raw === "object") {
+    const o = raw as Record<string, unknown>;
+    return {
+      id: typeof o.id === "string" && o.id ? o.id : makeId(),
+      title: typeof o.title === "string" ? o.title : "",
+      subtitle: typeof o.subtitle === "string" ? o.subtitle : "",
+      dateRange: typeof o.dateRange === "string" ? o.dateRange : "",
+      description: typeof o.description === "string" ? o.description : "",
+      // 旧 content 字段（纯文本）映射到 description
+      visible: typeof o.visible === "boolean" ? o.visible : true,
+    };
+  }
+  return empty;
+}
+
+function asCustomData(raw: unknown): Record<string, CustomItem[]> {
+  const out: Record<string, CustomItem[]> = {};
+  if (raw && typeof raw === "object") {
+    const o = raw as Record<string, unknown>;
+    for (const [k, v] of Object.entries(o)) {
+      if (Array.isArray(v)) out[k] = v.map(asCustomItem);
+    }
+  }
+  return out;
+}
+
+function asCertificate(raw: unknown): Certificate {
+  const empty = { id: makeId(), url: "", width: 100 };
+  if (raw && typeof raw === "object") {
+    const o = raw as Record<string, unknown>;
+    return {
+      id: typeof o.id === "string" && o.id ? o.id : makeId(),
+      url: typeof o.url === "string" ? o.url : "",
+      width: typeof o.width === "number" && isFinite(o.width) ? Math.min(100, Math.max(10, Math.round(o.width))) : 100,
+    };
+  }
+  return empty;
+}
+
+function asCertificates(raw: unknown): Certificate[] {
+  if (Array.isArray(raw)) return raw.map(asCertificate);
+  return [];
+}
+
 function asBasicField(raw: unknown): BasicFieldConfig | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
@@ -359,20 +493,46 @@ function asNumber(v: unknown, fallback: number): number {
   return fallback;
 }
 
+function isTemplateId(v: unknown): v is TemplateId {
+  return (
+    v === "single" || v === "twoCol" || v === "academic" || v === "classic" ||
+    v === "timeline" || v === "swiss" || v === "modern" || v === "minimalist" ||
+    v === "leftRight" || v === "elegant" || v === "creative" || v === "editorial"
+  );
+}
+
+function asMenuSection(raw: unknown): MenuSection | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  const type = o.type;
+  const allowed: SectionType[] = ["basic", "education", "experience", "projects", "skills", "custom"];
+  if (typeof type !== "string" || !allowed.includes(type as SectionType)) return null;
+  const visible = typeof o.visible === "boolean" ? o.visible : true;
+  const collapsed = typeof o.collapsed === "boolean" ? o.collapsed : false;
+  const title = typeof o.title === "string" ? o.title : "";
+  const content = typeof o.content === "string" ? o.content : "";
+  const id = typeof o.id === "string" && o.id ? o.id : (type as string);
+  return { id, type: type as SectionType, visible, collapsed, title, content };
+}
+
 export function parseResume(
   fm: Record<string, unknown> | undefined | null
 ): ResumeData {
-  if (!fm) return { ...DEFAULT_RESUME };
+  if (!fm) return { ...DEFAULT_RESUME, id: makeId() };
   const layout = isLayout(fm.layout) ? fm.layout : DEFAULT_RESUME.layout;
 
-  let sections: ResumeSection[];
-  const rawSections = Array.isArray(fm.sections)
-    ? (fm.sections.map(asSection).filter(Boolean) as ResumeSection[])
+  // menuSections：优先新字段，回退旧 sections
+  let menuSections: MenuSection[];
+  const rawSections = Array.isArray(fm.menuSections)
+    ? fm.menuSections
+    : Array.isArray(fm.sections)
+    ? fm.sections
     : [];
-  if (rawSections.length) {
+  const parsed = rawSections.map(asMenuSection).filter(Boolean) as MenuSection[];
+  if (parsed.length) {
     const seen = new Set<string>();
-    const dedup: ResumeSection[] = [];
-    for (const s of rawSections) {
+    const dedup: MenuSection[] = [];
+    for (const s of parsed) {
       if (s.type !== "custom") {
         if (seen.has(s.type)) continue;
         seen.add(s.type);
@@ -382,9 +542,9 @@ export function parseResume(
     if (!dedup.some((s) => s.type === "basic")) {
       dedup.unshift({ id: "basic", type: "basic", visible: true, collapsed: false, title: "", content: "" });
     }
-    sections = dedup;
+    menuSections = dedup;
   } else {
-    sections = DEFAULT_SECTIONS.map((s) => ({ ...s }));
+    menuSections = DEFAULT_MENU_SECTIONS.map((s) => ({ ...s }));
   }
 
   const rawBasicFields = asBasicFields(fm.basicFields);
@@ -392,7 +552,21 @@ export function parseResume(
     ? rawBasicFields
     : DEFAULT_BASIC_FIELDS.map((f) => ({ ...f }));
 
+  // 字段迁移：旧 work/skills → 新 experience/skillContent
+  const experience = asEntries(fm.experience ?? fm.work);
+  const skillContent =
+    typeof fm.skillContent === "string"
+      ? fm.skillContent
+      : typeof fm.skills === "string"
+      ? fm.skills
+      : "";
+
   return {
+    id: typeof fm.id === "string" && fm.id ? fm.id : makeId(),
+    title: typeof fm.title === "string" ? fm.title : "",
+    createdAt: typeof fm.createdAt === "string" ? fm.createdAt : "",
+    updatedAt: typeof fm.updatedAt === "string" ? fm.updatedAt : "",
+    templateId: isTemplateId(fm.templateId) ? fm.templateId : DEFAULT_RESUME.templateId,
     name: typeof fm.name === "string" ? fm.name : "",
     role: typeof fm.role === "string" ? fm.role : "",
     phone: typeof fm.phone === "string" ? fm.phone : "",
@@ -412,10 +586,13 @@ export function parseResume(
     basicFields,
     customFields: asCustomFields(fm.customFields),
     education: asEntries(fm.education),
-    work: asEntries(fm.work),
+    experience,
     projects: asEntries(fm.projects),
-    skills: typeof fm.skills === "string" ? fm.skills : "",
-    sections,
+    certificates: asCertificates(fm.certificates),
+    customData: asCustomData(fm.customData),
+    skillContent,
+    selfEvaluationContent: typeof fm.selfEvaluationContent === "string" ? fm.selfEvaluationContent : "",
+    menuSections,
     globalSettings: sanitizeGlobalSettings(fm.globalSettings),
   };
 }
@@ -456,22 +633,16 @@ function cloneCustomField(f: ResumeCustomField): ResumeCustomField {
   return { icon: f.icon, label: f.label, value: f.value, showLabel: f.showLabel, visible: f.visible };
 }
 
-function asSection(raw: unknown): ResumeSection | null {
-  if (!raw || typeof raw !== "object") return null;
-  const o = raw as Record<string, unknown>;
-  const type = o.type;
-  const allowed: SectionType[] = ["basic", "education", "work", "projects", "skills", "custom"];
-  if (typeof type !== "string" || !allowed.includes(type as SectionType)) return null;
-  const visible = typeof o.visible === "boolean" ? o.visible : true;
-  const collapsed = typeof o.collapsed === "boolean" ? o.collapsed : false;
-  const title = typeof o.title === "string" ? o.title : "";
-  const content = typeof o.content === "string" ? o.content : "";
-  const id = typeof o.id === "string" && o.id ? o.id : (type as string);
-  return { id, type: type as SectionType, visible, collapsed, title, content };
+function cloneCustomItem(it: CustomItem): CustomItem {
+  return { id: it.id, title: it.title, subtitle: it.subtitle, dateRange: it.dateRange, description: it.description, visible: it.visible };
+}
+
+function cloneCertificate(c: Certificate): Certificate {
+  return { id: c.id, url: c.url, width: c.width };
 }
 
 export function toFrontmatter(data: ResumeData): Record<string, unknown> {
-  const sections = data.sections.map((s) => {
+  const menuSections = data.menuSections.map((s) => {
     const base: Record<string, unknown> = { id: s.id, type: s.type, visible: s.visible, collapsed: s.collapsed };
     if (s.type === "custom") {
       base.title = s.title;
@@ -481,6 +652,11 @@ export function toFrontmatter(data: ResumeData): Record<string, unknown> {
   });
   return {
     [RESUME_MARK]: true,
+    id: data.id,
+    title: data.title,
+    createdAt: data.createdAt,
+    updatedAt: data.updatedAt,
+    templateId: data.templateId,
     name: data.name,
     role: data.role,
     phone: data.phone,
@@ -494,12 +670,17 @@ export function toFrontmatter(data: ResumeData): Record<string, unknown> {
     avatarAspectRatio: data.avatarAspectRatio,
     avatarRadius: data.avatarRadius,
     basicFields: data.basicFields.map((f) => ({ ...f })),
-    sections,
     customFields: data.customFields.map(cloneCustomField),
     education: data.education.map(cloneEntry),
-    work: data.work.map(cloneEntry),
+    experience: data.experience.map(cloneEntry),
     projects: data.projects.map(cloneEntry),
-    skills: data.skills,
+    certificates: data.certificates.map(cloneCertificate),
+    customData: Object.fromEntries(
+      Object.entries(data.customData).map(([k, v]) => [k, v.map(cloneCustomItem)])
+    ),
+    skillContent: data.skillContent,
+    selfEvaluationContent: data.selfEvaluationContent,
+    menuSections,
     globalSettings: { ...data.globalSettings },
   };
 }
@@ -590,6 +771,7 @@ function serializeConfig(data: ResumeData): string {
   const gsJson = JSON.stringify(data.globalSettings);
   return [
     "<!-- obsidian-resume-editor",
+    `templateId: ${data.templateId}`,
     `layout: ${data.layout}`,
     `avatar: ${data.avatar}`,
     `avatarSize: ${data.avatarSize}`,
@@ -615,6 +797,11 @@ function parseConfig(content: string): Partial<ResumeData> {
     if (layoutMatch) {
       const v = layoutMatch[1].trim();
       if (isLayout(v)) cfg.layout = v;
+    }
+    const tplMatch = line.match(/^templateId:\s*(.*)$/);
+    if (tplMatch) {
+      const v = tplMatch[1].trim();
+      if (isTemplateId(v)) cfg.templateId = v;
     }
     const avatarMatch = line.match(/^avatar:\s*(.*)$/);
     if (avatarMatch) cfg.avatar = avatarMatch[1].trim();
@@ -679,7 +866,7 @@ export function serializeResumeMarkdown(data: ResumeData): string {
 
   const sections: { title: string; items: ResumeEntry[] }[] = [
     { title: "教育经历", items: data.education },
-    { title: "工作经历", items: data.work },
+    { title: "工作经历", items: data.experience },
     { title: "项目经历", items: data.projects },
   ];
 
@@ -708,7 +895,7 @@ export function serializeResumeMarkdown(data: ResumeData): string {
 
   lines.push("## 专业技能");
   lines.push("");
-  lines.push(escapeMarkdown(data.skills) || "（暂无）");
+  lines.push(escapeMarkdown(data.skillContent) || "（暂无）");
   lines.push("");
 
   // 头像配置：仅展示给用户看，非简历正文；权威数据在文件顶部 HTML 注释中
@@ -725,8 +912,13 @@ export function serializeResumeMarkdown(data: ResumeData): string {
 
 export function parseResumeMarkdown(content: string): ResumeData {
   // 浅拷贝后必须单独深拷贝 globalSettings，避免与 DEFAULT_RESUME 共享引用被就地修改
-  const data: ResumeData = { ...DEFAULT_RESUME, globalSettings: { ...DEFAULT_GLOBAL_SETTINGS } };
+  const data: ResumeData = {
+    ...DEFAULT_RESUME,
+    id: makeId(),
+    globalSettings: { ...DEFAULT_GLOBAL_SETTINGS },
+  };
   const cfg = parseConfig(content);
+  if (cfg.templateId) data.templateId = cfg.templateId;
   if (cfg.layout) data.layout = cfg.layout;
   if (cfg.avatar !== undefined) data.avatar = cfg.avatar;
   if (cfg.avatarSize !== undefined) data.avatarSize = cfg.avatarSize;
@@ -774,7 +966,7 @@ export function parseResumeMarkdown(content: string): ResumeData {
   }
 
   // 各 section
-  let currentSection: "education" | "work" | "projects" | "skills" | null = null;
+  let currentSection: "education" | "experience" | "projects" | "skills" | null = null;
 
   while (i < lines.length) {
     const line = lines[i].trim();
@@ -782,7 +974,7 @@ export function parseResumeMarkdown(content: string): ResumeData {
     if (line.startsWith("## ")) {
       const title = line.slice(3).trim();
       if (title === "教育经历") currentSection = "education";
-      else if (title === "工作经历") currentSection = "work";
+      else if (title === "工作经历") currentSection = "experience";
       else if (title === "项目经历") currentSection = "projects";
       else if (title === "专业技能") currentSection = "skills";
       else if (title === "头像配置") currentSection = null; // 仅展示，不解析进 model
@@ -793,10 +985,10 @@ export function parseResumeMarkdown(content: string): ResumeData {
 
     if (currentSection === "skills") {
       if (line.startsWith("#")) break;
-      if (!data.skills && line && line !== "（暂无）") {
-        data.skills = line;
+      if (!data.skillContent && line && line !== "（暂无）") {
+        data.skillContent = line;
       } else if (line && line !== "（暂无）") {
-        data.skills += "\n" + line;
+        data.skillContent += "\n" + line;
       }
       i++;
       continue;

@@ -147,7 +147,7 @@ export default class ResumeEditorPlugin extends Plugin {
     const path = dir ? `${dir}/${name}.${RESUME_EXT}` : `${name}.${RESUME_EXT}`;
     const file = await this.app.vault.create(
       path,
-      createResumeJson({ ...DEFAULT_RESUME, name })
+      createResumeJson({ ...DEFAULT_RESUME, name, templateId: this.settings.template })
     );
     await this.app.workspace.getLeaf(false).openFile(file);
     new Notice(t("notice.created", { name: file.basename }));

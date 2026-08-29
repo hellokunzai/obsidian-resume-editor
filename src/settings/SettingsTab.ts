@@ -10,6 +10,7 @@ import {
 } from "obsidian";
 import type ResumeEditorPlugin from "../main";
 import { TemplateId } from "../data/resume-model";
+import { TEMPLATE_REGISTRY } from "../render/templates/registry";
 import { t } from "../i18n";
 
 export interface ResumeEditorSettings {
@@ -106,20 +107,15 @@ export class ResumeSettingTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName(t("settings.template.name"))
       .setDesc(t("settings.template.desc"))
-      .addDropdown((dd) =>
-        dd
-          .addOption("single", t("template.single"))
-          .addOption("twoCol", t("template.twoCol"))
-          .addOption("academic", t("template.academic"))
-          .addOption("classic", t("template.classic"))
-          .addOption("timeline", t("template.timeline"))
-          .addOption("swiss", t("template.swiss"))
+      .addDropdown((dd) => {
+        TEMPLATE_REGISTRY.forEach((e) => dd.addOption(e.id, t(e.config.nameKey)));
+        return dd
           .setValue(this.plugin.settings.template)
           .onChange(async (v) => {
             this.plugin.settings.template = v as TemplateId;
             await this.plugin.saveSettings();
-          })
-      );
+          });
+      });
 
     new Setting(containerEl)
       .setName(t("settings.paper.name"))

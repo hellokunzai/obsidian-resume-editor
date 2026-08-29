@@ -1,7 +1,22 @@
 // 模板引擎：ResumeData -> 预览 DOM（createEl 构造，禁用 innerHTML）/ 导出 HTML 字符串
+// 渲染按 data.templateId 分发（配置驱动，见 ./templates/registry.ts），与 magic-resume 思路一致。
 
 import { App, TFile, normalizePath, setIcon } from "obsidian";
-import { ResumeData, ResumeEntry, ResumeCustomField, ResumeLayout, TemplateId, ResumeSection, SectionType, computeAvatarStyle, visibleEntries, formatEntryTime, GlobalSettings, DEFAULT_GLOBAL_SETTINGS } from "../data/resume-model";
+import {
+  ResumeData,
+  ResumeEntry,
+  ResumeCustomField,
+  ResumeLayout,
+  TemplateId,
+  MenuSection,
+  SectionType,
+  CustomItem,
+  computeAvatarStyle,
+  visibleEntries,
+  formatEntryTime,
+  GlobalSettings,
+  DEFAULT_GLOBAL_SETTINGS,
+} from "../data/resume-model";
 import { t } from "../i18n";
 import {
   CONTACT_ICONS,
@@ -15,13 +30,20 @@ import {
 /** 全局样式 -> CSS 变量名值对（预览时逐个 setProperty 注入到 .re-paper） */
 export function globalSettingsCssProps(gs: GlobalSettings): Record<string, string> {
   const s = gs ?? DEFAULT_GLOBAL_SETTINGS;
-  return {
+  const props: Record<string, string> = {
     "--r-theme": s.themeColor,
     "--r-font-size": `${s.baseFontSize}px`,
     "--r-line-height": String(s.lineHeight),
     "--r-sec-spacing": `${s.sectionSpacing}px`,
     "--r-page-padding": `${s.pagePadding}px`,
   };
+  if (s.fontFamily && s.fontFamily.trim()) {
+    props["--r-font-family"] = s.fontFamily.trim();
+  }
+  if (typeof s.paragraphSpacing === "number" && isFinite(s.paragraphSpacing)) {
+    props["--r-para-spacing"] = `${s.paragraphSpacing}px`;
+  }
+  return props;
 }
 
 /** 全局样式 -> CSS 文本（导出 HTML/PDF 时拼进 <style>，作用于 .re-paper） */
@@ -131,7 +153,7 @@ function buildContactItems(data: ResumeData): ContactItem[] {
   const items: ContactItem[] = [];
   for (const f of data.basicFields) {
     if (!f.visible) continue;
-    const v = data[f.key as keyof ResumeData];
+    const v = (data as unknown as Record<string, unknown>)[f.key];
     if (typeof v !== "string" || !v) continue;
     items.push({
       iconKey: BASIC_FIELD_ICON_KEY[f.key] ?? f.key,
@@ -374,9 +396,38 @@ function sectionDomSwiss(parent: HTMLElement, title: string, entries: ResumeEntr
   }
 }
 
-function renderCustomClassic(parent: HTMLElement, sec: ResumeSection): void {
+/* ---------- 自定义模块渲染（从 customData 读取条目，回退旧 content 文本） ---------- */
+
+function customSecCls(tpl: TemplateId): string {
+  return tpl === "classic" ? "r-sec r-sec-classic" : "r-sec";
+}
+function customItemCls(tpl: TemplateId): string {
+  return tpl === "classic" ? "r-item r-item-classic" : "r-item";
+}
+
+function renderCustomDom(parent: HTMLElement, sec: MenuSection, data: ResumeData, tpl: TemplateId): void {
+  const items = data.customData[sec.id];
+  if (items && items.length) {
+    parent.createEl("h3", { cls: customSecCls(tpl), text: sec.title || t("form.customModule") });
+    for (const it of items) {
+      if (!it.visible) continue;
+      if (!it.title.trim() && !it.subtitle.trim() && !it.description.trim()) continue;
+      const item = parent.createDiv({ cls: customItemCls(tpl) });
+      const top = item.createDiv({ cls: "r-top" });
+      top.createSpan({ cls: "r-nm", text: it.title });
+      if (it.dateRange) top.createSpan({ cls: "r-dt", text: it.dateRange });
+      if (it.subtitle.trim()) item.createDiv({ cls: "r-sub", text: it.subtitle });
+      if (it.description.trim()) {
+        const ul = item.createEl("ul", { cls: "r-details" });
+        for (const line of it.description.split("\n")) {
+          if (line.trim()) ul.createEl("li", { text: line.trim() });
+        }
+      }
+    }
+    return;
+  }
   if (!sec.content.trim()) return;
-  parent.createEl("h3", { cls: "r-sec r-sec-classic", text: sec.title || t("form.customModule") });
+  parent.createEl("h3", { cls: customSecCls(tpl), text: sec.title || t("form.customModule") });
   const ul = parent.createEl("ul");
   sec.content
     .split("\n")
@@ -392,38 +443,34 @@ const TWO_COL_LEFT = new Set<SectionType>(["skills", "education"]);
 /** 按类型渲染单个非 basic 模块到指定容器（单栏内容渲染器，供双栏复用） */
 function renderSectionIntoDom(
   host: HTMLElement,
-  sec: ResumeSection,
-  data: ResumeData
+  sec: MenuSection,
+  data: ResumeData,
+  tpl: TemplateId
 ): void {
   if (sec.type === "skills") {
-    renderSkills(host, data.skills);
+    (tpl === "classic" ? renderSkillsClassic : renderSkills)(host, data.skillContent);
   } else if (sec.type === "education") {
-    sectionDom(host, t("form.education"), data.education);
-  } else if (sec.type === "work") {
-    sectionDom(host, t("form.work"), data.work);
+    (tpl === "classic" ? sectionDomClassic : sectionDom)(host, t("form.education"), data.education);
+  } else if (sec.type === "experience") {
+    (tpl === "classic" ? sectionDomClassic : sectionDom)(host, t("form.work"), data.experience);
   } else if (sec.type === "projects") {
-    sectionDom(host, t("form.project"), data.projects);
-  } else if (sec.type === "custom" && sec.content.trim()) {
-    host.createEl("h3", { cls: "r-sec", text: sec.title || t("form.customModule") });
-    const ul = host.createEl("ul");
-    sec.content
-      .split("\n")
-      .filter((l) => l.trim())
-      .forEach((l) => ul.createEl("li", { text: l.trim() }));
+    (tpl === "classic" ? sectionDomClassic : sectionDom)(host, t("form.project"), data.projects);
+  } else if (sec.type === "custom") {
+    renderCustomDom(host, sec, data, tpl);
   }
 }
 
 function renderTwoColDom(paper: HTMLElement, data: ResumeData, app?: App): void {
   // header 跨两栏（CSS: grid-column: 1 / -1）
-  if (data.sections.some((s) => s.visible && s.type === "basic")) {
+  if (data.menuSections.some((s) => s.visible && s.type === "basic")) {
     renderHeaderDom(paper, data, app);
   }
 
   const left = paper.createDiv({ cls: "r-col-left" });
   const right = paper.createDiv({ cls: "r-col-right" });
-  for (const sec of data.sections) {
+  for (const sec of data.menuSections) {
     if (!sec.visible || sec.type === "basic") continue;
-    renderSectionIntoDom(TWO_COL_LEFT.has(sec.type) ? left : right, sec, data);
+    renderSectionIntoDom(TWO_COL_LEFT.has(sec.type) ? left : right, sec, data, data.templateId);
   }
 
   // 左栏为空（技能与教育均被隐藏）时退回单栏，避免右侧被挤进窄列
@@ -433,54 +480,98 @@ function renderTwoColDom(paper: HTMLElement, data: ResumeData, app?: App): void 
   }
 }
 
-function sectionIntoHtml(sec: ResumeSection, data: ResumeData): string {
-  if (sec.type === "skills") return skillsHtml(data.skills);
-  if (sec.type === "education") return sectionHtml(t("form.education"), data.education);
-  if (sec.type === "work") return sectionHtml(t("form.work"), data.work);
-  if (sec.type === "projects") return sectionHtml(t("form.project"), data.projects);
-  if (sec.type === "custom") return customHtml(sec);
-  return "";
+/* ---------- LeftRight 模板（左：头像+联系；右：姓名+内容） ---------- */
+
+function renderLeftRightDom(paper: HTMLElement, data: ResumeData, app?: App): void {
+  const left = paper.createDiv({ cls: "r-col-left" });
+  const avatarUrl = resolveAvatarUrl(app, data.avatar);
+  if (avatarUrl) {
+    const st = computeAvatarStyle(data);
+    left.createEl("img", {
+      cls: "r-avatar",
+      attr: {
+        src: avatarUrl,
+        style: `width:${st.width}px;height:${st.height}px;border-radius:${st.radius};`,
+      },
+    });
+  }
+  const contacts = buildContactItems(data);
+  if (contacts.length) {
+    const grid = left.createDiv({ cls: "r-contact-grid" });
+    for (const c of contacts) renderContactItem(grid, c);
+  }
+
+  const right = paper.createDiv({ cls: "r-col-right" });
+  right.createEl("div", { cls: "r-name", text: data.name || " " });
+  if (data.role) right.createEl("div", { cls: "r-role", text: data.role });
+
+  const sr = (tpl: TemplateId) =>
+    tpl === "classic"
+      ? sectionDomClassic
+      : tpl === "timeline"
+      ? sectionDomTimeline
+      : tpl === "swiss"
+      ? sectionDomSwiss
+      : sectionDom;
+  const skr = (tpl: TemplateId) => (tpl === "classic" ? renderSkillsClassic : renderSkills);
+
+  for (const sec of data.menuSections) {
+    if (!sec.visible || sec.type === "basic") continue;
+    if (sec.type === "skills") skr(data.templateId)(right, data.skillContent);
+    else if (sec.type === "education") sr(data.templateId)(right, t("form.education"), data.education);
+    else if (sec.type === "experience") sr(data.templateId)(right, t("form.work"), data.experience);
+    else if (sec.type === "projects") sr(data.templateId)(right, t("form.project"), data.projects);
+    else if (sec.type === "custom") renderCustomDom(right, sec, data, data.templateId);
+  }
+
+  if (!right.childElementCount) {
+    right.remove();
+    paper.addClass("re-leftright-nogrid");
+  }
 }
 
-/** 双栏布局 HTML。noGrid 为真表示左栏无内容，需退回单列（与预览 childElementCount 判定对齐） */
-function twoColHtml(data: ResumeData, app?: App): { html: string; noGrid: boolean } {
-  const parts: string[] = [];
-  if (data.sections.some((s) => s.visible && s.type === "basic")) {
-    parts.push(headerHtml(data, app));
-  }
-  const left: string[] = [];
-  const right: string[] = [];
-  for (const sec of data.sections) {
-    if (!sec.visible || sec.type === "basic") continue;
-    const html = sectionIntoHtml(sec, data);
-    if (html) (TWO_COL_LEFT.has(sec.type) ? left : right).push(html);
-  }
-  const noGrid = left.length === 0;
-  if (!noGrid) parts.push(`<div class="r-col-left">${left.join("")}</div>`);
-  parts.push(`<div class="r-col-right">${right.join("")}</div>`);
-  return { html: parts.join(""), noGrid };
+/* ---------- 单栏渲染分发（single / academic / modern / minimalist / elegant / creative / editorial） ---------- */
+
+function pickHeader(tpl: TemplateId) {
+  if (tpl === "classic") return renderHeaderClassic;
+  if (tpl === "swiss") return renderHeaderSwiss;
+  return renderHeaderDom;
+}
+function pickSection(tpl: TemplateId) {
+  if (tpl === "classic") return sectionDomClassic;
+  if (tpl === "timeline") return sectionDomTimeline;
+  if (tpl === "swiss") return sectionDomSwiss;
+  return sectionDom;
+}
+function pickSkills(tpl: TemplateId) {
+  return tpl === "classic" ? renderSkillsClassic : renderSkills;
 }
 
 export function renderResumeDom(
   root: HTMLElement,
   data: ResumeData,
-  template: TemplateId,
   app?: App
 ): void {
   root.empty();
 
+  const tpl: TemplateId = data.templateId || "single";
   const paperClass =
-    template === "classic"
+    tpl === "classic"
       ? "re-paper re-classic"
-      : template === "academic"
+      : tpl === "academic"
       ? "re-paper re-academic"
-      : template === "timeline"
+      : tpl === "timeline"
       ? "re-paper re-timeline"
-      : template === "swiss"
+      : tpl === "swiss"
       ? "re-paper re-swiss"
-      : "re-paper";
+      : tpl === "twoCol"
+      ? "re-paper re-two-col"
+      : tpl === "leftRight"
+      ? "re-paper re-leftright"
+      : `re-paper re-${tpl}`;
   const paper = root.createDiv({ cls: paperClass });
-  // 注入全局样式 CSS 变量（主题色 / 字号 / 行距 / 模块间距 / 页边距）
+
+  // 注入全局样式 CSS 变量（主题色 / 字号 / 行距 / 模块间距 / 页边距 / 字体 / 段间距）
   const gs = data.globalSettings ?? DEFAULT_GLOBAL_SETTINGS;
   for (const [k, v] of Object.entries(globalSettingsCssProps(gs))) {
     paper.style.setProperty(k, v);
@@ -488,74 +579,40 @@ export function renderResumeDom(
   // 调试：在 DOM 上暴露当前渲染顺序，便于排查顺序是否生效
   paper.setAttribute(
     "data-section-order",
-    data.sections.filter((s) => s.visible).map((s) => s.type).join(",")
+    data.menuSections.filter((s) => s.visible).map((s) => s.type).join(",")
   );
 
-  // 双栏模板走独立布局：header 跨两栏，其余模块按类型分列
-  if (template === "twoCol") {
+  // 双栏 / LeftRight 走独立布局
+  if (tpl === "twoCol") {
     renderTwoColDom(paper, data, app);
     return;
   }
+  if (tpl === "leftRight") {
+    renderLeftRightDom(paper, data, app);
+    return;
+  }
 
-  for (const sec of data.sections) {
+  const headerFn = pickHeader(tpl);
+  const sectionFn = pickSection(tpl);
+  const skillsFn = pickSkills(tpl);
+
+  for (const sec of data.menuSections) {
     if (!sec.visible) continue;
 
     if (sec.type === "basic") {
-      if (template === "classic") renderHeaderClassic(paper, data, app);
-      else if (template === "swiss") renderHeaderSwiss(paper, data, app);
-      else renderHeaderDom(paper, data, app);
+      headerFn(paper, data, app);
       continue;
     }
-
     if (sec.type === "skills") {
-      if (template === "classic") {
-        renderSkillsClassic(paper, data.skills);
-      } else {
-        renderSkills(paper, data.skills);
-      }
+      skillsFn(paper, data.skillContent);
     } else if (sec.type === "education") {
-      if (template === "classic") {
-        sectionDomClassic(paper, t("form.education"), data.education);
-      } else if (template === "timeline") {
-        sectionDomTimeline(paper, t("form.education"), data.education);
-      } else if (template === "swiss") {
-        sectionDomSwiss(paper, t("form.education"), data.education);
-      } else {
-        sectionDom(paper, t("form.education"), data.education);
-      }
-    } else if (sec.type === "work") {
-      if (template === "classic") {
-        sectionDomClassic(paper, t("form.work"), data.work);
-      } else if (template === "timeline") {
-        sectionDomTimeline(paper, t("form.work"), data.work);
-      } else if (template === "swiss") {
-        sectionDomSwiss(paper, t("form.work"), data.work);
-      } else {
-        sectionDom(paper, t("form.work"), data.work);
-      }
+      sectionFn(paper, t("form.education"), data.education);
+    } else if (sec.type === "experience") {
+      sectionFn(paper, t("form.work"), data.experience);
     } else if (sec.type === "projects") {
-      if (template === "classic") {
-        sectionDomClassic(paper, t("form.project"), data.projects);
-      } else if (template === "timeline") {
-        sectionDomTimeline(paper, t("form.project"), data.projects);
-      } else if (template === "swiss") {
-        sectionDomSwiss(paper, t("form.project"), data.projects);
-      } else {
-        sectionDom(paper, t("form.project"), data.projects);
-      }
+      sectionFn(paper, t("form.project"), data.projects);
     } else if (sec.type === "custom") {
-      if (template === "classic") {
-        renderCustomClassic(paper, sec);
-      } else if (sec.content.trim()) {
-        paper.createEl("h3", {
-          cls: "r-sec",
-          text: sec.title || t("form.customModule"),
-        });
-        const ul = paper.createEl("ul");
-        sec.content.split("\n").filter((l) => l.trim()).forEach((l) => {
-          ul.createEl("li", { text: l.trim() });
-        });
-      }
+      renderCustomDom(paper, sec, data, tpl);
     }
   }
 }
@@ -602,6 +659,35 @@ function sectionHtml(title: string, entries: ResumeEntry[]): string {
     })
     .join("");
   return `<h3 class="r-sec">${esc(title)}</h3>${html}`;
+}
+
+function customHtml(sec: MenuSection, data: ResumeData, tpl: TemplateId): string {
+  const items = data.customData[sec.id];
+  const cls = tpl === "classic" ? "r-sec r-sec-classic" : "r-sec";
+  if (items && items.length) {
+    const body = items
+      .filter((it) => it.visible && (it.title.trim() || it.subtitle.trim() || it.description.trim()))
+      .map((it) => {
+        const top =
+          `<div class="r-top"><span class="r-nm">${esc(it.title)}</span>` +
+          (it.dateRange ? `<span class="r-dt">${esc(it.dateRange)}</span>` : "") +
+          `</div>`;
+        const sub = it.subtitle.trim() ? `<div class="r-sub">${esc(it.subtitle)}</div>` : "";
+        const desc = it.description.trim() ? `<div class="r-details">${detailsToHtml(it.description)}</div>` : "";
+        return `<div class="${tpl === "classic" ? "r-item r-item-classic" : "r-item"}">${top}${sub}${desc}</div>`;
+      })
+      .join("");
+    if (!body) return "";
+    return `<h3 class="${cls}">${esc(sec.title || t("form.customModule"))}</h3>${body}`;
+  }
+  if (!sec.content.trim()) return "";
+  const title = sec.title || t("form.customModule");
+  const lis = sec.content
+    .split("\n")
+    .filter((l) => l.trim())
+    .map((l) => `<li>${esc(l.trim())}</li>`)
+    .join("");
+  return `<h3 class="${cls}">${esc(title)}</h3><ul>${lis}</ul>`;
 }
 
 function contactItemHtml(item: ContactItem): string {
@@ -704,28 +790,6 @@ function skillsHtml(skills: string): string {
     .join("")}</ul>`;
 }
 
-function customHtmlClassic(sec: ResumeSection): string {
-  if (!sec.content.trim()) return "";
-  const title = sec.title || t("form.customModule");
-  const items = sec.content
-    .split("\n")
-    .filter((l) => l.trim())
-    .map((l) => `<li>${esc(l.trim())}</li>`)
-    .join("");
-  return `<h3 class="r-sec r-sec-classic">${esc(title)}</h3><ul>${items}</ul>`;
-}
-
-function customHtml(sec: ResumeSection): string {
-  if (!sec.content.trim()) return "";
-  const title = sec.title || t("form.customModule");
-  const items = sec.content
-    .split("\n")
-    .filter((l) => l.trim())
-    .map((l) => `<li>${esc(l.trim())}</li>`)
-    .join("");
-  return `<h3 class="r-sec">${esc(title)}</h3><ul>${items}</ul>`;
-}
-
 /* ---------- Timeline / Swiss 模板导出 HTML ---------- */
 
 function sectionHtmlTimeline(title: string, entries: ResumeEntry[]): string {
@@ -803,86 +867,143 @@ function sectionHtmlSwiss(title: string, entries: ResumeEntry[]): string {
   return `<h3 class="r-sec r-sec-swiss">${esc(title)}</h3>${html}`;
 }
 
-export function resumeToHtml(data: ResumeData, template: TemplateId, app?: App): string {
-  // 双栏模板走独立布局（与预览 renderTwoColDom 保持一致）
-  if (template === "twoCol") {
+/* ---------- LeftRight / TwoCol 导出 HTML ---------- */
+
+function leftRightHtml(data: ResumeData, app?: App): { html: string; noGrid: boolean } {
+  const avatarUrl = app ? resolveAvatarUrl(app, data.avatar) : "";
+  const avatarStyle = avatarUrl ? computeAvatarStyle(data) : null;
+  const avatar = avatarStyle
+    ? `<img class="r-avatar" src="${esc(avatarUrl)}" style="width:${avatarStyle.width}px;height:${avatarStyle.height}px;border-radius:${avatarStyle.radius};">`
+    : "";
+  const contacts = buildContactItems(data);
+  const contactGrid = contacts.length
+    ? `<div class="r-contact-grid">${contacts.map(contactItemHtml).join("")}</div>`
+    : "";
+  const left = `${avatar}${contactGrid}`;
+
+  const sr = (title: string, entries: ResumeEntry[]) =>
+    data.templateId === "classic"
+      ? sectionHtmlClassic(title, entries)
+      : data.templateId === "timeline"
+      ? sectionHtmlTimeline(title, entries)
+      : data.templateId === "swiss"
+      ? sectionHtmlSwiss(title, entries)
+      : sectionHtml(title, entries);
+  const skr = () =>
+    data.templateId === "classic" ? skillsHtmlClassic(data.skillContent) : skillsHtml(data.skillContent);
+
+  const rightParts: string[] = [];
+  rightParts.push(`<div class="r-name">${esc(data.name || " ")}</div>`);
+  if (data.role) rightParts.push(`<div class="r-role">${esc(data.role)}</div>`);
+  for (const sec of data.menuSections) {
+    if (!sec.visible || sec.type === "basic") continue;
+    if (sec.type === "skills") rightParts.push(skr());
+    else if (sec.type === "education") rightParts.push(sr(t("form.education"), data.education));
+    else if (sec.type === "experience") rightParts.push(sr(t("form.work"), data.experience));
+    else if (sec.type === "projects") rightParts.push(sr(t("form.project"), data.projects));
+    else if (sec.type === "custom") rightParts.push(customHtml(sec, data, data.templateId));
+  }
+  const noGrid = !rightParts.filter((p) => p).length;
+  const html = `<div class="r-col-left">${left}</div><div class="r-col-right">${rightParts.join("")}</div>`;
+  return { html, noGrid };
+}
+
+function twoColHtml(data: ResumeData, app?: App): { html: string; noGrid: boolean } {
+  const parts: string[] = [];
+  if (data.menuSections.some((s) => s.visible && s.type === "basic")) {
+    parts.push(
+      data.templateId === "classic" ? headerHtmlClassic(data, app) : headerHtml(data, app)
+    );
+  }
+  const left: string[] = [];
+  const right: string[] = [];
+  for (const sec of data.menuSections) {
+    if (!sec.visible || sec.type === "basic") continue;
+    let html = "";
+    if (sec.type === "skills") html = data.templateId === "classic" ? skillsHtmlClassic(data.skillContent) : skillsHtml(data.skillContent);
+    else if (sec.type === "education") html = data.templateId === "classic" ? sectionHtmlClassic(t("form.education"), data.education) : sectionHtml(t("form.education"), data.education);
+    else if (sec.type === "experience") html = data.templateId === "classic" ? sectionHtmlClassic(t("form.work"), data.experience) : sectionHtml(t("form.work"), data.experience);
+    else if (sec.type === "projects") html = data.templateId === "classic" ? sectionHtmlClassic(t("form.project"), data.projects) : sectionHtml(t("form.project"), data.projects);
+    else if (sec.type === "custom") html = customHtml(sec, data, data.templateId);
+    if (html) (TWO_COL_LEFT.has(sec.type) ? left : right).push(html);
+  }
+  const noGrid = left.length === 0;
+  if (!noGrid) parts.push(`<div class="r-col-left">${left.join("")}</div>`);
+  parts.push(`<div class="r-col-right">${right.join("")}</div>`);
+  return { html: parts.join(""), noGrid };
+}
+
+export function resumeToHtml(data: ResumeData, app?: App): string {
+  const tpl: TemplateId = data.templateId || "single";
+
+  // 双栏 / LeftRight 模板走独立布局
+  if (tpl === "twoCol") {
     const { html, noGrid } = twoColHtml(data, app);
-    const cls = noGrid
-      ? "re-paper re-two-col re-two-col-nogrid"
-      : "re-paper re-two-col";
+    const cls = noGrid ? "re-paper re-two-col re-two-col-nogrid" : "re-paper re-two-col";
+    return `<div class="${cls}">${html}</div>`;
+  }
+  if (tpl === "leftRight") {
+    const { html, noGrid } = leftRightHtml(data, app);
+    const cls = noGrid ? "re-paper re-leftright re-leftright-nogrid" : "re-paper re-leftright";
     return `<div class="${cls}">${html}</div>`;
   }
 
   const cls =
-    template === "classic"
+    tpl === "classic"
       ? "re-paper re-classic"
-      : template === "academic"
+      : tpl === "academic"
       ? "re-paper re-academic"
-      : template === "timeline"
+      : tpl === "timeline"
       ? "re-paper re-timeline"
-      : template === "swiss"
+      : tpl === "swiss"
       ? "re-paper re-swiss"
-      : "re-paper";
+      : `re-paper re-${tpl}`;
   const parts: string[] = [`<div class="${cls}">`];
 
-  for (const sec of data.sections) {
+  for (const sec of data.menuSections) {
     if (!sec.visible) continue;
 
     if (sec.type === "basic") {
-      if (template === "classic") parts.push(headerHtmlClassic(data, app));
-      else if (template === "swiss") parts.push(headerHtmlSwiss(data, app));
+      if (tpl === "classic") parts.push(headerHtmlClassic(data, app));
+      else if (tpl === "swiss") parts.push(headerHtmlSwiss(data, app));
       else parts.push(headerHtml(data, app));
       continue;
     }
 
     if (sec.type === "skills") {
-      if (template === "classic") {
-        parts.push(skillsHtmlClassic(data.skills));
-      } else {
-        parts.push(skillsHtml(data.skills));
-      }
+      parts.push(tpl === "classic" ? skillsHtmlClassic(data.skillContent) : skillsHtml(data.skillContent));
     } else if (sec.type === "education") {
       parts.push(
-        template === "classic"
+        tpl === "classic"
           ? sectionHtmlClassic(t("form.education"), data.education)
-          : template === "timeline"
+          : tpl === "timeline"
           ? sectionHtmlTimeline(t("form.education"), data.education)
-          : template === "swiss"
+          : tpl === "swiss"
           ? sectionHtmlSwiss(t("form.education"), data.education)
           : sectionHtml(t("form.education"), data.education)
       );
-    } else if (sec.type === "work") {
+    } else if (sec.type === "experience") {
       parts.push(
-        template === "classic"
-          ? sectionHtmlClassic(t("form.work"), data.work)
-          : template === "timeline"
-          ? sectionHtmlTimeline(t("form.work"), data.work)
-          : template === "swiss"
-          ? sectionHtmlSwiss(t("form.work"), data.work)
-          : sectionHtml(t("form.work"), data.work)
+        tpl === "classic"
+          ? sectionHtmlClassic(t("form.work"), data.experience)
+          : tpl === "timeline"
+          ? sectionHtmlTimeline(t("form.work"), data.experience)
+          : tpl === "swiss"
+          ? sectionHtmlSwiss(t("form.work"), data.experience)
+          : sectionHtml(t("form.work"), data.experience)
       );
     } else if (sec.type === "projects") {
       parts.push(
-        template === "classic"
+        tpl === "classic"
           ? sectionHtmlClassic(t("form.project"), data.projects)
-          : template === "timeline"
+          : tpl === "timeline"
           ? sectionHtmlTimeline(t("form.project"), data.projects)
-          : template === "swiss"
+          : tpl === "swiss"
           ? sectionHtmlSwiss(t("form.project"), data.projects)
           : sectionHtml(t("form.project"), data.projects)
       );
     } else if (sec.type === "custom") {
-      if (template === "classic") {
-        parts.push(customHtmlClassic(sec));
-      } else if (sec.content.trim()) {
-        const title = sec.title || t("form.customModule");
-        const items = sec.content
-          .split("\n")
-          .filter((l) => l.trim())
-          .map((l) => `<li>${esc(l.trim())}</li>`)
-          .join("");
-        parts.push(`<h3 class="r-sec">${esc(title)}</h3><ul>${items}</ul>`);
-      }
+      parts.push(customHtml(sec, data, tpl));
     }
   }
   parts.push(`</div>`);
@@ -894,9 +1015,10 @@ export function resumeToHtml(data: ResumeData, template: TemplateId, app?: App):
    .re-paper{--r-*} 变量块控制，变量缺省值与这里的 fallback 保持一致。 */
 export const RESUME_CSS = `
 *{box-sizing:border-box;}
-body{margin:0;font-family:"PingFang SC","Microsoft YaHei",-apple-system,"Segoe UI",sans-serif;color:#222;}
+body{margin:0;font-family:var(--r-font-family, "PingFang SC","Microsoft YaHei",-apple-system,"Segoe UI",sans-serif);color:#222;}
 @page{size:A4;margin:14mm;}
 .re-paper{background:#fff;width:100%;max-width:720px;margin:0 auto;padding:var(--r-page-padding,30px 36px);min-height:900px;font-size:var(--r-font-size,13px);line-height:var(--r-line-height,1.5);}
+.re-paper .r-details li{margin:calc(var(--r-para-spacing,4px)) 0;}
 
 /* header 布局 */
 .re-paper .r-header{display:grid;align-items:center;gap:24px;margin-bottom:22px;}
@@ -997,4 +1119,39 @@ body{margin:0;font-family:"PingFang SC","Microsoft YaHei",-apple-system,"Segoe U
 .re-paper.re-swiss .r-item-swiss .r-nm{font-weight:700;text-transform:uppercase;letter-spacing:.02em;color:#111;}
 .re-paper.re-swiss .r-item-swiss .r-dt{color:#777;font-size:0.9em;}
 .re-paper.re-swiss ul li{font-size:0.96em;margin:2px 0;color:#333;}
+
+/* ===== LeftRight 模板（左：头像+联系；右：姓名+内容） ===== */
+.re-paper.re-leftright{display:grid;grid-template-columns:30% 68%;gap:22px;align-items:start;}
+.re-paper.re-leftright .r-col-left{position:sticky;top:0;align-self:start;}
+.re-paper.re-leftright .r-col-right{min-width:0;}
+.re-paper.re-leftright .r-avatar{width:100%;max-width:140px;height:auto;aspect-ratio:4/5;object-fit:cover;border-radius:8px;margin:0 auto 12px;display:block;}
+.re-paper.re-leftright .r-col-left .r-contact-grid{grid-template-columns:1fr;gap:6px;}
+.re-paper.re-leftright.re-leftright-nogrid{grid-template-columns:1fr;}
+.re-paper.re-leftright.re-leftright-nogrid .r-col-left{display:none;}
+
+/* ===== Modern 模板（干净留白 + 左侧主题色条） ===== */
+.re-paper.re-modern .r-header{border-left:4px solid var(--r-theme,#2563eb);padding-left:14px;}
+.re-paper.re-modern .r-name{color:var(--r-theme,#2563eb);}
+.re-paper.re-modern h3.r-sec{border-bottom:none;border-left:3px solid var(--r-theme,#2563eb);padding-left:8px;}
+
+/* ===== Minimalist 模板（极简：细发丝线 + 小号大写标题） ===== */
+.re-paper.re-minimalist .r-name{font-weight:600;letter-spacing:.04em;}
+.re-paper.re-minimalist h3.r-sec{border-bottom:1px solid #ddd;font-size:0.82em;letter-spacing:.18em;text-transform:uppercase;color:#444;font-weight:600;}
+.re-paper.re-minimalist .r-item .r-top{border-bottom:1px dotted #eee;padding-bottom:3px;}
+
+/* ===== Elegant 模板（衬线 + 精致分隔） ===== */
+.re-paper.re-elegant{font-family:Georgia,"Songti SC",var(--r-font-family,serif);}
+.re-paper.re-elegant .r-name{text-align:left;font-weight:600;letter-spacing:.06em;}
+.re-paper.re-elegant h3.r-sec{border-bottom:1px solid var(--r-theme,#5b3a29);color:var(--r-theme,#5b3a29);font-style:italic;font-weight:600;}
+.re-paper.re-elegant .r-header.r-layout-top{text-align:left;align-items:flex-start;}
+
+/* ===== Creative 模板（活泼：主题色标题块 + 圆角卡片） ===== */
+.re-paper.re-creative .r-header{border-radius:10px;background:color-mix(in srgb, var(--r-theme,#db2777) 10%, #fff);padding:14px 18px;}
+.re-paper.re-creative .r-name{color:var(--r-theme,#db2777);}
+.re-paper.re-creative h3.r-sec{background:var(--r-theme,#db2777);color:#fff;border:none;border-radius:4px;padding:4px 10px;display:inline-block;font-size:0.95em;}
+
+/* ===== Editorial 模板（杂志风：大写标题 + 主题色方块标记） ===== */
+.re-paper.re-editorial .r-name{font-weight:800;letter-spacing:.02em;}
+.re-paper.re-editorial h3.r-sec{display:flex;align-items:center;gap:8px;border-bottom:none;border-top:2px solid var(--r-theme,#0f766e);padding-top:6px;font-size:0.92em;letter-spacing:.14em;text-transform:uppercase;color:var(--r-theme,#0f766e);}
+.re-paper.re-editorial h3.r-sec::before{content:"";width:10px;height:10px;background:var(--r-theme,#0f766e);flex:none;}
 `;

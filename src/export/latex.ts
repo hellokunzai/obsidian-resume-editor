@@ -4,7 +4,6 @@ import { App, Notice } from "obsidian";
 import {
   ResumeData,
   ResumeEntry,
-  TemplateId,
   visibleEntries,
   formatEntryTime,
 } from "../data/resume-model";
@@ -68,14 +67,13 @@ function classicContactTex(data: ResumeData): string {
 export async function exportLatex(
   app: App,
   data: ResumeData,
-  baseName: string,
-  template?: TemplateId
+  baseName: string
 ): Promise<void> {
   const name = safeFileName(baseName);
   try {
-    const classic = template === "classic";
+    const classic = data.templateId === "classic";
     const bodyLines: string[] = [];
-    const sections = data.sections ?? [];
+    const sections = data.menuSections ?? [];
 
     for (const sec of sections) {
       if (!sec.visible) continue;
@@ -98,23 +96,23 @@ export async function exportLatex(
       }
 
       if (sec.type === "skills") {
-        if (!data.skills) continue;
+        if (!data.skillContent) continue;
         if (classic) {
           bodyLines.push(`\\subsection*{${escTex(t("form.skills"))}}`);
           bodyLines.push("\\noindent\\rule{\\linewidth}{0.6pt}");
-          for (const line of data.skills.split("\n")) {
+          for (const line of data.skillContent.split("\n")) {
             if (line.trim()) bodyLines.push("\\quad\\textbullet\\; " + escTex(line.trim()));
           }
         } else {
           bodyLines.push(`\\subsection*{${escTex(t("form.skills"))}}`);
-          for (const line of splitSkills(data.skills)) {
+          for (const line of splitSkills(data.skillContent)) {
             bodyLines.push("\\quad\\textbullet\\; " + escTex(line));
           }
         }
       } else if (sec.type === "education") {
         bodyLines.push(entryTex(t("form.education"), data.education, classic));
-      } else if (sec.type === "work") {
-        bodyLines.push(entryTex(t("form.work"), data.work, classic));
+      } else if (sec.type === "experience") {
+        bodyLines.push(entryTex(t("form.work"), data.experience, classic));
       } else if (sec.type === "projects") {
         bodyLines.push(entryTex(t("form.project"), data.projects, classic));
       } else if (sec.type === "custom") {

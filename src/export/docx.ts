@@ -2,7 +2,7 @@
 
 import { App, Notice } from "obsidian";
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, BorderStyle } from "docx";
-import { ResumeData, ResumeEntry, TemplateId, visibleEntries, formatEntryTime } from "../data/resume-model";
+import { ResumeData, ResumeEntry, visibleEntries, formatEntryTime } from "../data/resume-model";
 import { t } from "../i18n";
 import { splitSkills } from "../render/template";
 
@@ -95,13 +95,12 @@ function classicContactLine(data: ResumeData): Paragraph | null {
 export async function exportDocx(
   app: App,
   data: ResumeData,
-  baseName: string,
-  template?: TemplateId
+  baseName: string
 ): Promise<void> {
-  const classic = template === "classic";
+  const classic = data.templateId === "classic";
   const children: Paragraph[] = [];
 
-  for (const sec of data.sections) {
+  for (const sec of data.menuSections) {
     if (!sec.visible) continue;
 
     if (sec.type === "basic") {
@@ -122,22 +121,22 @@ export async function exportDocx(
     }
 
     if (sec.type === "skills") {
-      if (!data.skills) continue;
+      if (!data.skillContent) continue;
       if (classic) {
         children.push(classicHeading(t("form.skills")));
-        for (const line of data.skills.split("\n")) {
+        for (const line of data.skillContent.split("\n")) {
           if (line.trim()) children.push(new Paragraph({ text: "• " + line.trim(), bullet: { level: 0 } }));
         }
       } else {
         children.push(new Paragraph({ text: t("form.skills"), heading: HeadingLevel.HEADING_1 }));
-        for (const line of splitSkills(data.skills)) {
+        for (const line of splitSkills(data.skillContent)) {
           children.push(new Paragraph({ text: "• " + line, bullet: { level: 0 } }));
         }
       }
     } else if (sec.type === "education") {
       children.push(...(classic ? classicEntryParagraphs : entryParagraphs)(t("form.education"), data.education));
-    } else if (sec.type === "work") {
-      children.push(...(classic ? classicEntryParagraphs : entryParagraphs)(t("form.work"), data.work));
+    } else if (sec.type === "experience") {
+      children.push(...(classic ? classicEntryParagraphs : entryParagraphs)(t("form.work"), data.experience));
     } else if (sec.type === "projects") {
       children.push(...(classic ? classicEntryParagraphs : entryParagraphs)(t("form.project"), data.projects));
     } else if (sec.type === "custom") {

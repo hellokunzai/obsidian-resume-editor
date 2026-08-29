@@ -18,7 +18,7 @@ export function checkFieldLabel(field: string): string {
     basic: "form.basic",
     skills: "form.skills",
     education: "form.education",
-    work: "form.work",
+    experience: "form.work",
     projects: "form.project",
   };
   const title = titleKey[section] ? t(titleKey[section]) : section;

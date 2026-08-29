@@ -31,7 +31,7 @@ function allowedFields(data: ResumeData): string[] {
     entries.forEach((_, i) => out.push(`${key}.${i}`));
   };
   add("education", data.education);
-  add("work", data.work);
+  add("experience", data.experience);
   add("projects", data.projects);
   return out;
 }
@@ -68,12 +68,12 @@ function serializeForCheck(data: ResumeData): string {
   };
 
   section("education", "教育经历", data.education);
-  section("work", "工作经历", data.work);
+  section("experience", "工作经历", data.experience);
   section("projects", "项目经历", data.projects);
 
-  if (data.skills.trim()) {
+  if (data.skillContent.trim()) {
     lines.push("", "[skills 专业技能]");
-    lines.push(data.skills.trim());
+    lines.push(data.skillContent.trim());
   }
 
   return lines.join("\n");

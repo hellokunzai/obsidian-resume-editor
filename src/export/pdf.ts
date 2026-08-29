@@ -4,7 +4,7 @@
 // 也不经过 window.print() 打印对话框，点击即落盘。
 
 import { App, Notice } from "obsidian";
-import { ResumeData, TemplateId } from "../data/resume-model";
+import { ResumeData } from "../data/resume-model";
 import { resumeToHtml, RESUME_CSS, globalSettingsCss } from "../render/template";
 import { t } from "../i18n";
 import { safeFileName } from "./utils";
@@ -14,12 +14,11 @@ import html2pdf from "./vendor/html2pdf.bundle.min.js";
 export async function exportPdf(
   app: App,
   data: ResumeData,
-  template: TemplateId,
   baseName: string,
   paperSize: "A4" | "Letter"
 ): Promise<void> {
   const name = safeFileName(baseName);
-  const body = resumeToHtml(data, template, app);
+  const body = resumeToHtml(data, app);
 
   // 离屏捕获容器：必须在文档中且可见（不能 display:none），html2canvas 才能读取布局。
   // 宽度按纸张内容区设置，让 .re-paper（max-width:720px）居中排版与预览一致。
