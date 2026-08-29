@@ -354,22 +354,16 @@ export class ResumeEditorView extends ItemView {
     const labelWrap = toggleRow.createDiv({ cls: "re-style-toggle-label" });
     labelWrap.createEl("span", { cls: "re-style-label", text: t("style.showPageLines") });
     labelWrap.createSpan({ cls: "re-style-hint", text: t("style.showPageLines.desc") });
-    const cbWrap = toggleRow.createDiv({ cls: "re-style-toggle" });
-    const cb = cbWrap.createEl("input", {
-      attr: { type: "checkbox", "data-style": "showPageLines" },
-    });
-    cb.checked = gs.showPageLines;
-    const toggleBtn = cbWrap.createEl("button", {
+    const toggleBtn = toggleRow.createEl("button", {
       cls: "re-icon-btn re-style-toggle-btn" + (gs.showPageLines ? " re-on" : ""),
       attr: { type: "button", "aria-label": t("style.showPageLines") },
     });
     setIcon(toggleBtn, gs.showPageLines ? "re-eye" : "re-eye-off");
     toggleBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      cb.checked = !cb.checked;
-      gs.showPageLines = cb.checked;
-      toggleBtn.toggleClass("re-on", cb.checked);
-      setIcon(toggleBtn, cb.checked ? "re-eye" : "re-eye-off");
+      gs.showPageLines = !gs.showPageLines;
+      toggleBtn.toggleClass("re-on", gs.showPageLines);
+      setIcon(toggleBtn, gs.showPageLines ? "re-eye" : "re-eye-off");
       this.renderPreview();
       this.scheduleSave();
     });

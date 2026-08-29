@@ -1513,7 +1513,8 @@
 
 .re-style-label {
   flex: none;
-  width: 72px;
+  width: 80px;
+  white-space: nowrap;
   font-size: var(--font-ui-small, 13px);
   color: var(--text-muted);
 }
