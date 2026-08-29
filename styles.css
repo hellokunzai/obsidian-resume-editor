@@ -1052,7 +1052,7 @@
 }
 
 .re-paper.re-two-col .r-col-left {
-  background: #475569;
+  background: var(--r-theme, #475569);
   color: #fff;
   padding: 28px 18px;
   min-height: 900px;

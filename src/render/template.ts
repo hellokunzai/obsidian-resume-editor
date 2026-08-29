@@ -1171,7 +1171,7 @@ body{margin:0;font-family:var(--r-font-family, "PingFang SC","Microsoft YaHei",-
 .re-paper ul li{font-size:0.96em;margin:2px 0;}
 .re-paper .r-skills{font-size:0.96em;color:#555;}
 .re-paper.re-two-col{display:grid;grid-template-columns:34% 64%;gap:0;padding:0;align-items:stretch;}
-.re-paper.re-two-col .r-col-left{background:#475569;color:#fff;padding:28px 18px;min-height:900px;align-self:stretch;}
+.re-paper.re-two-col .r-col-left{background:var(--r-theme,#475569);color:#fff;padding:28px 18px;min-height:900px;align-self:stretch;}
 .re-paper.re-two-col .r-col-left .r-twocol-avatar{width:110px;height:138px;border-radius:8px;border:none;display:block;margin:0 auto 18px;object-fit:cover;}
 .re-paper.re-two-col .r-col-left .r-twocol-headtext{text-align:center;margin-bottom:18px;}
 .re-paper.re-two-col .r-col-left .r-name{color:#fff;font-size:calc(var(--r-font-size,13px) * 1.8);margin:0 0 4px;}
