@@ -219,17 +219,12 @@ function renderHeaderDom(
 
 export function splitSkills(skills: string): string[] {
   if (!skills.trim()) return [];
-  const out: string[] = [];
-  for (const line of skills.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    const parts = trimmed
-      .split(/[、；;,.]+/)
-      .map((s) => s.trim())
-      .filter(Boolean);
-    out.push(...parts);
-  }
-  return out;
+  // 每行即一条技能（magic-resume 导入后每个 <li> 已被降级为一行；
+  // 不再按顿号/逗号二次切分，避免把完整描述句切碎）
+  return skills
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
 }
 
 function renderContactItemClassic(parent: HTMLElement, item: ContactItem): void {
@@ -435,6 +430,43 @@ function renderCustomDom(parent: HTMLElement, sec: MenuSection, data: ResumeData
     .forEach((l) => ul.createEl("li", { text: l.trim() }));
 }
 
+/* ---------- 自我评价 / 证书 模块（对齐 magic-resume 内置模块） ---------- */
+
+function renderSelfEvaluationDom(parent: HTMLElement, data: ResumeData, tpl: TemplateId): void {
+  const text = data.selfEvaluationContent.trim();
+  if (!text) return;
+  const cls = tpl === "classic" ? "r-sec r-sec-classic" : "r-sec";
+  parent.createEl("h3", { cls, text: t("form.selfEvaluation") });
+  const ul = parent.createEl("ul", { cls: "r-details" });
+  for (const line of text.split("\n")) {
+    if (line.trim()) ul.createEl("li", { text: line.trim() });
+  }
+}
+
+function renderCertificatesDom(
+  parent: HTMLElement,
+  data: ResumeData,
+  app: App | undefined,
+  tpl: TemplateId
+): void {
+  const certs = (data.certificates || []).filter((c) => c.url && c.url.trim());
+  if (!certs.length) return;
+  const cls = tpl === "classic" ? "r-sec r-sec-classic" : "r-sec";
+  parent.createEl("h3", { cls, text: t("form.certificates") });
+  const grid = parent.createDiv({ cls: "r-cert-grid" });
+  for (const c of certs) {
+    const url = resolveAvatarUrl(app, c.url);
+    if (!url) continue;
+    grid.createEl("img", {
+      cls: "r-cert-img",
+      attr: {
+        src: url,
+        style: `width:${Math.max(10, Math.min(100, c.width || 100))}%;`,
+      },
+    });
+  }
+}
+
 /* ---------- 双栏模板（左：专业技能 / 教育经历；右：工作 / 项目 / 自定义） ---------- */
 
 /** 归入左栏的模块类型（其余非 basic 模块进右栏） */
@@ -445,7 +477,8 @@ function renderSectionIntoDom(
   host: HTMLElement,
   sec: MenuSection,
   data: ResumeData,
-  tpl: TemplateId
+  tpl: TemplateId,
+  app?: App
 ): void {
   if (sec.type === "skills") {
     (tpl === "classic" ? renderSkillsClassic : renderSkills)(host, data.skillContent);
@@ -455,6 +488,10 @@ function renderSectionIntoDom(
     (tpl === "classic" ? sectionDomClassic : sectionDom)(host, t("form.work"), data.experience);
   } else if (sec.type === "projects") {
     (tpl === "classic" ? sectionDomClassic : sectionDom)(host, t("form.project"), data.projects);
+  } else if (sec.type === "selfEvaluation") {
+    renderSelfEvaluationDom(host, data, tpl);
+  } else if (sec.type === "certificates") {
+    renderCertificatesDom(host, data, app, tpl);
   } else if (sec.type === "custom") {
     renderCustomDom(host, sec, data, tpl);
   }
@@ -470,7 +507,7 @@ function renderTwoColDom(paper: HTMLElement, data: ResumeData, app?: App): void 
   const right = paper.createDiv({ cls: "r-col-right" });
   for (const sec of data.menuSections) {
     if (!sec.visible || sec.type === "basic") continue;
-    renderSectionIntoDom(TWO_COL_LEFT.has(sec.type) ? left : right, sec, data, data.templateId);
+    renderSectionIntoDom(TWO_COL_LEFT.has(sec.type) ? left : right, sec, data, data.templateId, app);
   }
 
   // 左栏为空（技能与教育均被隐藏）时退回单栏，避免右侧被挤进窄列
@@ -521,6 +558,8 @@ function renderLeftRightDom(paper: HTMLElement, data: ResumeData, app?: App): vo
     else if (sec.type === "education") sr(data.templateId)(right, t("form.education"), data.education);
     else if (sec.type === "experience") sr(data.templateId)(right, t("form.work"), data.experience);
     else if (sec.type === "projects") sr(data.templateId)(right, t("form.project"), data.projects);
+    else if (sec.type === "selfEvaluation") renderSelfEvaluationDom(right, data, data.templateId);
+    else if (sec.type === "certificates") renderCertificatesDom(right, data, app, data.templateId);
     else if (sec.type === "custom") renderCustomDom(right, sec, data, data.templateId);
   }
 
@@ -611,6 +650,10 @@ export function renderResumeDom(
       sectionFn(paper, t("form.work"), data.experience);
     } else if (sec.type === "projects") {
       sectionFn(paper, t("form.project"), data.projects);
+    } else if (sec.type === "selfEvaluation") {
+      renderSelfEvaluationDom(paper, data, tpl);
+    } else if (sec.type === "certificates") {
+      renderCertificatesDom(paper, data, app, tpl);
     } else if (sec.type === "custom") {
       renderCustomDom(paper, sec, data, tpl);
     }
@@ -688,6 +731,33 @@ function customHtml(sec: MenuSection, data: ResumeData, tpl: TemplateId): string
     .map((l) => `<li>${esc(l.trim())}</li>`)
     .join("");
   return `<h3 class="${cls}">${esc(title)}</h3><ul>${lis}</ul>`;
+}
+
+function selfEvaluationHtml(data: ResumeData): string {
+  const text = data.selfEvaluationContent.trim();
+  if (!text) return "";
+  const items = text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((l) => `<li>${esc(l)}</li>`)
+    .join("");
+  return `<h3 class="r-sec">${esc(t("form.selfEvaluation"))}</h3>${items ? `<ul class="r-details">${items}</ul>` : ""}`;
+}
+
+function certificatesHtml(data: ResumeData, app?: App): string {
+  const certs = (data.certificates || []).filter((c) => c.url && c.url.trim());
+  if (!certs.length) return "";
+  const imgs = certs
+    .map((c) => {
+      const url = app ? resolveAvatarUrl(app, c.url) : "";
+      if (!url) return "";
+      return `<img class="r-cert-img" src="${esc(url)}" style="width:${Math.max(10, Math.min(100, c.width || 100))}%;">`;
+    })
+    .filter(Boolean)
+    .join("");
+  if (!imgs) return "";
+  return `<h3 class="r-sec">${esc(t("form.certificates"))}</h3><div class="r-cert-grid">${imgs}</div>`;
 }
 
 function contactItemHtml(item: ContactItem): string {
@@ -901,6 +971,8 @@ function leftRightHtml(data: ResumeData, app?: App): { html: string; noGrid: boo
     else if (sec.type === "education") rightParts.push(sr(t("form.education"), data.education));
     else if (sec.type === "experience") rightParts.push(sr(t("form.work"), data.experience));
     else if (sec.type === "projects") rightParts.push(sr(t("form.project"), data.projects));
+    else if (sec.type === "selfEvaluation") rightParts.push(selfEvaluationHtml(data));
+    else if (sec.type === "certificates") rightParts.push(certificatesHtml(data, app));
     else if (sec.type === "custom") rightParts.push(customHtml(sec, data, data.templateId));
   }
   const noGrid = !rightParts.filter((p) => p).length;
@@ -924,6 +996,8 @@ function twoColHtml(data: ResumeData, app?: App): { html: string; noGrid: boolea
     else if (sec.type === "education") html = data.templateId === "classic" ? sectionHtmlClassic(t("form.education"), data.education) : sectionHtml(t("form.education"), data.education);
     else if (sec.type === "experience") html = data.templateId === "classic" ? sectionHtmlClassic(t("form.work"), data.experience) : sectionHtml(t("form.work"), data.experience);
     else if (sec.type === "projects") html = data.templateId === "classic" ? sectionHtmlClassic(t("form.project"), data.projects) : sectionHtml(t("form.project"), data.projects);
+    else if (sec.type === "selfEvaluation") html = selfEvaluationHtml(data);
+    else if (sec.type === "certificates") html = certificatesHtml(data, app);
     else if (sec.type === "custom") html = customHtml(sec, data, data.templateId);
     if (html) (TWO_COL_LEFT.has(sec.type) ? left : right).push(html);
   }
@@ -1002,6 +1076,10 @@ export function resumeToHtml(data: ResumeData, app?: App): string {
           ? sectionHtmlSwiss(t("form.project"), data.projects)
           : sectionHtml(t("form.project"), data.projects)
       );
+    } else if (sec.type === "selfEvaluation") {
+      parts.push(selfEvaluationHtml(data));
+    } else if (sec.type === "certificates") {
+      parts.push(certificatesHtml(data, app));
     } else if (sec.type === "custom") {
       parts.push(customHtml(sec, data, tpl));
     }
@@ -1154,4 +1232,8 @@ body{margin:0;font-family:var(--r-font-family, "PingFang SC","Microsoft YaHei",-
 .re-paper.re-editorial .r-name{font-weight:800;letter-spacing:.02em;}
 .re-paper.re-editorial h3.r-sec{display:flex;align-items:center;gap:8px;border-bottom:none;border-top:2px solid var(--r-theme,#0f766e);padding-top:6px;font-size:0.92em;letter-spacing:.14em;text-transform:uppercase;color:var(--r-theme,#0f766e);}
 .re-paper.re-editorial h3.r-sec::before{content:"";width:10px;height:10px;background:var(--r-theme,#0f766e);flex:none;}
+
+/* ===== 证书作品（对齐 magic-resume 内置模块） ===== */
+.re-paper .r-cert-grid{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;}
+.re-paper .r-cert-img{max-width:150px;max-height:90px;width:auto;height:auto;object-fit:contain;border:1px solid #e5e5e5;border-radius:4px;background:#fff;}
 `;

@@ -154,7 +154,9 @@ export type SectionType =
   | "experience"
   | "projects"
   | "skills"
-  | "custom";
+  | "custom"
+  | "selfEvaluation"
+  | "certificates";
 
 export interface ResumeEntry {
   org: string;
@@ -237,6 +239,8 @@ export const SECTION_TITLE_KEY: Record<Exclude<SectionType, "custom">, string> =
   experience: "form.work",
   projects: "form.project",
   skills: "form.skills",
+  selfEvaluation: "form.selfEvaluation",
+  certificates: "form.certificates",
 };
 
 export const DEFAULT_MENU_SECTIONS: MenuSection[] = [
@@ -311,6 +315,205 @@ function makeId(): string {
   } catch {
     return "r-" + Math.random().toString(36).slice(2, 10);
   }
+}
+
+/**
+ * 将 magic-resume 导出的 TipTap 富文本（HTML 字符串）降级为纯文本。
+ * - 含 <li> 时每个 <li> 作为一行（保持条目粒度）
+ * - 无 <li> 时整体去标签，<br> 视为换行
+ * - 纯文本（不含标签）直接原样返回，避免误伤已有文本
+ * - 纯 JS 实现，不依赖 DOMParser，Obsidian 与 Node 测试环境行为一致
+ */
+const HTML_ENTITY_MAP: Record<string, string> = {
+  "&amp;": "&",
+  "&lt;": "<",
+  "&gt;": ">",
+  "&quot;": '"',
+  "&#39;": "'",
+  "&apos;": "'",
+  "&nbsp;": " ",
+};
+
+function stripInlineTags(s: string): string {
+  return s
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&[a-z#0-9]+;/gi, (e) => HTML_ENTITY_MAP[e.toLowerCase()] ?? e);
+}
+
+export function htmlToText(html: string): string {
+  if (typeof html !== "string") return "";
+  const trimmed = html.trim();
+  if (!trimmed) return "";
+  if (!/<\/?[a-z][\s\S]*>/i.test(trimmed)) return trimmed;
+
+  // 1) <li> 条目 -> 每行一条
+  if (/<li[\s>]/i.test(trimmed)) {
+    const lines: string[] = [];
+    const re = /<li[^>]*>([\s\S]*?)<\/li>/gi;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(trimmed))) {
+      const text = stripInlineTags(m[1]).replace(/\s+/g, " ").trim();
+      if (text) lines.push(text);
+    }
+    if (lines.length) return lines.join("\n");
+  }
+  // 2) 无 <li>：整体去标签，<br> 换行
+  return stripInlineTags(trimmed).replace(/\s+/g, " ").trim();
+}
+
+/**
+ * 把 magic-resume 导出的简历 JSON 降级到本插件数据模型（在 parseResume 入口调用）。
+ * 仅当顶层存在嵌套的 basic 对象时触发迁移；本插件原生扁平文件直接原样返回（零侵入）。
+ */
+function migrateMagicResumeShape(raw: Record<string, unknown>): Record<string, unknown> {
+  const basic = raw.basic;
+  if (!basic || typeof basic !== "object") return raw;
+  const b = basic as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+
+  // 直接透传的标量
+  for (const k of ["title", "id", "createdAt", "updatedAt", "templateId", "selfEvaluationContent", "globalSettings", "customData"]) {
+    if (k in raw) out[k] = raw[k];
+  }
+  if (Array.isArray(raw.certificates)) out.certificates = raw.certificates;
+
+  // 基础信息扁平化（兼容 employementStatus 多写了一个 e 的拼写错误）
+  if (typeof b.name === "string") out.name = b.name;
+  if (typeof b.title === "string") out.role = b.title;
+  const es =
+    typeof b.employementStatus === "string" ? b.employementStatus
+    : typeof b.employmentStatus === "string" ? b.employmentStatus
+    : undefined;
+  if (es) out.employmentStatus = es;
+  if (typeof b.email === "string") out.email = b.email;
+  if (typeof b.phone === "string") out.phone = b.phone;
+  if (typeof b.location === "string") out.location = b.location;
+  if (typeof b.birthDate === "string") out.birthDate = b.birthDate;
+  if (typeof b.photo === "string") out.avatar = b.photo;
+  if (typeof b.layout === "string") out.layout = b.layout;
+
+  // 头像配置
+  const pc = b.photoConfig;
+  if (pc && typeof pc === "object") {
+    const p = pc as Record<string, unknown>;
+    if (typeof p.width === "number") out.avatarSize = p.width;
+    if (typeof p.aspectRatio === "string" && AVATAR_RATIO_OPTIONS.includes(p.aspectRatio as AvatarRatio)) {
+      out.avatarAspectRatio = p.aspectRatio;
+    }
+    if (typeof p.borderRadius === "string" && AVATAR_RADIUS_OPTIONS.includes(p.borderRadius as AvatarRadius)) {
+      out.avatarRadius = p.borderRadius;
+    }
+  }
+
+  // 基础字段顺序/可见性（只保留本插件支持的 key）
+  const fo = b.fieldOrder;
+  if (Array.isArray(fo)) {
+    const basicFields: { key: string; visible: boolean }[] = [];
+    for (const item of fo) {
+      if (!item || typeof item !== "object") continue;
+      const o = item as Record<string, unknown>;
+      let key = typeof o.key === "string" ? o.key : "";
+      if (key === "employementStatus") key = "employmentStatus";
+      if (!BASIC_FIELD_KEYS.includes(key as (typeof BASIC_FIELD_KEYS)[number])) continue;
+      basicFields.push({ key, visible: typeof o.visible === "boolean" ? o.visible : true });
+    }
+    if (basicFields.length) out.basicFields = basicFields;
+  }
+
+  // 自定义联系方式
+  if (Array.isArray(b.customFields)) {
+    out.customFields = b.customFields.map((cf) => {
+      const o = (cf && typeof cf === "object" ? cf : {}) as Record<string, unknown>;
+      return {
+        icon: typeof o.icon === "string" ? o.icon : "",
+        label: typeof o.label === "string" ? o.label : "",
+        value: typeof o.value === "string" ? o.value : "",
+        showLabel: typeof o.displayLabel === "boolean" ? o.displayLabel : true,
+        visible: typeof o.visible === "boolean" ? o.visible : true,
+      };
+    });
+  }
+
+  // 结构化数组：字段名重映射 + HTML 降级
+  if (Array.isArray(raw.education)) {
+    out.education = raw.education.map((e) => {
+      const o = (e && typeof e === "object" ? e : {}) as Record<string, unknown>;
+      return {
+        org: typeof o.school === "string" ? o.school : "",
+        title: typeof o.major === "string" ? o.major : "",
+        degree: typeof o.degree === "string" ? o.degree : "",
+        gpa: typeof o.gpa === "string" ? o.gpa : "",
+        startTime: typeof o.startDate === "string" ? o.startDate : "",
+        endTime: typeof o.endDate === "string" ? o.endDate : "",
+        details: htmlToText(typeof o.description === "string" ? o.description : ""),
+        visible: typeof o.visible === "boolean" ? o.visible : true,
+      };
+    });
+  }
+
+  if (Array.isArray(raw.experience)) {
+    out.experience = raw.experience.map((e) => {
+      const o = (e && typeof e === "object" ? e : {}) as Record<string, unknown>;
+      const date = typeof o.date === "string" ? o.date : "";
+      return {
+        org: typeof o.company === "string" ? o.company : "",
+        title: typeof o.position === "string" ? o.position : "",
+        time: date,
+        details: htmlToText(typeof o.details === "string" ? o.details : ""),
+        visible: typeof o.visible === "boolean" ? o.visible : true,
+      };
+    });
+  }
+
+  if (Array.isArray(raw.projects)) {
+    out.projects = raw.projects.map((e) => {
+      const o = (e && typeof e === "object" ? e : {}) as Record<string, unknown>;
+      const date = typeof o.date === "string" ? o.date : "";
+      return {
+        org: typeof o.name === "string" ? o.name : "",
+        title: typeof o.role === "string" ? o.role : "",
+        time: date,
+        details: htmlToText(typeof o.description === "string" ? o.description : ""),
+        visible: typeof o.visible === "boolean" ? o.visible : true,
+      };
+    });
+  }
+
+  // 专业技能：HTML 降级为纯文本
+  if (typeof raw.skillContent === "string") {
+    out.skillContent = htmlToText(raw.skillContent);
+  }
+
+  // 模块顺序/可见性：magic 形态 -> 本插件形态
+  if (Array.isArray(raw.menuSections)) {
+    const magicToType = (id: string): SectionType => {
+      if (["basic", "education", "experience", "projects", "skills"].includes(id)) return id as SectionType;
+      if (id === "selfEvaluation") return "selfEvaluation";
+      if (id === "certificates") return "certificates";
+      return "custom";
+    };
+    const sections: MenuSection[] = (raw.menuSections as Record<string, unknown>[])
+      .map((s) => {
+        const id = typeof s.id === "string" ? s.id : "";
+        const type = magicToType(id);
+        const sec: MenuSection = {
+          id,
+          type,
+          visible: typeof s.enabled === "boolean" ? s.enabled : true,
+          collapsed: id === "basic" ? false : true,
+          title: type === "custom" ? (typeof s.title === "string" ? s.title : "") : "",
+          content: "",
+        };
+        const order = typeof s.order === "number" ? s.order : 999;
+        return { sec, order };
+      })
+      .sort((a, b) => a.order - b.order)
+      .map((x) => x.sec);
+    out.menuSections = sections;
+  }
+
+  return out;
 }
 
 export const DEFAULT_RESUME: ResumeData = {
@@ -505,7 +708,10 @@ function asMenuSection(raw: unknown): MenuSection | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
   const type = o.type;
-  const allowed: SectionType[] = ["basic", "education", "experience", "projects", "skills", "custom"];
+  const allowed: SectionType[] = [
+    "basic", "education", "experience", "projects", "skills", "custom",
+    "selfEvaluation", "certificates",
+  ];
   if (typeof type !== "string" || !allowed.includes(type as SectionType)) return null;
   const visible = typeof o.visible === "boolean" ? o.visible : true;
   const collapsed = typeof o.collapsed === "boolean" ? o.collapsed : false;
@@ -519,6 +725,8 @@ export function parseResume(
   fm: Record<string, unknown> | undefined | null
 ): ResumeData {
   if (!fm) return { ...DEFAULT_RESUME, id: makeId() };
+  // magic-resume 导入降级：仅在文件含嵌套 basic 时转换，原生文件零侵入
+  fm = migrateMagicResumeShape(fm);
   const layout = isLayout(fm.layout) ? fm.layout : DEFAULT_RESUME.layout;
 
   // menuSections：优先新字段，回退旧 sections
