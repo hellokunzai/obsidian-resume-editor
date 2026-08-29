@@ -467,10 +467,35 @@ function renderCertificatesDom(
   }
 }
 
-/* ---------- 双栏模板（左：专业技能 / 教育经历；右：工作 / 项目 / 自定义） ---------- */
+/* ---------- 双栏模板（左：头像/姓名/联系/教育；右：技能/工作/项目/其它） ---------- */
 
-/** 归入左栏的模块类型（其余非 basic 模块进右栏） */
-const TWO_COL_LEFT = new Set<SectionType>(["skills", "education"]);
+/** 归入左栏的模块类型（basic 单独处理；其余非 basic 模块进右栏） */
+const TWO_COL_LEFT = new Set<SectionType>(["education"]);
+
+/** 渲染左栏侧边栏头部（头像 / 姓名 / 职位 / 联系方式） */
+function renderTwoColSidebarDom(parent: HTMLElement, data: ResumeData, app?: App): void {
+  const avatarUrl = resolveAvatarUrl(app, data.avatar);
+  if (avatarUrl) {
+    const st = computeAvatarStyle(data);
+    parent.createEl("img", {
+      cls: "r-avatar r-twocol-avatar",
+      attr: {
+        src: avatarUrl,
+        style: `border-radius:${st.radius};`,
+      },
+    });
+  }
+
+  const headText = parent.createDiv({ cls: "r-twocol-headtext" });
+  headText.createEl("div", { cls: "r-name", text: data.name || " " });
+  if (data.role) headText.createEl("div", { cls: "r-role", text: data.role });
+
+  const contacts = buildContactItems(data);
+  if (contacts.length) {
+    const grid = parent.createDiv({ cls: "r-contact-grid r-twocol-contacts" });
+    for (const c of contacts) renderContactItem(grid, c);
+  }
+}
 
 /** 按类型渲染单个非 basic 模块到指定容器（单栏内容渲染器，供双栏复用） */
 function renderSectionIntoDom(
@@ -498,19 +523,20 @@ function renderSectionIntoDom(
 }
 
 function renderTwoColDom(paper: HTMLElement, data: ResumeData, app?: App): void {
-  // header 跨两栏（CSS: grid-column: 1 / -1）
-  if (data.menuSections.some((s) => s.visible && s.type === "basic")) {
-    renderHeaderDom(paper, data, app);
-  }
-
   const left = paper.createDiv({ cls: "r-col-left" });
   const right = paper.createDiv({ cls: "r-col-right" });
+
+  // basic 模块的内容渲染到左栏顶部
+  if (data.menuSections.some((s) => s.visible && s.type === "basic")) {
+    renderTwoColSidebarDom(left, data, app);
+  }
+
   for (const sec of data.menuSections) {
     if (!sec.visible || sec.type === "basic") continue;
     renderSectionIntoDom(TWO_COL_LEFT.has(sec.type) ? left : right, sec, data, data.templateId, app);
   }
 
-  // 左栏为空（技能与教育均被隐藏）时退回单栏，避免右侧被挤进窄列
+  // 左栏为空（basic 与教育均隐藏）时退回单栏，避免右侧被挤进窄列
   if (!left.childElementCount) {
     left.remove();
     paper.addClass("re-two-col-nogrid");
@@ -980,15 +1006,29 @@ function leftRightHtml(data: ResumeData, app?: App): { html: string; noGrid: boo
   return { html, noGrid };
 }
 
+function twoColSidebarHtml(data: ResumeData, app?: App): string {
+  const avatarUrl = app ? resolveAvatarUrl(app, data.avatar) : "";
+  const avatarStyle = avatarUrl ? computeAvatarStyle(data) : null;
+  const avatar = avatarStyle
+    ? `<img class="r-avatar r-twocol-avatar" src="${esc(avatarUrl)}" style="border-radius:${avatarStyle.radius};">`
+    : "";
+  const role = data.role ? `<div class="r-role">${esc(data.role)}</div>` : "";
+  const contacts = buildContactItems(data);
+  const contactGrid = contacts.length
+    ? `<div class="r-contact-grid r-twocol-contacts">${contacts.map(contactItemHtml).join("")}</div>`
+    : "";
+  return `${avatar}<div class="r-twocol-headtext"><div class="r-name">${esc(data.name || " ")}</div>${role}</div>${contactGrid}`;
+}
+
 function twoColHtml(data: ResumeData, app?: App): { html: string; noGrid: boolean } {
-  const parts: string[] = [];
-  if (data.menuSections.some((s) => s.visible && s.type === "basic")) {
-    parts.push(
-      data.templateId === "classic" ? headerHtmlClassic(data, app) : headerHtml(data, app)
-    );
-  }
   const left: string[] = [];
   const right: string[] = [];
+
+  // basic 模块的内容渲染到左栏顶部
+  if (data.menuSections.some((s) => s.visible && s.type === "basic")) {
+    left.push(twoColSidebarHtml(data, app));
+  }
+
   for (const sec of data.menuSections) {
     if (!sec.visible || sec.type === "basic") continue;
     let html = "";
@@ -1002,6 +1042,7 @@ function twoColHtml(data: ResumeData, app?: App): { html: string; noGrid: boolea
     if (html) (TWO_COL_LEFT.has(sec.type) ? left : right).push(html);
   }
   const noGrid = left.length === 0;
+  const parts: string[] = [];
   if (!noGrid) parts.push(`<div class="r-col-left">${left.join("")}</div>`);
   parts.push(`<div class="r-col-right">${right.join("")}</div>`);
   return { html: parts.join(""), noGrid };
@@ -1129,12 +1170,25 @@ body{margin:0;font-family:var(--r-font-family, "PingFang SC","Microsoft YaHei",-
 .re-paper ul{margin:3px 0 0;padding-left:18px;}
 .re-paper ul li{font-size:0.96em;margin:2px 0;}
 .re-paper .r-skills{font-size:0.96em;color:#555;}
-.re-paper.re-two-col{display:grid;grid-template-columns:34% 64%;gap:20px;padding:var(--r-page-padding,26px 30px);align-items:start;}
-.re-paper.re-two-col .r-header{grid-column:1/-1;}
-.re-paper.re-two-col .r-col-left{background:#f3f0ff;background:color-mix(in srgb, var(--r-theme,#7c5cff) 8%, #fff);padding:12px;border-radius:8px;align-self:start;}
-.re-paper.re-two-col .r-col-right{min-width:0;}
-.re-paper.re-two-col h3.r-sec{border-bottom:1px solid var(--r-theme,#7c5cff);}
+.re-paper.re-two-col{display:grid;grid-template-columns:34% 64%;gap:0;padding:0;align-items:stretch;}
+.re-paper.re-two-col .r-col-left{background:#475569;color:#fff;padding:28px 18px;min-height:900px;align-self:stretch;}
+.re-paper.re-two-col .r-col-left .r-twocol-avatar{width:110px;height:138px;border-radius:8px;border:none;display:block;margin:0 auto 18px;object-fit:cover;}
+.re-paper.re-two-col .r-col-left .r-twocol-headtext{text-align:center;margin-bottom:18px;}
+.re-paper.re-two-col .r-col-left .r-name{color:#fff;font-size:calc(var(--r-font-size,13px) * 1.8);margin:0 0 4px;}
+.re-paper.re-two-col .r-col-left .r-role{color:rgba(255,255,255,0.8);margin:0;}
+.re-paper.re-two-col .r-col-left .r-twocol-contacts{display:flex;flex-direction:column;gap:8px;margin-bottom:22px;font-size:0.9em;color:rgba(255,255,255,0.85);}
+.re-paper.re-two-col .r-col-left .r-twocol-contacts .r-contact-item{gap:10px;}
+.re-paper.re-two-col .r-col-left .r-twocol-contacts .r-ci-icon{color:rgba(255,255,255,0.9);}
+.re-paper.re-two-col .r-col-left .r-twocol-contacts .r-ci-value{white-space:normal;}
+.re-paper.re-two-col .r-col-left h3.r-sec{color:#fff;border-bottom:1px solid rgba(255,255,255,0.35);margin-top:18px;}
+.re-paper.re-two-col .r-col-left .r-item .r-nm{color:#fff;}
+.re-paper.re-two-col .r-col-left .r-item .r-sub{color:rgba(255,255,255,0.8);}
+.re-paper.re-two-col .r-col-left .r-item .r-dt{color:rgba(255,255,255,0.65);}
+.re-paper.re-two-col .r-col-left ul li{color:rgba(255,255,255,0.85);}
+.re-paper.re-two-col .r-col-right{min-width:0;padding:28px 22px;}
+.re-paper.re-two-col .r-col-right h3.r-sec{border-bottom:1px solid var(--r-theme,#7c5cff);}
 .re-paper.re-two-col.re-two-col-nogrid{grid-template-columns:1fr;}
+.re-paper.re-two-col.re-two-col-nogrid .r-col-right{padding:var(--r-page-padding,30px 36px);}
 .re-paper.re-academic{font-family:Georgia,"Songti SC",serif;}
 .re-paper.re-academic .r-name{text-align:center;border-bottom:3px double #333;padding-bottom:6px;}
 

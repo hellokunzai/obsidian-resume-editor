@@ -1046,35 +1046,104 @@
 .re-paper.re-two-col {
   display: grid;
   grid-template-columns: 34% 64%;
-  gap: 20px;
-  padding: var(--r-page-padding, 26px 30px);
-  align-items: start;
-}
-
-/* header 跨两栏 */
-.re-paper.re-two-col .r-header {
-  grid-column: 1 / -1;
+  gap: 0;
+  padding: 0;
+  align-items: stretch;
 }
 
 .re-paper.re-two-col .r-col-left {
-  background: var(--background-secondary);
-  background: color-mix(in srgb, var(--r-theme, var(--interactive-accent)) 8%, var(--background-primary));
-  padding: 12px;
-  border-radius: var(--radius, 8px);
-  align-self: start;
+  background: #475569;
+  color: #fff;
+  padding: 28px 18px;
+  min-height: 900px;
+  align-self: stretch;
+}
+
+.re-paper.re-two-col .r-col-left .r-twocol-avatar {
+  width: 110px;
+  height: 138px;
+  border-radius: 8px;
+  border: none;
+  display: block;
+  margin: 0 auto 18px;
+  object-fit: cover;
+}
+
+.re-paper.re-two-col .r-col-left .r-twocol-headtext {
+  text-align: center;
+  margin-bottom: 18px;
+}
+
+.re-paper.re-two-col .r-col-left .r-name {
+  color: #fff;
+  font-size: calc(var(--r-font-size, 13px) * 1.8);
+  margin: 0 0 4px;
+}
+
+.re-paper.re-two-col .r-col-left .r-role {
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0;
+}
+
+.re-paper.re-two-col .r-col-left .r-twocol-contacts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 22px;
+  font-size: 0.9em;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.re-paper.re-two-col .r-col-left .r-twocol-contacts .r-contact-item {
+  gap: 10px;
+}
+
+.re-paper.re-two-col .r-col-left .r-twocol-contacts .r-ci-icon {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.re-paper.re-two-col .r-col-left .r-twocol-contacts .r-ci-value {
+  white-space: normal;
+}
+
+.re-paper.re-two-col .r-col-left h3.r-sec {
+  color: #fff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.35);
+  margin-top: 18px;
+}
+
+.re-paper.re-two-col .r-col-left .r-item .r-nm {
+  color: #fff;
+}
+
+.re-paper.re-two-col .r-col-left .r-item .r-sub {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.re-paper.re-two-col .r-col-left .r-item .r-dt {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.re-paper.re-two-col .r-col-left ul li {
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .re-paper.re-two-col .r-col-right {
   min-width: 0;
+  padding: 28px 22px;
 }
 
-.re-paper.re-two-col h3.r-sec {
+.re-paper.re-two-col .r-col-right h3.r-sec {
   border-bottom: 1px solid var(--r-theme, var(--interactive-accent));
 }
 
-/* 左栏无内容（技能与教育均隐藏）时退回单列 */
+/* 左栏无内容（basic 与教育均隐藏）时退回单列 */
 .re-paper.re-two-col.re-two-col-nogrid {
   grid-template-columns: 1fr;
+}
+
+.re-paper.re-two-col.re-two-col-nogrid .r-col-right {
+  padding: var(--r-page-padding, 30px 36px);
 }
 
 /* 学术模板 */
