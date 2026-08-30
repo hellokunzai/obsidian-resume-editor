@@ -123,6 +123,10 @@ const translations: Record<string, Record<string, string>> = {
     "layout.right": "Avatar right",
 
     "btn.save": "Save",
+    "btn.showPreview": "Preview",
+    "btn.showEditor": "Edit",
+    "btn.moveUp": "Move up",
+    "btn.moveDown": "Move down",
     "btn.export": "Export",
     "btn.chooseImage": "Choose image",
     "btn.addCustomField": "Add custom field",
@@ -295,6 +299,10 @@ const translations: Record<string, Record<string, string>> = {
     "layout.right": "头像在右",
 
     "btn.save": "保存",
+    "btn.showPreview": "预览",
+    "btn.showEditor": "编辑",
+    "btn.moveUp": "上移",
+    "btn.moveDown": "下移",
     "btn.export": "导出",
     "btn.chooseImage": "选择图片",
     "btn.addCustomField": "添加自定义字段",

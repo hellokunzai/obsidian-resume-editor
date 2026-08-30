@@ -2012,4 +2012,145 @@
   margin: 6px 2px 0;
 }
 
+/* =====================================================================
+   移动端（.re-mobile 由 Platform.isMobile 在 onOpen 时加到 view 根节点）
+   设计要点：
+   1) 单栏显隐：.re-dual 由双栏 grid 改为块级，两 pane 默认 display:none，
+      仅带 .re-active 的 pane 显示（编辑/预览切换由 JS 控制 .re-active）。
+   2) 紧凑 header：隐藏标题与按钮文字，仅留图标；切换按钮置于最前。
+   3) 预览 A4 固定 794px，由 JS 计算 scale 等比缩放（applyPreviewFit），
+      此处只负责把 .re-paper 锁成固定宽度，使缩放测量正确。
+   4) 隐藏拖拽手柄，改用 ↑↓ 排序按钮（.re-move-btn）。
+   ===================================================================== */
+
+/* 根节点：撑满视图高度，纵向排布 header + 内容 */
+.re-mobile {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* 双栏容器：移动端改块级，占满剩余高度 */
+.re-mobile .re-dual {
+  display: block;
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+  gap: 0;
+}
+
+/* 两个 pane 默认隐藏，仅激活的那个显示 */
+.re-mobile .re-pane {
+  display: none;
+  border: none;
+  border-radius: 0;
+  overflow: hidden;
+  height: 100%;
+}
+
+.re-mobile .re-pane.re-active {
+  display: flex;
+}
+
+/* 紧凑 header：隐藏标题，按钮只显示图标 */
+.re-mobile .re-header {
+  gap: 6px;
+  padding: 6px 8px;
+}
+
+.re-mobile .re-title {
+  display: none;
+}
+
+.re-mobile .re-btn-label,
+.re-mobile .re-tpl-select-label {
+  display: none;
+}
+
+.re-mobile .re-btn {
+  padding: 4px 8px;
+}
+
+.re-mobile .re-tpl-select {
+  min-width: 96px;
+  max-width: 140px;
+}
+
+/* 单按钮切换：始终显示，排在最前 */
+.re-mobile .re-pane-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  order: -1;
+  margin-right: 2px;
+  padding: 4px 10px;
+  border: 1px solid var(--interactive-accent);
+  border-radius: var(--button-radius, 6px);
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  font-size: var(--font-ui-small, 13px);
+  cursor: pointer;
+}
+
+.re-mobile .re-pane-toggle:hover {
+  filter: brightness(1.05);
+}
+
+.re-mobile .re-pane-toggle-icon svg,
+.re-mobile .re-pane-toggle-icon .svg-icon {
+  width: 15px !important;
+  height: 15px !important;
+}
+
+/* 表单内边距收紧 */
+.re-mobile .re-pane-body {
+  padding: 8px;
+}
+
+/* 预览：A4 固定 794px，缩放交给 JS（applyPreviewFit）。
+   holder 宽度由 JS 设为可用宽度并 scale，paper 锁成 794 保证测量正确。 */
+.re-mobile .re-preview-scroll {
+  padding: 14px;
+}
+
+.re-mobile .re-preview-holder {
+  width: 794px;
+  max-width: 794px;
+  transform-origin: top left;
+  margin: 0;
+}
+
+.re-mobile .re-paper {
+  width: 794px;
+  max-width: 794px;
+  margin: 0;
+}
+
+/* 隐藏拖拽手柄（移动端用 ↑↓ 按钮替代，触屏拖拽体验差） */
+.re-mobile .re-drag-handle,
+.re-mobile .re-entry-drag,
+.re-mobile .re-basic-field-drag,
+.re-mobile .re-cert-drag,
+.re-mobile .re-section-drag {
+  display: none !important;
+}
+
+/* ↑↓ 排序按钮：桌面端隐藏，移动端显示 */
+.re-move-btn {
+  display: none;
+}
+
+.re-mobile .re-move-btn {
+  display: inline-flex;
+}
+
+/* 操作按钮行允许换行，避免小屏挤成一团 */
+.re-mobile .re-module-actions,
+.re-mobile .re-entry-actions,
+.re-mobile .re-basic-field-actions,
+.re-mobile .re-cert-actions {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
 

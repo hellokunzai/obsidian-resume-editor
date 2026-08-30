@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resume Editor · 移动端适配原型 v2（选型已锁定）</title>
+<style>
+:root{
+  --background-primary:#ffffff;
+  --background-secondary:#f6f6f7;
+  --background-secondary-alt:#eeeef0;
+  --background-modifier-border:#e2e2e5;
+  --background-modifier-hover:#f0f0f2;
+  --text-normal:#1f2328;
+  --text-muted:#6b7280;
+  --text-faint:#9aa0a6;
+  --interactive-accent:#7c5cff;
+  --text-on-accent:#ffffff;
+  --radius:8px;
+  --button-radius:6px;
+  --font-ui-medium:15px;
+  --font-ui-small:13px;
+  --font-ui-smaller:12px;
+  --mark:#e8503a;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;padding:28px 24px 60px;
+  background:#f2f3f5;color:var(--text-normal);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  font-size:14px;line-height:1.6;
+}
+.wrap{max-width:1280px;margin:0 auto}
+
+/* ---------- 页头 ---------- */
+.page-head{margin-bottom:20px}
+.page-head h1{margin:0 0 6px;font-size:22px;font-weight:650;letter-spacing:-.2px}
+.page-head .sub{color:var(--text-muted);font-size:13.5px}
+.page-head .meta{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
+.tag{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:3px 9px;border-radius:20px;font-size:12px;
+  background:#fff;border:1px solid var(--background-modifier-border);color:var(--text-muted);
+}
+.tag b{color:var(--text-normal);font-weight:600}
+.tag.lock{background:#f2effe;border-color:#ddd4ff;color:#5b3fd6}
+
+/* ---------- 已锁定选型 ---------- */
+.locked{
+  background:#fff;border:1px solid var(--background-modifier-border);border-radius:12px;
+  padding:13px 16px;margin-bottom:20px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;
+}
+.locked-title{font-size:12px;font-weight:650;color:var(--text-muted);letter-spacing:.3px;margin-right:2px}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:8px;
+  background:#f2effe;border:1px solid #ddd4ff;font-size:12.5px;color:#4c34c4;font-weight:600;
+}
+.chip svg{width:13px;height:13px}
+.chip small{font-weight:400;color:#7a6bc4}
+.ctl-group{display:flex;flex-direction:column;gap:6px;margin-left:auto}
+.ctl-label{font-size:11.5px;color:var(--text-muted);font-weight:600}
+.seg{display:inline-flex;background:var(--background-secondary);border:1px solid var(--background-modifier-border);border-radius:8px;padding:3px;gap:3px}
+.seg button{
+  border:0;background:transparent;cursor:pointer;
+  padding:5px 12px;border-radius:6px;font-size:12.5px;color:var(--text-muted);
+  font-family:inherit;transition:.15s;
+}
+.seg button.on{background:#fff;color:var(--text-normal);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+
+/* ---------- 双栏布局 ---------- */
+.cols{display:grid;grid-template-columns:1fr 452px;gap:24px;align-items:start}
+@media(max-width:1080px){.cols{grid-template-columns:1fr}}
+.col-card{background:#fff;border:1px solid var(--background-modifier-border);border-radius:12px;overflow:hidden}
+.col-head{padding:12px 16px;border-bottom:1px solid var(--background-modifier-border);display:flex;align-items:center;gap:10px}
+.col-head h2{margin:0;font-size:14.5px;font-weight:650}
+.col-head .badge{margin-left:auto;font-size:11.5px;padding:2px 8px;border-radius:12px}
+.badge-keep{background:#eef7ee;color:#2f7d32;border:1px solid #cfe6d0}
+.badge-new{background:#fdf0ed;color:#c0402a;border:1px solid #f6d5cd}
+.col-body{padding:18px 16px;background:#fafafb}
+
+/* ================= Obsidian 插件视图 通用样式（复刻 styles.css） ================= */
+.re-root{display:flex;flex-direction:column;height:100%;background:var(--background-primary);overflow:hidden}
+.re-header{
+  display:flex;align-items:center;gap:8px;padding:8px 12px;
+  border-bottom:1px solid var(--background-modifier-border);flex-wrap:wrap;flex:0 0 auto;
+}
+.re-title{font-weight:600;font-size:var(--font-ui-medium);margin-right:auto;white-space:nowrap}
+.re-tpl-wrap{display:flex;align-items:center;gap:4px}
+.re-tpl-label{font-size:var(--font-ui-smaller);color:var(--text-muted);white-space:nowrap}
+.re-select{
+  padding:4px 8px;font-size:var(--font-ui-small);border:1px solid var(--background-modifier-border);
+  border-radius:var(--button-radius);background:var(--background-secondary);color:var(--text-normal);
+  min-width:96px;font-family:inherit;
+}
+.re-btn{
+  font-size:var(--font-ui-small);padding:4px 12px;border:1px solid var(--background-modifier-border);
+  border-radius:var(--button-radius);cursor:pointer;background:var(--background-secondary);
+  color:var(--text-normal);white-space:nowrap;font-family:inherit;
+}
+.re-btn.re-primary{background:var(--interactive-accent);border-color:var(--interactive-accent);color:var(--text-on-accent)}
+.re-dual{display:grid;grid-template-columns:minmax(300px,1fr) minmax(340px,1.1fr);gap:8px;flex:1;min-height:0;padding:8px}
+.re-pane{
+  border:1px solid var(--background-modifier-border);border-radius:var(--radius);
+  display:flex;flex-direction:column;min-height:0;overflow:hidden;background:var(--background-primary);
+}
+.re-pane-body{padding:10px;overflow:auto;flex:1}
+.re-preview-scroll{height:100%;overflow:auto;padding:14px;background:var(--background-secondary)}
+
+/* ---- 模块卡（复刻 .re-module / .re-module-bar） ---- */
+.re-module{border:1px solid var(--background-modifier-border);border-radius:var(--radius);margin-bottom:9px;overflow:hidden}
+.re-module-bar{
+  display:flex;align-items:center;gap:6px;padding:6px 8px;
+  background:var(--background-secondary);cursor:pointer;
+}
+.re-module-title{flex:1;font-size:var(--font-ui-small);font-weight:600;min-width:0}
+.re-module-actions{display:flex;align-items:center;gap:3px;flex:0 0 auto}
+.re-module-body{padding:10px;display:flex;flex-direction:column;gap:9px;border-top:1px solid var(--background-modifier-border)}
+.re-module.re-collapsed .re-module-body{display:none}
+.re-drag-handle{
+  display:inline-flex;align-items:center;justify-content:center;width:16px;height:20px;
+  color:var(--text-faint);cursor:grab;flex:0 0 auto;
+}
+.re-drag-handle svg{width:13px;height:13px}
+.re-icon-btn{
+  width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;
+  border:0;background:transparent;border-radius:4px;color:var(--text-muted);cursor:pointer;padding:0;flex:0 0 auto;
+}
+.re-icon-btn:hover{background:var(--background-modifier-hover);color:var(--text-normal)}
+.re-icon-btn svg{width:14px;height:14px}
+.re-icon-btn[disabled]{opacity:.3;cursor:not-allowed}
+
+/* ---- 条目卡（复刻 .re-entry-card / .re-entry-bar） ---- */
+.re-entry-card{border:1px solid var(--background-modifier-border);border-radius:6px;margin-bottom:7px;overflow:hidden;background:var(--background-primary)}
+.re-entry-bar{display:flex;align-items:center;gap:6px;padding:5px 7px;background:#fbfbfc;cursor:pointer}
+.re-entry-summary{flex:1;min-width:0;display:flex;gap:7px;align-items:baseline;overflow:hidden}
+.re-entry-summary-org{font-size:12.5px;font-weight:600;white-space:nowrap}
+.re-entry-summary-title{font-size:11.5px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.re-entry-summary-time{font-size:11px;color:var(--text-faint);white-space:nowrap;margin-left:auto}
+.re-entry-actions{display:flex;align-items:center;gap:2px;flex:0 0 auto}
+.re-entry-drag{display:inline-flex;align-items:center;width:14px;color:var(--text-faint);cursor:grab;flex:0 0 auto}
+.re-entry-drag svg{width:12px;height:12px}
+.re-entry-body{padding:8px;display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--background-modifier-border)}
+.re-entry-card.re-collapsed .re-entry-body{display:none}
+
+/* ---- 表单字段 ---- */
+.re-field{display:flex;flex-direction:column;gap:4px}
+.re-field label{font-size:var(--font-ui-smaller);color:var(--text-muted)}
+.re-input{
+  padding:5px 8px;border:1px solid var(--background-modifier-border);border-radius:var(--button-radius);
+  background:var(--background-primary);color:var(--text-normal);font-size:var(--font-ui-small);
+  font-family:inherit;width:100%;
+}
+.re-row{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.re-swatches{display:flex;gap:6px;flex-wrap:wrap}
+.re-swatch{width:19px;height:19px;border-radius:5px;border:2px solid transparent;cursor:pointer}
+.re-swatch.re-on{border-color:var(--text-normal)}
+.re-range{width:100%;accent-color:var(--interactive-accent)}
+.re-style-row{display:flex;align-items:center;gap:8px;font-size:var(--font-ui-smaller);color:var(--text-muted)}
+.re-style-row .re-style-label{min-width:48px;flex:0 0 auto}
+.re-add{width:100%;padding:6px;border:1px dashed var(--background-modifier-border);border-radius:var(--button-radius);
+  background:transparent;color:var(--text-muted);font-size:var(--font-ui-small);cursor:pointer;font-family:inherit}
+.re-basic-field-row{display:flex;align-items:center;gap:6px;padding:4px 0}
+.re-basic-field-row .re-input{flex:1}
+
+/* 移动端排序按钮高亮（原型标注用） */
+.is-newbtn{background:#fdf0ed !important;color:#c0402a !important;box-shadow:inset 0 0 0 1px #f0c4ba}
+
+/* 预览 paper mock */
+.re-paper{
+  background:#fff;border:1px solid var(--background-modifier-border);
+  box-shadow:0 1px 6px rgba(0,0,0,.08);margin:0 auto;padding:34px 40px;
+  width:100%;max-width:720px;color:#222;font-size:13px;line-height:1.6;
+}
+.rp-name{font-size:25px;font-weight:700;margin:0 0 3px;letter-spacing:1px}
+.rp-role{color:#7c5cff;font-size:13.5px;margin:0 0 12px;font-weight:600}
+.rp-contact{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:11.5px;color:#555;padding-bottom:12px;border-bottom:1px solid #eee}
+.rp-sect{margin-top:16px}
+.rp-sect h3{
+  margin:0 0 8px;font-size:14px;font-weight:700;color:#7c5cff;
+  border-bottom:2px solid #7c5cff;padding-bottom:4px;letter-spacing:.5px;
+}
+.rp-item{margin-bottom:9px}
+.rp-item-top{display:flex;justify-content:space-between;gap:10px;font-size:12.5px}
+.rp-item-top b{font-weight:650}
+.rp-item-top span{color:#888;font-size:11.5px;white-space:nowrap}
+.rp-item-sub{font-size:11.5px;color:#666;margin:1px 0 3px}
+.rp-item ul{margin:0;padding-left:16px;font-size:11.5px;color:#444}
+.rp-item li{margin-bottom:2px}
+.rp-skills{display:flex;flex-wrap:wrap;gap:5px}
+.rp-skill{background:#f2effe;color:#5b3fd6;border-radius:4px;padding:2px 7px;font-size:11px}
+
+/* ================= 桌面端 mock ================= */
+.desk-stage{position:relative;height:520px;overflow:hidden;border-radius:10px;border:1px solid var(--background-modifier-border);background:#fff}
+.desk-mock{
+  position:absolute;top:0;left:0;width:1020px;height:867px;
+  transform:scale(.6);transform-origin:top left;display:flex;flex-direction:column;
+}
+.ob-tabbar{
+  display:flex;align-items:center;padding:0 8px;height:36px;flex:0 0 auto;
+  background:var(--background-secondary-alt);border-bottom:1px solid var(--background-modifier-border);
+}
+.ob-tab{display:flex;align-items:center;gap:6px;padding:6px 12px;font-size:12.5px;color:var(--text-muted);border-radius:6px 6px 0 0}
+.ob-tab.on{background:var(--background-primary);color:var(--text-normal);font-weight:600}
+.ob-tab-ico{width:13px;height:13px;opacity:.6}
+
+/* ================= 手机端 mock ================= */
+.phone-stage{display:flex;justify-content:center;padding:6px 0}
+.phone{
+  width:392px;height:734px;border:11px solid #17181c;border-radius:40px;
+  background:#17181c;box-shadow:0 14px 38px rgba(0,0,0,.24);position:relative;flex:0 0 auto;
+}
+.phone-screen{width:100%;height:100%;border-radius:29px;overflow:hidden;background:#fff;display:flex;flex-direction:column}
+.phone-status{
+  height:26px;flex:0 0 auto;background:var(--background-secondary-alt);
+  display:flex;align-items:center;justify-content:space-between;padding:0 18px;
+  font-size:10.5px;color:var(--text-muted);font-weight:600;
+}
+.phone-notch{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:96px;height:20px;background:#17181c;border-radius:0 0 14px 14px;z-index:5}
+
+/* 移动端顶栏 */
+.re-header.m{padding:7px 9px;gap:6px;flex-wrap:nowrap}
+.re-header.m .re-title{display:none}
+.re-header.m .re-select{min-width:0;width:88px;max-width:88px;padding:4px 4px;font-size:12px}
+.re-hdr-btn{
+  width:29px;height:29px;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid var(--background-modifier-border);border-radius:var(--button-radius);
+  background:var(--background-secondary);cursor:pointer;color:var(--text-normal);padding:0;
+}
+.re-hdr-btn svg{width:15px;height:15px}
+.re-hdr-btn.re-primary{background:var(--interactive-accent);border-color:var(--interactive-accent);color:var(--text-on-accent)}
+.re-spacer{flex:1 1 auto}
+
+/* 方案 A：单按钮切换（已锁定） */
+.re-pane-toggle{
+  display:inline-flex;align-items:center;gap:5px;flex:0 0 auto;
+  padding:4px 10px;font-size:12.5px;border:1px solid var(--background-modifier-border);
+  border-radius:var(--button-radius);background:var(--background-secondary);color:var(--text-normal);
+  cursor:pointer;font-family:inherit;white-space:nowrap;
+}
+.re-pane-toggle svg{width:14px;height:14px}
+
+/* 移动端单栏显隐 */
+.re-dual.m{grid-template-columns:1fr;padding:7px;gap:0}
+.re-dual.m .re-pane{display:none}
+.re-dual.m .re-pane.re-active{display:flex}
+.re-dual.m .re-preview-scroll{padding:8px}
+
+/* 移动端：隐藏拖拽手柄 */
+.re-mobile .re-drag-handle,.re-mobile .re-entry-drag{display:none}
+
+/* 移动端预览：等比缩放（已锁定） */
+.re-preview-holder.re-fit{width:794px;transform-origin:top left}
+.re-preview-holder.re-fit .re-paper{max-width:none;width:794px;box-shadow:0 2px 10px rgba(0,0,0,.1)}
+.fit-shell{overflow:hidden}
+.re-zoom-bar{
+  display:flex;align-items:center;gap:6px;padding:4px 8px;font-size:11px;color:var(--text-muted);
+  background:var(--background-secondary);border-bottom:1px solid var(--background-modifier-border);flex:0 0 auto;
+}
+.re-zoom-bar b{color:var(--text-normal);font-weight:600}
+
+/* 标注气泡 */
+.callout-pin{
+  position:absolute;z-index:20;width:20px;height:20px;border-radius:50%;
+  background:var(--mark);color:#fff;font-size:11.5px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 6px rgba(232,80,58,.45);
+}
+.pin-1{top:36px;left:6px}
+.pin-2{top:150px;right:-7px}
+.pin-3{top:250px;left:-7px}
+
+/* ---------- 规格表 ---------- */
+.specs{margin-top:24px;background:#fff;border:1px solid var(--background-modifier-border);border-radius:12px;overflow:hidden}
+.specs-head{padding:13px 18px;border-bottom:1px solid var(--background-modifier-border);font-weight:650;font-size:14.5px;display:flex;align-items:center;gap:8px}
+.specs-head .n{font-size:11.5px;font-weight:500;color:var(--text-muted);margin-left:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:9px 14px;text-align:left;border-bottom:1px solid #f0f0f2;vertical-align:top}
+th{background:#fafafb;font-weight:600;color:var(--text-muted);font-size:12px;letter-spacing:.3px}
+tbody tr:last-child td{border-bottom:0}
+td code{background:var(--background-secondary);padding:1px 5px;border-radius:4px;font-size:12px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.num{display:inline-flex;width:18px;height:18px;border-radius:50%;background:var(--mark);color:#fff;
+  font-size:11px;font-weight:700;align-items:center;justify-content:center;margin-right:6px}
+.risk{color:#b45309}
+.ok{color:#2f7d32}
+.new{color:#c0402a;font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="page-head">
+    <h1>Resume Editor · 移动端适配原型 <span style="color:var(--interactive-accent)">v2</span></h1>
+    <div class="sub">选型已按你的选择锁定。本版新增「↑↓ 排序按钮」与「PDF 降 scale」两项附带修复的呈现。</div>
+    <div class="meta">
+      <span class="tag">插件 <b>resume-editor</b></span>
+      <span class="tag">0.7.6 → <b>0.8.0</b>（Minor）</span>
+      <span class="tag">桌面端 <b>零改动</b></span>
+      <span class="tag lock">当前状态 <b>待你最终确认</b></span>
+    </div>
+  </div>
+
+  <!-- 已锁定选型 -->
+  <div class="locked">
+    <span class="locked-title">已锁定</span>
+    <span class="chip">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="m5 12 5 5L20 7"/></svg>
+      方案 A · 单按钮切换
+    </span>
+    <span class="chip">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="m5 12 5 5L20 7"/></svg>
+      预览等比缩放 A4 <small>≈46%</small>
+    </span>
+    <span class="chip">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="m5 12 5 5L20 7"/></svg>
+      Platform.isMobile <small>手机+平板</small>
+    </span>
+    <span class="chip">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="m5 12 5 5L20 7"/></svg>
+      ↑↓ 排序 + PDF 降 scale <small>本次一并做</small>
+    </span>
+    <div class="ctl-group">
+      <span class="ctl-label">演示当前面板</span>
+      <div class="seg" id="segPane">
+        <button data-pane="form" class="on">编辑页</button>
+        <button data-pane="preview">预览页</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="cols">
+
+    <!-- ========== 桌面端 ========== -->
+    <section class="col-card">
+      <div class="col-head">
+        <h2>桌面端 · 双栏并排（现状保持）</h2>
+        <span class="badge badge-keep">✓ 不改动</span>
+      </div>
+      <div class="col-body">
+        <div class="desk-stage">
+          <div class="desk-mock">
+            <div class="ob-tabbar">
+              <div class="ob-tab on">
+                <svg class="ob-tab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+                简历-2026-08-30.resume
+              </div>
+            </div>
+            <div class="re-root">
+              <div class="re-header">
+                <div class="re-title">简历编辑器</div>
+                <div class="re-tpl-wrap">
+                  <span class="re-tpl-label">模板</span>
+                  <select class="re-select"><option>经典单栏</option><option>双栏侧边</option></select>
+                </div>
+                <button class="re-btn">⤓ 导出</button>
+                <button class="re-btn">AI 检查</button>
+                <button class="re-btn re-primary">保存</button>
+              </div>
+              <div class="re-dual">
+                <div class="re-pane"><div class="re-pane-body" id="deskForm"></div></div>
+                <div class="re-pane">
+                  <div class="re-preview-scroll"><div class="re-preview-holder" id="deskPrev"></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p style="margin:14px 2px 0;font-size:12.5px;color:var(--text-muted)">
+          桌面端保留拖拽手柄 <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px"><circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></svg>
+          ，<b>不显示</b> ↑↓ 按钮；切换按钮也不创建。所有新增 CSS 挂在 <code>.re-mobile</code> 前缀下，不碰现有规则。
+        </p>
+      </div>
+    </section>
+
+    <!-- ========== 移动端 ========== -->
+    <section class="col-card">
+      <div class="col-head">
+        <h2>移动端 · 单栏 + 切换 + ↑↓ 排序</h2>
+        <span class="badge badge-new">● 新增交互</span>
+      </div>
+      <div class="col-body">
+        <div class="phone-stage">
+          <div class="phone">
+            <div class="phone-notch"></div>
+            <div class="callout-pin pin-1">1</div>
+            <div class="callout-pin pin-2">2</div>
+            <div class="callout-pin pin-3">3</div>
+            <div class="phone-screen">
+              <div class="phone-status"><span>9:41</span><span>◗◗◗ 100%</span></div>
+              <div class="ob-tabbar" style="height:32px">
+                <div class="ob-tab on" style="font-size:11.5px;padding:5px 9px">
+                  <svg class="ob-tab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+                  简历-2026-08-30
+                </div>
+              </div>
+              <div class="re-root re-mobile">
+                <div class="re-header m">
+                  <div class="re-title">简历编辑器</div>
+                  <span id="toggleSlot"></span>
+                  <select class="re-select"><option>经典单栏</option><option>双栏侧边</option></select>
+                  <span class="re-spacer"></span>
+                  <button class="re-hdr-btn" aria-label="导出" title="导出">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+                  </button>
+                  <button class="re-hdr-btn" aria-label="AI 检查" title="AI 检查">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m12 3 1.9 5.6L19.5 10l-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.4z"/></svg>
+                  </button>
+                  <button class="re-hdr-btn re-primary" aria-label="保存" title="保存">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
+                  </button>
+                </div>
+
+                <div class="re-dual m" id="mDual">
+                  <div class="re-pane re-active" id="mFormPane">
+                    <div class="re-pane-body" id="mForm"></div>
+                  </div>
+                  <div class="re-pane" id="mPrevPane">
+                    <div class="re-zoom-bar">
+                      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                      A4 等比缩放 <b id="mZoomVal">43%</b> · 与 PDF 导出一致
+                    </div>
+                    <div class="re-preview-scroll fit-shell">
+                      <div class="re-preview-holder re-fit" id="mPrev"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p style="margin:14px 2px 0;font-size:12.5px;color:var(--text-muted)">
+          <span class="num">1</span>切换按钮（方案 A）。当前在编辑页 → 按钮显示「预览」；点后变「编辑」。<br>
+          <span class="num">2</span>模块栏新增 <span class="new">↑↓</span> 按钮，同时<b>隐藏拖拽手柄</b>（触屏拖不动，留着是误导）。<br>
+          <span class="num">3</span>条目卡同样补 <span class="new">↑↓</span>。首项 ↑ / 末项 ↓ 置 <code>disabled</code>。
+        </p>
+      </div>
+    </section>
+  </div>
+
+  <!-- ========== 规格表 1 ========== -->
+  <div class="specs">
+    <div class="specs-head">一、核心：移动端单栏 + 切换<span class="n">已锁定，逐条确认</span></div>
+    <table>
+      <thead><tr><th style="width:150px">项</th><th style="width:230px">规格</th><th>说明 / 理由</th></tr></thead>
+      <tbody>
+        <tr><td>移动端判定</td><td><code>Platform.isMobile</code></td>
+          <td>手机 + 平板均走单栏。桌面端窄窗口<b>不</b>触发（避免拖窗时布局跳变）。</td></tr>
+        <tr><td>默认面板</td><td>编辑页</td><td>每次打开视图都重置为编辑页。</td></tr>
+        <tr><td>切换按钮</td><td>方案 A · 单按钮</td>
+          <td>顶栏最左。标签为<b>目标态</b>：在编辑页显示「👁 预览」，在预览页显示「✏ 编辑」。i18n 新增 <code>btn.showPreview</code> / <code>btn.showEditor</code>。</td></tr>
+        <tr><td>切换状态持久化</td><td>不持久化</td><td>仅存于视图实例内存，关标签页即重置。</td></tr>
+        <tr><td class="new">切回预览的刷新</td><td><code>renderPreview()</code> 重跑</td>
+          <td><b>必须</b>。<code>applyPreviewPageLines()</code> 依赖 <code>paper.scrollHeight</code>，元素在 <code>display:none</code> 下测量为 0，A4 分页线会算错。</td></tr>
+        <tr><td>预览宽度</td><td>等比缩放 A4</td>
+          <td>纸张固定 794px + <code>transform: scale(可用宽/794)</code>，<code>transform-origin: top left</code>；外层用负 margin 补偿缩放后的空白高度。与 PDF 导出像素级一致。</td></tr>
+        <tr><td>顶栏适配</td><td>标题隐藏 + 按钮改图标</td>
+          <td>392px 宽下 5 个文字按钮必然换行挤掉内容区。导出 / AI 检查 / 保存改 29×29 图标按钮（带 <code>aria-label</code>），模板下拉压到 88px。</td></tr>
+        <tr><td>桌面端影响</td><td class="ok">零</td>
+          <td>切换按钮在非移动端<b>根本不创建</b>（不是 CSS 藏起来）；单栏与 ↑↓ 样式全部挂 <code>.re-mobile</code> 前缀。</td></tr>
+        <tr><td>manifest</td><td><code>isDesktopOnly: true → false</code></td>
+          <td>已核查 <code>src/</code> 全量无 <code>fs</code>/<code>path</code>/<code>os</code>/<code>electron</code>/<code>child_process</code>；PDF 走 html2pdf（纯前端 canvas）、DOCX 走 <code>docx</code>（纯 TS）、落盘走 <code>vault.adapter.writeBinary</code>，移动端均可用。</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ========== 规格表 2 ========== -->
+  <div class="specs">
+    <div class="specs-head">二、附带修复：↑↓ 排序按钮<span class="n">你已选择本次一并做</span></div>
+    <table>
+      <thead><tr><th style="width:150px">项</th><th style="width:230px">规格</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td class="risk">根因</td><td>HTML5 <code>dragstart/dragover</code></td>
+          <td>触屏完全不触发这套事件，移动端现状是<b>无法调整任何顺序</b>。</td></tr>
+        <tr><td class="new">影响范围（重要）</td><td><b>4 处</b>可拖拽列表</td>
+          <td>比我初评的 1 处多：① 模块 <code>.re-module</code>；② 经历条目 <code>.re-entry-card</code>（教育/工作/项目共用）；③ 基本信息字段 <code>.re-basic-field-row</code>；④ 证书作品 <code>.re-entry-card</code>。改动量修正为 <b>约 90～110 行</b>（抽一个公用 <code>moveInArray()</code> + <code>buildMoveButtons()</code> 复用）。</td></tr>
+        <tr><td>按钮位置</td><td>插入各自 actions 区最前</td>
+          <td>模块 → <code>.re-module-actions</code>；条目 → <code>.re-entry-actions</code>。位于「显示/隐藏」「删除」左侧，视觉与现有 22×22 图标按钮完全一致。</td></tr>
+        <tr><td>拖拽手柄</td><td>移动端隐藏</td>
+          <td><code>.re-mobile .re-drag-handle, .re-mobile .re-entry-drag { display:none }</code>。桌面端不变。</td></tr>
+        <tr><td>边界态</td><td>首项 ↑ / 末项 ↓ 禁用</td>
+          <td>加 <code>disabled</code> + <code>.re-disabled</code>（复用现有「基本信息不可删」的禁用样式）。</td></tr>
+        <tr><td>点击后行为</td><td>换序 → 重渲染 → 存盘</td>
+          <td><code>renderModules()</code> / <code>renderEntries()</code> → <code>renderPreview()</code> → <code>scheduleSave()</code>，与拖拽结束后的逻辑一致。</td></tr>
+        <tr><td>i18n</td><td>新增 2 个 key</td><td><code>btn.moveUp</code> / <code>btn.moveDown</code>（en + zh-cn）。</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ========== 规格表 3 ========== -->
+  <div class="specs">
+    <div class="specs-head">三、附带修复：PDF 移动端降 scale<span class="n">你已选择本次一并做</span></div>
+    <table>
+      <thead><tr><th style="width:150px">项</th><th style="width:230px">规格</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>改动点</td><td><code>src/export/pdf.ts</code></td>
+          <td><code>html2canvas.scale</code> 由固定 <code>2</code> 改为 <code>Platform.isMobile ? 1.5 : 2</code>。约 3 行。</td></tr>
+        <tr><td>代价</td><td>移动端导出图像略软</td>
+          <td>1.5× 在手机屏与常规打印下肉眼几乎无差；换来内存占用下降约 44%（面积比 1.5²/2²），显著降低低端机 OOM 失败率。</td></tr>
+        <tr><td>失败兜底</td><td>已有</td><td>现有 <code>try/catch</code> + <code>Notice(t("error.export"))</code> 保留不动。</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ========== 规格表 4 ========== -->
+  <div class="specs">
+    <div class="specs-head">四、文件改动清单<span class="n">确认后按此执行</span></div>
+    <table>
+      <thead><tr><th style="width:250px">文件</th><th style="width:110px">动作</th><th>内容</th></tr></thead>
+      <tbody>
+        <tr><td><code>manifest.json</code></td><td>改</td><td><code>isDesktopOnly</code> → <code>false</code>；<code>version</code> → <code>0.8.0</code></td></tr>
+        <tr><td><code>package.json</code></td><td>改</td><td><code>version</code> → <code>0.8.0</code></td></tr>
+        <tr><td><code>versions.json</code></td><td>追加</td><td><code>"0.8.0": "1.7.2"</code></td></tr>
+        <tr><td><code>src/views/ResumeEditorView.ts</code></td><td>改</td><td>移动端标记 + 切换按钮 + pane 显隐 + 切回预览重渲染 + 4 处 ↑↓ 按钮</td></tr>
+        <tr><td><code>src/export/pdf.ts</code></td><td>改</td><td>移动端 <code>scale: 1.5</code></td></tr>
+        <tr><td><code>src/i18n/index.ts</code></td><td>改</td><td>新增 4 个 key（en + zh-cn）：<code>btn.showPreview</code> <code>btn.showEditor</code> <code>btn.moveUp</code> <code>btn.moveDown</code></td></tr>
+        <tr><td><code>styles.css</code></td><td>改</td><td>新增 <code>.re-mobile</code> 前缀规则块：单栏显隐 / 顶栏紧凑 / 预览缩放 / 隐藏拖拽手柄</td></tr>
+        <tr><td><code>README.md</code></td><td>改</td><td>移除「Desktop only」描述，补移动端支持与限制说明</td></tr>
+        <tr><td><code>main.js</code></td><td>重建</td><td><code>npm install</code> + <code>npm run build</code>（当前仓库<b>无</b> node_modules，需先装依赖）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<script>
+/* ---------- 图标 ---------- */
+const I = {
+  grip:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></svg>',
+  eye :'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+  pen :'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
+  trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/></svg>',
+  up  :'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 19V5"/><path d="m6 11 6-6 6 6"/></svg>',
+  down:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14"/><path d="m6 13 6 6 6-6"/></svg>'
+};
+
+/* mobile=true 时：隐藏 grip、显示 ↑↓ */
+function moveBtns(mobile, first, last){
+  if(!mobile) return '';
+  return `<button class="re-icon-btn is-newbtn" aria-label="上移" title="上移" ${first?'disabled':''}>${I.up}</button>
+          <button class="re-icon-btn is-newbtn" aria-label="下移" title="下移" ${last?'disabled':''}>${I.down}</button>`;
+}
+function moduleBar(title, mobile, opt){
+  opt = opt || {};
+  return `<div class="re-module-bar">
+    <span class="re-drag-handle" title="拖动排序">${I.grip}</span>
+    <div class="re-module-title">${title}</div>
+    <div class="re-module-actions">
+      ${moveBtns(mobile, opt.first, opt.last)}
+      <button class="re-icon-btn" aria-label="隐藏" title="隐藏">${I.eye}</button>
+      <button class="re-icon-btn" aria-label="删除" title="删除" ${opt.noDel?'disabled':''}>${I.trash}</button>
+    </div>
+  </div>`;
+}
+function entryCard(org, sub, time, body, mobile, opt){
+  opt = opt || {};
+  return `<div class="re-entry-card ${opt.collapsed?'re-collapsed':''}">
+    <div class="re-entry-bar">
+      <span class="re-entry-drag" title="拖动排序">${I.grip}</span>
+      <div class="re-entry-summary">
+        <span class="re-entry-summary-org">${org}</span>
+        <span class="re-entry-summary-title">${sub}</span>
+        <span class="re-entry-summary-time">${time}</span>
+      </div>
+      <div class="re-entry-actions">
+        ${moveBtns(mobile, opt.first, opt.last)}
+        <button class="re-icon-btn" aria-label="隐藏" title="隐藏">${I.eye}</button>
+        <button class="re-icon-btn" aria-label="删除" title="删除">${I.trash}</button>
+      </div>
+    </div>
+    <div class="re-entry-body">${body}</div>
+  </div>`;
+}
+
+function formHtmlClean(mobile){
+  return `
+<div class="re-module re-collapsed">${moduleBar('全局样式', mobile, {first:true, noDel:true})}
+  <div class="re-module-body">
+    <div class="re-style-row"><span class="re-style-label">主题色</span>
+      <div class="re-swatches">
+        <span class="re-swatch re-on" style="background:#7c5cff"></span>
+        <span class="re-swatch" style="background:#2f7d32"></span>
+        <span class="re-swatch" style="background:#c0402a"></span>
+        <span class="re-swatch" style="background:#1d4ed8"></span>
+      </div>
+    </div>
+    <div class="re-style-row"><span class="re-style-label">字号</span><input class="re-range" type="range" min="12" max="18" value="14"><span>14px</span></div>
+  </div>
+</div>
+
+<div class="re-module">${moduleBar('基本信息', mobile, {noDel:true})}
+  <div class="re-module-body">
+    <div class="re-row">
+      <div class="re-field"><label>姓名</label><input class="re-input" value="张三"></div>
+      <div class="re-field"><label>求职意向</label><input class="re-input" value="Java 开发工程师"></div>
+    </div>
+    <div class="re-field" style="gap:2px"><label>联系方式（可排序）</label></div>
+    <div class="re-basic-field-row">
+      <span class="re-drag-handle" title="拖动排序">${I.grip}</span>
+      ${mobile?`<button class="re-icon-btn is-newbtn" title="上移" disabled>${I.up}</button><button class="re-icon-btn is-newbtn" title="下移">${I.down}</button>`:''}
+      <input class="re-input" value="138****8888">
+      <button class="re-icon-btn" title="隐藏">${I.eye}</button>
+    </div>
+    <div class="re-basic-field-row">
+      <span class="re-drag-handle" title="拖动排序">${I.grip}</span>
+      ${mobile?`<button class="re-icon-btn is-newbtn" title="上移">${I.up}</button><button class="re-icon-btn is-newbtn" title="下移" disabled>${I.down}</button>`:''}
+      <input class="re-input" value="zhangsan@mail.com">
+      <button class="re-icon-btn" title="隐藏">${I.eye}</button>
+    </div>
+  </div>
+</div>
+
+<div class="re-module">${moduleBar('工作经历', mobile)}
+  <div class="re-module-body">
+    ${entryCard('某科技有限公司','Java 开发工程师','21.07 - 至今',
+      `<div class="re-field"><label>工作内容</label><input class="re-input" value="教育 SaaS 核心服务与 AI 能力落地"></div>`,
+      mobile, {first:true})}
+    ${entryCard('某网络工作室','Java 开发工程师','19.09 - 21.06','', mobile, {collapsed:true, last:true})}
+    <button class="re-add">+ 添加条目</button>
+  </div>
+</div>
+
+<div class="re-module re-collapsed">${moduleBar('项目经历', mobile)}<div class="re-module-body"></div></div>
+<div class="re-module re-collapsed">${moduleBar('专业技能', mobile)}<div class="re-module-body"></div></div>
+<div class="re-module re-collapsed">${moduleBar('教育经历', mobile, {last:true})}<div class="re-module-body"></div></div>
+
+<button class="re-add">+ 添加模块</button>
+`;
+}
+
+const PREV_HTML = `
+<div class="re-paper">
+  <div class="rp-name">张 三</div>
+  <div class="rp-role">Java 开发工程师</div>
+  <div class="rp-contact">
+    <span>📱 138****8888</span><span>✉ zhangsan@mail.com</span>
+    <span>🔗 github.com/hellokunzai</span><span>📍 深圳</span>
+  </div>
+  <div class="rp-sect">
+    <h3>工作经历</h3>
+    <div class="rp-item">
+      <div class="rp-item-top"><b>某科技有限公司</b><span>2021.07 - 至今</span></div>
+      <div class="rp-item-sub">Java 开发工程师 · 后端组</div>
+      <ul>
+        <li>主导教育 SaaS 核心服务重构，接口 P99 从 820ms 降至 210ms</li>
+        <li>基于 Spring AI 落地智能阅卷，人工复核工作量下降约 60%</li>
+        <li>搭建 OCR 填表链路，日均处理表单 1.2 万份</li>
+      </ul>
+    </div>
+    <div class="rp-item">
+      <div class="rp-item-top"><b>某网络工作室</b><span>2019.09 - 2021.06</span></div>
+      <div class="rp-item-sub">Java 开发工程师</div>
+      <ul>
+        <li>负责订单与支付模块，支撑日峰值 3 万单</li>
+        <li>引入 Redis 多级缓存，数据库 QPS 下降 45%</li>
+      </ul>
+    </div>
+  </div>
+  <div class="rp-sect">
+    <h3>项目经历</h3>
+    <div class="rp-item">
+      <div class="rp-item-top"><b>LLM 学情分析平台</b><span>2026.03 - 2026.08</span></div>
+      <div class="rp-item-sub">技术负责人 · Spring Boot / Spring AI / PostgreSQL</div>
+      <ul>
+        <li>设计 RAG 检索链路，答案可溯源率提升至 92%</li>
+        <li>Function Calling 编排 8 个业务工具，覆盖 90% 教师问询场景</li>
+      </ul>
+    </div>
+  </div>
+  <div class="rp-sect">
+    <h3>专业技能</h3>
+    <div class="rp-skills">
+      <span class="rp-skill">Java</span><span class="rp-skill">Spring Boot</span>
+      <span class="rp-skill">Spring AI</span><span class="rp-skill">MySQL</span>
+      <span class="rp-skill">Redis</span><span class="rp-skill">RAG</span>
+      <span class="rp-skill">Function Calling</span><span class="rp-skill">Docker</span>
+    </div>
+  </div>
+  <div class="rp-sect">
+    <h3>教育经历</h3>
+    <div class="rp-item">
+      <div class="rp-item-top"><b>某某大学</b><span>2016.09 - 2019.06</span></div>
+      <div class="rp-item-sub">计算机应用技术 · 大专</div>
+    </div>
+  </div>
+</div>
+`;
+
+document.getElementById('deskForm').innerHTML = formHtmlClean(false);
+document.getElementById('deskPrev').innerHTML = PREV_HTML;
+document.getElementById('mForm').innerHTML  = formHtmlClean(true);
+document.getElementById('mPrev').innerHTML  = PREV_HTML;
+
+/* 模块栏点击折叠（贴合真实交互） */
+document.querySelectorAll('.re-module-bar, .re-entry-bar').forEach(bar=>{
+  bar.addEventListener('click', e=>{
+    if(e.target.closest('.re-module-actions')||e.target.closest('.re-entry-actions')
+      ||e.target.closest('.re-drag-handle')||e.target.closest('.re-entry-drag')) return;
+    bar.parentElement.classList.toggle('re-collapsed');
+  });
+});
+
+/* ---------- 切换逻辑（方案 A 单按钮） ---------- */
+let pane = 'form';
+const toggleSlot = document.getElementById('toggleSlot');
+
+function renderToggle(){
+  const target = pane === 'form' ? '预览' : '编辑';
+  const icon   = pane === 'form' ? I.eye : I.pen;
+  toggleSlot.innerHTML =
+    `<button class="re-pane-toggle" id="btnToggle" aria-label="切换到${target}页">${icon}<span>${target}</span></button>`;
+  document.getElementById('btnToggle').onclick = () => setPane(pane === 'form' ? 'preview' : 'form');
+}
+
+function applyFit(){
+  const holder = document.getElementById('mPrev');
+  const avail = 336, PAPER = 794;              // 392 - 22边框 - 14dual - 16scroll ≈ 336
+  const s = Math.round(avail / PAPER * 100) / 100;
+  holder.style.transform = `scale(${s})`;
+  document.getElementById('mZoomVal').textContent = Math.round(s*100) + '%';
+  requestAnimationFrame(()=>{
+    const paper = holder.querySelector('.re-paper');
+    if(paper) holder.style.marginBottom = -(paper.offsetHeight * (1-s)) + 'px';
+  });
+}
+
+function setPane(p){
+  pane = p;
+  document.getElementById('mFormPane').classList.toggle('re-active', p === 'form');
+  document.getElementById('mPrevPane').classList.toggle('re-active', p === 'preview');
+  document.querySelectorAll('#segPane button').forEach(b=>b.classList.toggle('on', b.dataset.pane === p));
+  renderToggle();
+  if(p === 'preview') applyFit();   // ← 对应代码里「切到预览时重跑 renderPreview()」
+}
+
+document.querySelectorAll('#segPane button').forEach(b=>{
+  b.onclick = () => setPane(b.dataset.pane);
+});
+
+renderToggle();
+setPane('form');
+</script>
+</body>
+</html>

@@ -8,6 +8,7 @@ import {
   App,
   FuzzySuggestModal,
   setIcon,
+  Platform,
 } from "obsidian";
 import type ResumeEditorPlugin from "../main";
 import {
@@ -146,6 +147,15 @@ export class ResumeEditorView extends ItemView {
   private entryDragEl: HTMLElement | null = null;
   private certDragEl: HTMLElement | null = null;
 
+  // 移动端适配状态
+  private isMobile = false;
+  private activePane: "form" | "preview" = "form";
+  private formPane!: HTMLElement;
+  private previewPane!: HTMLElement;
+  private paneToggleBtn: HTMLElement | null = null;
+  private paneToggleIcon: HTMLElement | null = null;
+  private paneToggleLabel: HTMLElement | null = null;
+
   constructor(leaf: WorkspaceLeaf, plugin: ResumeEditorPlugin) {
     super(leaf);
     this.plugin = plugin;
@@ -189,9 +199,28 @@ export class ResumeEditorView extends ItemView {
       ".review-editor-root"
     ) as HTMLElement;
 
+    // 移动端判定：手机 + 平板走单栏（默认编辑页 + 单按钮切换）
+    this.isMobile = Platform.isMobile;
+    if (this.isMobile) shell.addClass("re-mobile");
+
     // 顶栏
     const header = shell.createDiv({ cls: "re-header" });
     header.createEl("div", { cls: "re-title", text: t("view.title") });
+
+    // 移动端：在顶栏最左注入「编辑/预览」单按钮切换（方案 A）
+    if (this.isMobile) {
+      this.paneToggleBtn = header.createEl("button", {
+        cls: "re-pane-toggle",
+        attr: { type: "button" },
+      });
+      this.paneToggleIcon = this.paneToggleBtn.createSpan({ cls: "re-pane-toggle-icon" });
+      this.paneToggleLabel = this.paneToggleBtn.createSpan({ cls: "re-pane-toggle-label" });
+      this.paneToggleBtn.addEventListener("click", () =>
+        this.setActivePane(this.activePane === "form" ? "preview" : "form")
+      );
+      // 置于标题之前（移动端标题隐藏，按钮即最左）
+      header.insertBefore(this.paneToggleBtn, header.firstChild);
+    }
 
     // 模板下拉选择（放在 header 右侧，与导出按钮同行）
     const tplWrap = header.createDiv({ cls: "re-tpl-select-wrap" });
@@ -212,21 +241,33 @@ export class ResumeEditorView extends ItemView {
     setIcon(exportBtn, "re-download");
     exportBtn.addEventListener("click", () => this.openExportMenu(exportBtn, exportWrap));
 
-    const btnCheck = header.createEl("button", { cls: "re-btn", text: t("btn.aiCheck") });
+    const btnCheck = header.createEl("button", {
+      cls: "re-btn",
+      attr: { "aria-label": t("btn.aiCheck") },
+    });
+    const checkIcon = btnCheck.createSpan({ cls: "re-btn-icon-mobile" });
+    setIcon(checkIcon, "sparkles");
+    btnCheck.createSpan({ cls: "re-btn-label", text: t("btn.aiCheck") });
     btnCheck.addEventListener("click", () => void this.runAiCheck());
 
-    const btnSave = header.createEl("button", { cls: "re-btn re-primary", text: t("btn.save") });
+    const btnSave = header.createEl("button", {
+      cls: "re-btn re-primary",
+      attr: { "aria-label": t("btn.save") },
+    });
+    const saveIcon = btnSave.createSpan({ cls: "re-btn-icon-mobile" });
+    setIcon(saveIcon, "save");
+    btnSave.createSpan({ cls: "re-btn-label", text: t("btn.save") });
     btnSave.addEventListener("click", () => this.saveNow());
 
     // 双栏
     const dual = shell.createDiv({ cls: "re-dual" });
 
-    const formPane = dual.createDiv({ cls: "re-pane" });
-    this.formBody = formPane.createDiv({ cls: "re-pane-body" });
+    this.formPane = dual.createDiv({ cls: "re-pane" });
+    this.formBody = this.formPane.createDiv({ cls: "re-pane-body" });
     this.formBody.addEventListener("input", () => this.syncFromForm());
 
-    const previewPane = dual.createDiv({ cls: "re-pane" });
-    const scroll = previewPane.createDiv({ cls: "re-preview-scroll" });
+    this.previewPane = dual.createDiv({ cls: "re-pane" });
+    const scroll = this.previewPane.createDiv({ cls: "re-preview-scroll" });
     this.previewPaper = scroll.createDiv({ cls: "re-preview-holder" });
     this.previewStatus = scroll.createDiv({ cls: "re-preview-status" });
 
@@ -234,6 +275,17 @@ export class ResumeEditorView extends ItemView {
     this.registerEvent(
       this.app.workspace.on("file-open", () => void this.loadActive())
     );
+
+    // 移动端：监听窗口/方向变化，切到预览时重算 A4 缩放
+    if (this.isMobile) {
+      this.registerDomEvent(window, "resize", () => {
+        if (this.activePane === "preview") this.applyPreviewFit();
+      });
+    }
+
+    // 默认进入编辑页（移动端单栏 + 切换由 CSS .re-active 控制显隐）
+    this.activePane = "form";
+    this.setActivePane("form");
 
     void this.loadActive();
   }
@@ -439,6 +491,14 @@ export class ResumeEditorView extends ItemView {
     }
 
     const actions = bar.createEl("div", { cls: "re-module-actions" });
+    // 移动端 ↑↓ 排序（隐藏拖拽手柄，改用按钮更可靠）
+    const modIdx = this.model.menuSections.indexOf(sec);
+    this.buildMoveButtons(actions, modIdx, this.model.menuSections.length, (dir) => {
+      this.moveItemInArray(this.model.menuSections, modIdx, dir);
+      this.renderModules();
+      this.renderPreview();
+      this.scheduleSave();
+    });
     const hideBtn = actions.createEl("button", {
       cls: "re-icon-btn",
       attr: { title: sec.visible ? t("module.hide") : t("module.show") },
@@ -618,6 +678,14 @@ export class ResumeEditorView extends ItemView {
     });
 
     const actions = row.createDiv({ cls: "re-basic-field-actions" });
+
+    // 移动端 ↑↓ 排序（隐藏拖拽手柄，改用按钮更可靠）
+    const bfIdx = this.model.basicFields.indexOf(f);
+    this.buildMoveButtons(actions, bfIdx, this.model.basicFields.length, (dir) => {
+      this.moveItemInArray(this.model.basicFields, bfIdx, dir);
+      this.renderPreview();
+      this.scheduleSave();
+    });
 
     const hideBtn = actions.createEl("button", {
       cls: "re-icon-btn",
@@ -1125,6 +1193,15 @@ export class ResumeEditorView extends ItemView {
     });
 
     const actions = card.createEl("div", { cls: "re-entry-actions" });
+
+    // 移动端 ↑↓ 排序（隐藏拖拽手柄，改用按钮更可靠）
+    const certIdx = this.model.certificates.indexOf(cert);
+    this.buildMoveButtons(actions, certIdx, this.model.certificates.length, (dir) => {
+      this.moveItemInArray(this.model.certificates, certIdx, dir);
+      this.renderPreview();
+      this.scheduleSave();
+    });
+
     const hideBtn = actions.createEl("button", {
       cls: "re-icon-btn",
       attr: { title: cert.visible === false ? t("module.show") : t("module.hide"), type: "button" },
@@ -1451,6 +1528,14 @@ export class ResumeEditorView extends ItemView {
     updateSummary();
 
     const actions = bar.createEl("div", { cls: "re-entry-actions" });
+
+    // 移动端 ↑↓ 排序（隐藏拖拽手柄，改用按钮更可靠）
+    this.buildMoveButtons(actions, index, entries.length, (dir) => {
+      this.moveItemInArray(entries, index, dir);
+      this.renderModules();
+      this.renderPreview();
+      this.scheduleSave();
+    });
 
     // 显示/隐藏
     const hideBtn = actions.createEl("button", {
@@ -1924,6 +2009,8 @@ export class ResumeEditorView extends ItemView {
   private renderPreview(): void {
     renderResumeDom(this.previewPaper, this.model, this.app);
     this.applyPreviewPageLines();
+    // 移动端切到预览后需按可用宽度重算 A4 等比缩放
+    if (this.isMobile && this.activePane === "preview") this.applyPreviewFit();
   }
 
   /**
@@ -1960,6 +2047,92 @@ export class ResumeEditorView extends ItemView {
     this.previewStatus.removeClass("re-hidden");
     this.previewStatus.addClass("re-status-pagecount");
     this.previewStatus.setText(t("style.pageCount", { count: String(totalPages) }));
+  }
+
+  /* ---------- 移动端：单栏切换 + A4 缩放 ---------- */
+
+  /** 切换编辑/预览面板（移动端单栏只显示一个，默认编辑页） */
+  private setActivePane(pane: "form" | "preview"): void {
+    this.activePane = pane;
+    this.formPane.toggleClass("re-active", pane === "form");
+    this.previewPane.toggleClass("re-active", pane === "preview");
+    if (this.paneToggleBtn && this.paneToggleIcon && this.paneToggleLabel) {
+      const toPreview = pane === "form";
+      this.paneToggleLabel.setText(toPreview ? t("btn.showPreview") : t("btn.showEditor"));
+      setIcon(this.paneToggleIcon, toPreview ? "eye" : "pencil");
+    }
+    if (pane === "preview") {
+      // 切回预览必须重渲染：applyPreviewPageLines 依赖 paper.scrollHeight，
+      // 元素在 display:none 下测量为 0，A4 分页线会算错
+      this.renderPreview();
+    }
+  }
+
+  /** 移动端预览：A4 纸张固定 794px，按可用宽度等比缩放，并补偿缩放后的空白高度 */
+  private applyPreviewFit(): void {
+    if (!this.isMobile) return;
+    const holder = this.previewPaper;
+    const scroll = holder.parentElement as HTMLElement | null;
+    if (!scroll) return;
+    const avail = scroll.clientWidth - 28; // 减去 .re-preview-scroll 左右内边距
+    const PAPER_W = 794;
+    const s = Math.max(0.2, Math.min(1, avail / PAPER_W));
+    holder.style.width = `${avail}px`;
+    holder.style.transformOrigin = "top left";
+    holder.style.transform = `scale(${s})`;
+    const paper = holder.querySelector(".re-paper") as HTMLElement | null;
+    if (paper) {
+      requestAnimationFrame(() => {
+        holder.style.marginBottom = `-${paper.offsetHeight * (1 - s)}px`;
+      });
+    }
+  }
+
+  /* ---------- 移动端：↑↓ 排序按钮（替代触屏难用的拖拽） ---------- */
+
+  /** 原地交换数组中 index 与目标位置的元素 */
+  private moveItemInArray<T>(arr: T[], index: number, dir: -1 | 1): void {
+    const target = index + dir;
+    if (target < 0 || target >= arr.length) return;
+    const tmp = arr[index];
+    arr[index] = arr[target];
+    arr[target] = tmp;
+  }
+
+  /** 在 actions 容器最前插入 ↑↓ 按钮（移动端显示；首项↑/末项↓禁用） */
+  private buildMoveButtons(
+    parent: HTMLElement,
+    index: number,
+    total: number,
+    onMove: (dir: -1 | 1) => void
+  ): void {
+    const up = parent.createEl("button", {
+      cls: "re-icon-btn re-move-btn",
+      attr: { type: "button", title: t("btn.moveUp"), "aria-label": t("btn.moveUp") },
+    });
+    setIcon(up, "arrow-up");
+    if (index <= 0) {
+      up.disabled = true;
+      up.addClass("re-disabled");
+    }
+    up.addEventListener("click", (e) => {
+      e.stopPropagation();
+      onMove(-1);
+    });
+
+    const down = parent.createEl("button", {
+      cls: "re-icon-btn re-move-btn",
+      attr: { type: "button", title: t("btn.moveDown"), "aria-label": t("btn.moveDown") },
+    });
+    setIcon(down, "arrow-down");
+    if (index >= total - 1) {
+      down.disabled = true;
+      down.addClass("re-disabled");
+    }
+    down.addEventListener("click", (e) => {
+      e.stopPropagation();
+      onMove(1);
+    });
   }
 
   private scheduleSave(): void {

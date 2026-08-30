@@ -3,7 +3,7 @@
 // 不依赖 <webview>（部分 Obsidian 环境未启用 webview 标签，printToPDF 不可用），
 // 也不经过 window.print() 打印对话框，点击即落盘。
 
-import { App, Notice } from "obsidian";
+import { App, Notice, Platform } from "obsidian";
 import { ResumeData } from "../data/resume-model";
 import { resumeToHtml, RESUME_CSS, globalSettingsCss } from "../render/template";
 import { t } from "../i18n";
@@ -54,7 +54,7 @@ export async function exportPdf(
       margin: marginMm, // mm：0 表示由 .re-paper 的 padding（--r-page-padding）控制页面边距
       image: { type: "jpeg", quality: 0.98 },
       html2canvas: {
-        scale: 2,
+        scale: Platform.isMobile ? 1.5 : 2,
         useCORS: true,
         backgroundColor: "#ffffff",
         logging: false,

@@ -48,7 +48,25 @@ The **AI polish** and **AI resume review** features send the resume text to a us
 
 ## Platform
 
-**Desktop only.** PDF/DOCX/LaTeX export depend on Electron (`printToPDF` and file writing), so the plugin sets `isDesktopOnly: true` and does not run on mobile.
+**Desktop and mobile.** Since v0.8.0 the plugin sets `isDesktopOnly: false` and runs on phones and tablets (detected via `Platform.isMobile`, covering both phone and tablet).
+
+All export formats are pure-frontend and use Obsidian's `vault.adapter` APIs — no Electron, `fs`, `path`, `os`, or `child_process`:
+
+- **PDF** — `html2pdf.js` (`html2canvas` + `jsPDF`), written with `app.vault.adapter.writeBinary`.
+- **DOCX** — `docx` library, written with `app.vault.adapter.writeBinary`.
+- **HTML / LaTeX** — written with `app.vault.adapter.write`.
+
+Mobile UI differences (compared to desktop):
+
+- **Single-pane layout.** Edit and preview never show side-by-side. By default the **edit pane** is shown; a dedicated **toggle button** in the header switches between edit and preview.
+- **A4 preview auto-fit.** The preview renders a fixed 794px-wide A4 sheet and scales it down to fit the screen width (with blank-space compensation), so it looks like a real A4 page.
+- **↑↓ sort buttons.** Drag-to-reorder handles are hidden on touch; each reorderable list (modules, basic fields, entries, certificates) gets up/down buttons instead.
+- **PDF export resolution** is reduced on mobile (`scale: 1.5` instead of `2`) to lower memory use.
+
+Notes:
+
+- AI polish / AI review still require a network endpoint and API key, and stay **disabled by default** (same as desktop).
+- Image-heavy resumes may render the PDF preview/capture a bit slower on mobile due to `html2canvas`.
 
 ## Development
 
