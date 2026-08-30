@@ -24,7 +24,7 @@ Form-driven resume editor for Obsidian. Edit structured fields on the left, see 
 ## Usage
 
 - Ribbon icon or command **Open Resume Editor** opens the dual-pane view in the right sidebar.
-- Command **New resume note** creates a `.resume` file (named `简历-<date>.resume`).
+- Command **New resume** creates a `.resume` file. The default name is `新建简历.resume`; if the name already exists, it is automatically incremented to `新建简历 1.resume`, `新建简历 2.resume`, etc.
 - Command **Mark current note as resume** converts the active note into a resume.
 - Right-click a folder/file in the file explorer → **New resume** creates a resume inside that folder.
 - Any `.resume` file opens directly in the editor when clicked.

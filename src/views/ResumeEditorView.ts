@@ -60,6 +60,7 @@ import { exportHtml } from "../export/html";
 import { exportDocx } from "../export/docx";
 import { exportLatex } from "../export/latex";
 import { PAPER_SIZE_PX } from "../utils/auto-one-page";
+import { uniqueResumeBasename } from "../utils/file-name";
 
 export const VIEW_TYPE_RESUME = "resume-editor-view";
 
@@ -2190,7 +2191,7 @@ export class ResumeEditorView extends ItemView {
           // 目录可能已存在，忽略
         }
       }
-      const name = "简历-" + new Date().toISOString().slice(0, 10);
+      const name = uniqueResumeBasename(this.app.vault, normalizedDir);
       // 新格式：.resume 文件（纯 JSON）
       const path = `${normalizedDir}/${name}.${RESUME_EXT}`;
       const file = await this.app.vault.create(

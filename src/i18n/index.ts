@@ -8,7 +8,7 @@ const locale = moment.locale(); // "en", "zh-cn", "ja", "de" 等
 const translations: Record<string, Record<string, string>> = {
   en: {
     "command.openEditor": "Open Resume Editor",
-    "command.newResume": "New resume note",
+    "command.newResume": "New resume",
     "command.markResume": "Mark current note as resume",
     "command.exportPdf": "Export resume as PDF",
     "command.exportHtml": "Export resume as HTML",
@@ -162,7 +162,7 @@ const translations: Record<string, Record<string, string>> = {
   },
   "zh-cn": {
     "command.openEditor": "打开简历编辑器",
-    "command.newResume": "新建简历笔记",
+    "command.newResume": "新建简历",
     "command.markResume": "标记当前笔记为简历",
     "command.exportPdf": "导出简历为 PDF",
     "command.exportHtml": "导出简历为 HTML",

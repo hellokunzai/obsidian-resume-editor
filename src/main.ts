@@ -12,6 +12,7 @@ import {
   readResume,
   writeResume,
 } from "./data/resume-model";
+import { uniqueResumeBasename } from "./utils/file-name";
 import { VIEW_TYPE_RESUME, ResumeEditorView } from "./views/ResumeEditorView";
 import {
   ResumeEditorSettings,
@@ -138,8 +139,8 @@ export default class ResumeEditorPlugin extends Plugin {
   }
 
   private async newResumeNote(targetDir?: string): Promise<void> {
-    const name = "简历-" + new Date().toISOString().slice(0, 10);
     const dir = (targetDir ?? "").trim().replace(/\/+$/, "");
+    const name = uniqueResumeBasename(this.app.vault, dir);
     if (dir && !this.app.vault.getAbstractFileByPath(dir)) {
       try {
         await this.app.vault.createFolder(dir);
@@ -150,7 +151,7 @@ export default class ResumeEditorPlugin extends Plugin {
     const path = dir ? `${dir}/${name}.${RESUME_EXT}` : `${name}.${RESUME_EXT}`;
     const file = await this.app.vault.create(
       path,
-      createResumeJson({ ...DEFAULT_RESUME, name, templateId: this.settings.template })
+      createResumeJson({ ...DEFAULT_RESUME, templateId: this.settings.template })
     );
     await this.app.workspace.getLeaf(false).openFile(file);
     new Notice(t("notice.created", { name: file.basename }));
