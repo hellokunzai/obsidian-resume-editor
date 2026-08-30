@@ -227,7 +227,6 @@ export class ResumeEditorView extends ItemView {
 
     // 模板下拉选择（放在 header 右侧，与导出按钮同行）
     const tplWrap = header.createDiv({ cls: "re-tpl-select-wrap" });
-    tplWrap.createEl("span", { cls: "re-tpl-select-label", text: t("template.label") });
     const tplSelect = tplWrap.createEl("select", { cls: "re-select re-tpl-select", attr: { "data-tpl-select": "" } });
     for (const id of TEMPLATE_IDS) {
       tplSelect.createEl("option", { value: id, text: t("template." + id) });
@@ -250,7 +249,6 @@ export class ResumeEditorView extends ItemView {
     });
     const saveIcon = btnSave.createSpan({ cls: "re-btn-icon-mobile" });
     setIcon(saveIcon, "save");
-    btnSave.createSpan({ cls: "re-btn-label", text: t("btn.save") });
     btnSave.addEventListener("click", () => this.saveNow());
 
     // 双栏
