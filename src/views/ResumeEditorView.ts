@@ -462,12 +462,8 @@ export class ResumeEditorView extends ItemView {
 
     const bar = mod.createEl("div", { cls: "re-module-bar" });
 
-    const handle = bar.createEl("span", {
-      cls: "re-drag-handle",
-      attr: { title: t("module.drag") },
-    });
-    setIcon(handle, "re-grip-vertical");
-
+    // 顺序按钮（↑↓）合并到右侧 actions 区，与图二参考一致；桌面端同时显示，不依赖拖拽。
+    // 旧版左边 ≡ 拖拽手柄已移除（按用户反馈改为上下箭头按钮）。
     const titleWrap = bar.createEl("div", { cls: "re-module-title" });
     let titleInput: HTMLInputElement | null = null;
     if (sec.type === "custom") {
@@ -531,7 +527,6 @@ export class ResumeEditorView extends ItemView {
       const target = e.target as HTMLElement;
       if (
         target.closest(".re-module-actions") ||
-        target.closest(".re-drag-handle") ||
         target === titleInput
       ) {
         return;

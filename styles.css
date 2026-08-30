@@ -2037,8 +2037,9 @@
   margin: 0;
 }
 
-/* 隐藏拖拽手柄（移动端用 ↑↓ 按钮替代，触屏拖拽体验差） */
-.re-mobile .re-drag-handle,
+/* 隐藏拖拽手柄（移动端桌面端统一用 ↑↓ 按钮，触屏拖拽体验差，
+   同时按用户反馈桌面端模块级也切到按钮方案；行级手柄保留给桌面用户，
+   移动端继续隐藏） */
 .re-mobile .re-entry-drag,
 .re-mobile .re-basic-field-drag,
 .re-mobile .re-cert-drag,
@@ -2046,12 +2047,8 @@
   display: none !important;
 }
 
-/* ↑↓ 排序按钮：桌面端隐藏，移动端显示 */
+/* ↑↓ 排序按钮：桌面端与移动端都显示（模块级 / 行级条目排序统一入口） */
 .re-move-btn {
-  display: none;
-}
-
-.re-mobile .re-move-btn {
   display: inline-flex;
 }
 
