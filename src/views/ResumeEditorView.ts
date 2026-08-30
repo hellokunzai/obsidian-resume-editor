@@ -60,8 +60,6 @@ import { exportHtml } from "../export/html";
 import { exportDocx } from "../export/docx";
 import { exportLatex } from "../export/latex";
 import { PAPER_SIZE_PX } from "../utils/auto-one-page";
-import { checkResume, CheckIssue } from "../ai/check";
-import { CheckModal } from "../ui/CheckModal";
 
 export const VIEW_TYPE_RESUME = "resume-editor-view";
 
@@ -245,19 +243,6 @@ export class ResumeEditorView extends ItemView {
     exportBtn.createSpan({ text: t("btn.export") });
     setIcon(exportBtn, "re-download");
     exportBtn.addEventListener("click", () => this.openExportMenu(exportBtn, exportWrap));
-
-    // AI 体检按钮：仅在启用 AI 润色时显示
-    let btnCheck: HTMLButtonElement | null = null;
-    if (this.plugin.settings.aiEnabled) {
-      btnCheck = header.createEl("button", {
-        cls: "re-btn",
-        attr: { "aria-label": t("btn.aiCheck") },
-      });
-      const checkIcon = btnCheck.createSpan({ cls: "re-btn-icon-mobile" });
-      setIcon(checkIcon, "sparkles");
-      btnCheck.createSpan({ cls: "re-btn-label", text: t("btn.aiCheck") });
-      btnCheck.addEventListener("click", () => void this.runAiCheck());
-    }
 
     const btnSave = header.createEl("button", {
       cls: "re-btn",
@@ -1941,82 +1926,6 @@ export class ResumeEditorView extends ItemView {
       });
     });
     return out;
-  }
-
-  /* ---------- AI 简历体检 ---------- */
-
-  private async runAiCheck(): Promise<void> {
-    const s = this.plugin.settings;
-    if (!s.aiEnabled) {
-      new Notice(t("check.notice.disabled"));
-      return;
-    }
-    if (!s.aiKey) {
-      new Notice(t("error.noKey"));
-      return;
-    }
-    const running = new Notice(t("check.notice.running"), 0);
-    try {
-      const issues = await checkResume(this.model, s);
-      running.hide();
-      if (!issues.length) {
-        new Notice(t("check.notice.clean"));
-        return;
-      }
-      new CheckModal(this.app, issues, (issue) => this.jumpToIssueField(issue)).open();
-    } catch (e) {
-      running.hide();
-      const msg = e instanceof Error ? e.message : String(e);
-      new Notice(t("error.export", { msg }));
-    }
-  }
-
-  /** 点击体检问题 -> 展开对应模块并滚动定位到具体字段 */
-  private jumpToIssueField(issue: CheckIssue): void {
-    const [section, idxRaw] = issue.field.split(".");
-    const hasIdx = idxRaw !== undefined && idxRaw !== "";
-
-    // 展开目标模块（手风琴：仅目标展开，其余折叠）
-    // AI 体检返回的工作经历 field 用 "work"，但数据模型与模块类型已统一为 "experience"
-    const jumpType = section === "work" ? "experience" : section;
-    if (["basic", "skills", "education", "experience", "projects"].includes(jumpType)) {
-      for (const sec of this.model.menuSections) {
-        sec.collapsed = sec.type !== jumpType;
-      }
-      this.renderModules();
-    }
-
-    const flash = (el: HTMLElement | null, focusEl?: HTMLElement | null): void => {
-      if (!el) return;
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-      el.addClass("re-jump-flash");
-      window.setTimeout(() => el.removeClass("re-jump-flash"), 1600);
-      if (focusEl) focusEl.focus();
-    };
-
-    // renderModules 重建 DOM 后再定位
-    requestAnimationFrame(() => {
-      if (section === "basic") {
-        flash(this.formBody.querySelector('[data-basic="name"]') as HTMLElement | null);
-        return;
-      }
-      if (section === "skills") {
-        flash(this.formBody.querySelector('[data-basic="skillContent"]') as HTMLElement | null);
-        return;
-      }
-      if (hasIdx) {
-        const card = this.formBody.querySelector(
-          `.re-entry-card[data-section="${jumpType}"][data-index="${idxRaw}"]`
-        ) as HTMLElement | null;
-        const field = (card?.querySelector('[data-key="details"]') as HTMLElement | null) ?? null;
-        flash(card ?? field, field);
-        return;
-      }
-      const mod = this.formBody.querySelector(
-        `.re-module[data-type="${jumpType}"]`
-      ) as HTMLElement | null;
-      flash(mod);
-    });
   }
 
   private renderPreview(): void {

@@ -1651,102 +1651,6 @@
   white-space: nowrap;
 }
 
-/* ===== AI 简历体检弹窗（选择器统一加 .re-check-modal 前缀，压过 .modal 全局规则） ===== */
-.re-check-modal {
-  min-width: 420px;
-  max-width: 560px;
-}
-
-.re-check-modal .re-check-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--size-4-2, 8px);
-  max-height: 55vh;
-  overflow-y: auto;
-  padding: var(--size-4-1, 4px);
-}
-
-.re-check-modal .re-check-item {
-  padding: var(--size-4-2, 8px) var(--size-4-3, 12px);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: var(--radius-s, 6px);
-  cursor: pointer;
-  background: var(--background-secondary);
-}
-
-.re-check-modal .re-check-item:hover,
-.re-check-modal .re-check-item:focus-visible {
-  border-color: var(--interactive-accent);
-  background: var(--background-modifier-hover);
-}
-
-.re-check-modal .re-check-item-head {
-  display: flex;
-  align-items: center;
-  gap: var(--size-4-2, 8px);
-  margin-bottom: var(--size-4-1, 4px);
-}
-
-.re-check-modal .re-check-badge {
-  font-size: var(--font-ui-smaller, 11px);
-  font-weight: 600;
-  padding: 1px 8px;
-  border-radius: 999px;
-  flex: 0 0 auto;
-  margin: 0;
-}
-
-.re-check-modal .re-check-badge-high {
-  color: var(--text-error);
-  background: var(--background-modifier-error-hover);
-}
-
-.re-check-modal .re-check-badge-medium {
-  color: var(--text-warning, #b8860b);
-  background: var(--background-modifier-border);
-}
-
-.re-check-modal .re-check-badge-low {
-  color: var(--text-muted);
-  background: var(--background-modifier-border);
-}
-
-.re-check-modal .re-check-field {
-  font-size: var(--font-ui-smaller, 11px);
-  color: var(--text-muted);
-}
-
-.re-check-modal .re-check-message {
-  font-size: var(--font-ui-small, 13px);
-  color: var(--text-normal);
-  line-height: 1.5;
-}
-
-.re-check-modal .re-check-suggestion {
-  font-size: var(--font-ui-smaller, 11px);
-  color: var(--text-muted);
-  margin-top: var(--size-4-1, 4px);
-  line-height: 1.5;
-}
-
-.re-check-modal .re-check-jump-hint {
-  font-size: var(--font-ui-smaller, 11px);
-  color: var(--interactive-accent);
-  margin-top: var(--size-4-1, 4px);
-}
-
-/* ===== 体检定位闪烁（表单字段高亮） ===== */
-@keyframes re-jump-flash {
-  0% { box-shadow: 0 0 0 2px var(--interactive-accent); }
-  60% { box-shadow: 0 0 0 2px var(--interactive-accent); }
-  100% { box-shadow: 0 0 0 2px transparent; }
-}
-
-.re-jump-flash {
-  animation: re-jump-flash 1.6s ease-out;
-  border-radius: var(--radius-s, 6px);
-}
-
 /* ===== Timeline 模板预览（使用 Obsidian 主题变量） ===== */
 .re-paper.re-timeline .r-tl-list {
   position: relative;
@@ -2256,5 +2160,6 @@
   flex: 0 0 auto;
   height: 4.8em; /* 3 × line-height 1.6em */
 }
+
 
 
