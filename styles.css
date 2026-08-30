@@ -517,31 +517,6 @@
   flex: none;
 }
 
-.re-entry-drag {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  cursor: grab;
-  color: var(--text-faint);
-  flex: none;
-  touch-action: none;
-  margin-right: var(--size-4-1, 4px);
-}
-
-.re-entry-drag:active {
-  cursor: grabbing;
-}
-
-.re-entry-drag svg,
-.re-entry-drag .svg-icon {
-  width: 15px !important;
-  height: 15px !important;
-  min-width: 15px !important;
-  min-height: 15px !important;
-}
-
 .re-entry-card.re-dragging {
   opacity: 0.5;
 }
@@ -1868,10 +1843,6 @@
   padding: 8px;
 }
 
-.re-entry-list[data-section-list="certificates"] .re-entry-drag {
-  margin-top: 2px;
-}
-
 .re-cert-thumb {
   width: 80px;
   height: 60px;
@@ -2076,10 +2047,7 @@
   margin: 0;
 }
 
-/* 隐藏拖拽手柄（移动端桌面端统一用 ↑↓ 按钮，触屏拖拽体验差，
-   同时按用户反馈桌面端模块级也切到按钮方案；行级手柄保留给桌面用户，
-   移动端继续隐藏） */
-.re-mobile .re-entry-drag,
+/* 隐藏拖拽手柄（移动端统一用 ↑↓ 按钮，触屏拖拽体验差） */
 .re-mobile .re-basic-field-drag,
 .re-mobile .re-cert-drag,
 .re-mobile .re-section-drag {

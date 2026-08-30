@@ -143,7 +143,6 @@ export class ResumeEditorView extends FileView {
   private activeIconPicker: HTMLElement | null = null;
   private dragEl: HTMLElement | null = null;
   private basicFieldDragEl: HTMLElement | null = null;
-  private certDragEl: HTMLElement | null = null;
 
   // 移动端适配状态
   private isMobile = false;
@@ -953,23 +952,6 @@ export class ResumeEditorView extends FileView {
     return closest;
   }
 
-  private getEntryDragAfterElement(container: HTMLElement, y: number): HTMLElement | null {
-    const els = Array.from(
-      container.querySelectorAll(".re-entry-card:not(.re-dragging)")
-    ) as HTMLElement[];
-    let closest: HTMLElement | null = null;
-    let closestOffset = -Infinity;
-    for (const el of els) {
-      const box = el.getBoundingClientRect();
-      const offset = y - box.top - box.height / 2;
-      if (offset < 0 && offset > closestOffset) {
-        closestOffset = offset;
-        closest = el;
-      }
-    }
-    return closest;
-  }
-
   private basicField(
     parent: HTMLElement,
     labelKey: string,
@@ -1049,12 +1031,6 @@ export class ResumeEditorView extends FileView {
       cls: "re-entry-card" + (cert.visible === false ? " re-hidden" : ""),
       attr: { "data-cert-id": cert.id },
     });
-
-    const handle = card.createEl("span", {
-      cls: "re-entry-drag",
-      attr: { title: t("module.drag") },
-    });
-    setIcon(handle, "re-grip-vertical");
 
     // 缩略图预览
     const thumb = card.createEl("div", { cls: "re-cert-thumb" });
@@ -1144,64 +1120,6 @@ export class ResumeEditorView extends FileView {
       this.renderPreview();
       this.scheduleSave();
     });
-
-    this.bindCertDnd(card, listEl);
-  }
-
-  private bindCertDnd(card: HTMLElement, listEl: HTMLElement): void {
-    const handle = card.querySelector(".re-entry-drag") as HTMLElement | null;
-    if (!handle) return;
-    if ((handle as unknown as Record<string, boolean>)["__re-cert-dnd-bound"]) return;
-    (handle as unknown as Record<string, boolean>)["__re-cert-dnd-bound"] = true;
-    handle.addEventListener("pointerdown", (e: PointerEvent) => {
-      if (e.button !== 0 && e.pointerType === "mouse") return;
-      e.preventDefault();
-      this.startCertDrag(card, listEl);
-    });
-  }
-
-  private startCertDrag(card: HTMLElement, listEl: HTMLElement): void {
-    this.certDragEl = card;
-    card.addClass("re-dragging");
-
-    const onMove = (ev: PointerEvent) => {
-      if (!this.certDragEl) return;
-      const after = this.getEntryDragAfterElement(listEl, ev.clientY);
-      if (after == null) {
-        if (listEl.lastElementChild !== this.certDragEl) listEl.appendChild(this.certDragEl);
-      } else if (after !== this.certDragEl) {
-        listEl.insertBefore(this.certDragEl, after);
-      }
-    };
-
-    const onUp = () => {
-      document.removeEventListener("pointermove", onMove);
-      document.removeEventListener("pointerup", onUp);
-      document.removeEventListener("pointercancel", onUp);
-      if (!this.certDragEl) return;
-      const cards = Array.from(listEl.querySelectorAll(".re-entry-card")) as HTMLElement[];
-      const order: Certificate[] = [];
-      const used = new Set<string>();
-      const all = this.model.certificates || [];
-      for (const c of cards) {
-        const id = c.getAttribute("data-cert-id");
-        const found = all.find((x) => x.id === id);
-        if (found && !used.has(found.id)) {
-          order.push(found);
-          used.add(found.id);
-        }
-      }
-      for (const c of all) if (!used.has(c.id)) order.push(c);
-      this.model.certificates = order;
-      this.certDragEl.removeClass("re-dragging");
-      this.certDragEl = null;
-      this.renderPreview();
-      this.scheduleSave();
-    };
-
-    document.addEventListener("pointermove", onMove);
-    document.addEventListener("pointerup", onUp);
-    document.addEventListener("pointercancel", onUp);
   }
 
   private avatarField(parent: HTMLElement): void {
