@@ -377,6 +377,7 @@ export class ResumeEditorView extends ItemView {
         cls: "re-swatch" + (c === gs.themeColor ? " re-on" : ""),
         attr: { type: "button", "aria-label": c, "data-color": c },
       });
+      // eslint-disable-next-line obsidianmd/no-static-styles-assignment -- dynamic theme color from palette, cannot use static CSS class
       sw.setCssProps({ "background-color": c });
       sw.addEventListener("click", () => {
         gs.themeColor = c;
@@ -1442,6 +1443,7 @@ export class ResumeEditorView extends ItemView {
     // 左侧编辑器预览保持固定宽度 90px，仅响应宽高比与圆角变化；
     // 尺寸滑块只影响右侧简历预览中的头像。
     const s = computeAvatarStyle({ ...model, avatarSize: 90 });
+    // eslint-disable-next-line obsidianmd/no-static-styles-assignment -- computed avatar dimensions (width/height/radius), runtime values
     preview.setCssProps({
       width: `${s.width}px`,
       height: `${s.height}px`,
@@ -1998,6 +2000,7 @@ export class ResumeEditorView extends ItemView {
     const avail = scroll.clientWidth - 28; // 减去 .re-preview-scroll 左右内边距
     const PAPER_W = 794;
     const s = Math.max(0.2, Math.min(1, avail / PAPER_W));
+    // eslint-disable-next-line obsidianmd/no-static-styles-assignment -- dynamic preview scale transform, viewport-dependent computation
     holder.setCssProps({
       width: `${avail}px`,
       "transform-origin": "top left",
@@ -2006,6 +2009,7 @@ export class ResumeEditorView extends ItemView {
     const paper = holder.querySelector(".re-paper") as HTMLElement | null;
     if (paper) {
       requestAnimationFrame(() => {
+        // eslint-disable-next-line obsidianmd/no-static-styles-assignment -- dynamic margin offset from rendered paper height
         holder.setCssProps({
           "margin-bottom": `-${paper.offsetHeight * (1 - s)}px`,
         });
