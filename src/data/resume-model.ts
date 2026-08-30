@@ -1262,7 +1262,18 @@ export async function readResume(
 ): Promise<ResumeData | null> {
   // 1) .resume 文件：直接 JSON 解析
   if (isResumeExt(file)) {
-    const content = await app.vault.cachedRead(file);
+    // 启动初期 metadata cache 可能尚未就绪，cachedRead 会返回空内容，
+    // 导致 JSON 解析失败并静默回退到默认空数据。这里先尝试 cachedRead，
+    // 内容为空时再退回 vault.read 从磁盘读取，保证重启后标签页能恢复数据。
+    let content = await app.vault.cachedRead(file);
+    if (!content || !content.trim()) {
+      try {
+        content = await app.vault.read(file);
+      } catch {
+        // 忽略：保持空内容，下方统一判定为读取失败
+      }
+    }
+    if (!content || !content.trim()) return null;
     try {
       const parsed = JSON.parse(content) as Record<string, unknown>;
       return parseResume(parsed);

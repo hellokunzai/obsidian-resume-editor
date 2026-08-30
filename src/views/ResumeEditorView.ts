@@ -9,6 +9,7 @@ import {
   FuzzySuggestModal,
   setIcon,
   Platform,
+  ViewStateResult,
 } from "obsidian";
 import type ResumeEditorPlugin from "../main";
 import {
@@ -158,6 +159,13 @@ export class ResumeEditorView extends FileView {
   private textareaZoomVVHandler: (() => void) | null = null;
   private textareaZoomOriginal: HTMLTextAreaElement | null = null;
 
+  // 工作区恢复时的生命周期竞态保护：
+  // 启动时 Obsidian 可能先触发 setViewState（onLoadFile）再触发 onOpen，
+  // 此时 DOM 尚未构建；用 domReady 标记 + pendingFile 暂存，避免出现
+  // 「标签页恢复但数据没加载」的问题。
+  private domReady = false;
+  private pendingFile: TFile | null = null;
+
   constructor(leaf: WorkspaceLeaf, plugin: ResumeEditorPlugin) {
     super(leaf);
     this.plugin = plugin;
@@ -180,12 +188,54 @@ export class ResumeEditorView extends FileView {
   }
 
   async onLoadFile(file: TFile): Promise<void> {
+    // 启动时 setViewState 可能先于 onOpen 触发，DOM 尚未构建。
+    // 先暂存文件，等 onOpen 完成后再统一加载，避免渲染到还不存在的节点。
+    this.pendingFile = null; // 基类已接管该文件，不需要再 pending
+    if (!this.domReady) {
+      this.pendingFile = file;
+      return;
+    }
     await this.loadFile(file);
   }
 
   async onUnloadFile(file: TFile): Promise<void> {
     if (this.currentFile === file) {
       this.currentFile = null;
+    }
+  }
+
+  /**
+   * 把当前文件路径序列化到 workspace.json，这样工作区恢复时才能知道
+   * 这个标签页之前打开的是哪个简历文件。FileView 默认的 getState 不会
+   * 自动保存文件路径，必须自己实现。
+   */
+  getState(): Record<string, unknown> {
+    const state = super.getState();
+    const path = this.currentFile?.path ?? this.file?.path;
+    if (path) {
+      state.file = path;
+    }
+    return state;
+  }
+
+  async setState(state: any, result: ViewStateResult): Promise<void> {
+    if (state?.file && typeof state.file === "string") {
+      const file = this.app.vault.getAbstractFileByPath(state.file);
+      if (file instanceof TFile && file.extension === RESUME_EXT) {
+        // 让 FileView 基类也同步到正确的文件，避免它认为当前无文件
+        this.file = file;
+        this.pendingFile = file;
+      }
+    }
+
+    // 调用基类，允许 Obsidian 执行默认的视图状态恢复逻辑。
+    await super.setState(state, result);
+
+    // 某些版本/路径下基类不会主动触发 onLoadFile，兜底再加载一次。
+    if (this.domReady && this.pendingFile) {
+      const f = this.pendingFile;
+      this.pendingFile = null;
+      await this.loadFile(f);
     }
   }
 
@@ -258,12 +308,6 @@ export class ResumeEditorView extends FileView {
     this.previewPaper = scroll.createDiv({ cls: "re-preview-holder" });
     this.previewStatus = scroll.createDiv({ cls: "re-preview-status" });
 
-    // FileView 通过 onLoadFile 为每个视图单独加载文件；这里只在无文件时
-    //（例如「打开简历编辑器」命令创建的空视图）渲染默认空表单。
-    if (!this.file) {
-      void this.loadActive();
-    }
-
     // 移动端：监听窗口/方向变化，切到预览时重算 A4 缩放
     if (this.isMobile) {
       this.registerDomEvent(window, "resize", () => {
@@ -274,11 +318,27 @@ export class ResumeEditorView extends FileView {
     // 默认进入编辑页（移动端单栏 + 切换由 CSS .re-active 控制显隐）
     this.activePane = "form";
     this.setActivePane("form");
+
+    // DOM 构建完成，标记就绪并触发数据加载：
+    // - 若 setViewState / setState 已先于 onOpen 触发（启动恢复常见顺序），
+    //   文件暂存在 pendingFile 中，这里统一加载，避免渲染到尚未存在的节点；
+    // - 若当前无文件（例如「打开简历编辑器」命令创建的空视图），回退加载
+    //   当前活动文件；onLoadFile 在文件就绪后也会再次校正。
+    this.domReady = true;
+    const target = this.pendingFile ?? this.file;
+    this.pendingFile = null;
+    if (target instanceof TFile && target.extension === RESUME_EXT) {
+      await this.loadFile(target);
+    } else {
+      await this.loadActive();
+    }
   }
 
   async onClose(): Promise<void> {
     if (this.saveTimer !== null) window.clearTimeout(this.saveTimer);
     this.closeTextareaZoom();
+    this.domReady = false;
+    this.pendingFile = null;
   }
 
   private async loadFile(file: TFile): Promise<void> {
