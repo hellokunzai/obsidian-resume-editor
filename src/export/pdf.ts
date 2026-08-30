@@ -27,7 +27,14 @@ export async function exportPdf(
   const paperPx = paperSize === "Letter" ? 816 : 794; // 96dpi 下的页宽（px）
   const holder = document.createElement("div");
   holder.className = "re-pdf-capture";
-  holder.style.cssText = `position:fixed;left:-10000px;top:0;width:${paperPx}px;z-index:-1;background:#fff;`;
+  holder.setCssProps({
+    position: "fixed",
+    left: "-10000px",
+    top: "0",
+    width: `${paperPx}px`,
+    "z-index": "-1",
+    "background-color": "#fff",
+  });
   const overrideCss = `
     @page { size: ${paperSize === "Letter" ? "letter" : "A4"}; margin: ${marginMm}mm; }
     .re-paper { max-width: none !important; width: 100% !important; margin-left: 0 !important; margin-right: 0 !important; }

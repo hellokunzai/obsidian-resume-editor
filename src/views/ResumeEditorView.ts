@@ -377,7 +377,7 @@ export class ResumeEditorView extends ItemView {
         cls: "re-swatch" + (c === gs.themeColor ? " re-on" : ""),
         attr: { type: "button", "aria-label": c, "data-color": c },
       });
-      sw.style.setProperty("background-color", c);
+      sw.setCssProps({ "background-color": c });
       sw.addEventListener("click", () => {
         gs.themeColor = c;
         swatches.querySelectorAll(".re-swatch").forEach((n) => n.removeClass("re-on"));
@@ -1141,18 +1141,18 @@ export class ResumeEditorView extends ItemView {
     const applyImg = (url: string) => {
       if (url && url.trim()) {
         img.setAttribute("src", url);
-        img.style.visibility = "visible";
+        img.classList.remove("re-hidden");
       } else {
         img.removeAttribute("src");
-        img.style.visibility = "hidden";
+        img.classList.add("re-hidden");
       }
     };
     applyImg(cert.url);
     img.addEventListener("error", () => {
-      img.style.visibility = "hidden";
+      img.classList.add("re-hidden");
     });
     img.addEventListener("load", () => {
-      img.style.visibility = "visible";
+      img.classList.remove("re-hidden");
     });
 
     const body = card.createEl("div", { cls: "re-cert-body" });
@@ -1442,9 +1442,11 @@ export class ResumeEditorView extends ItemView {
     // 左侧编辑器预览保持固定宽度 90px，仅响应宽高比与圆角变化；
     // 尺寸滑块只影响右侧简历预览中的头像。
     const s = computeAvatarStyle({ ...model, avatarSize: 90 });
-    preview.style.width = s.width + "px";
-    preview.style.height = s.height + "px";
-    preview.style.borderRadius = s.radius;
+    preview.setCssProps({
+      width: `${s.width}px`,
+      height: `${s.height}px`,
+      "border-radius": s.radius,
+    });
   }
 
   private sectionBlock(
@@ -1885,8 +1887,10 @@ export class ResumeEditorView extends ItemView {
     const top = rect.bottom + pickerHeight > window.innerHeight
       ? rect.top - pickerHeight - 4
       : rect.bottom + 4;
-    picker.style.left = `${Math.min(rect.left, window.innerWidth - 240)}px`;
-    picker.style.top = `${Math.max(4, top)}px`;
+    picker.setCssProps({
+      left: `${Math.min(rect.left, window.innerWidth - 240)}px`,
+      top: `${Math.max(4, top)}px`,
+    });
 
     const close = (ev: MouseEvent) => {
       if (!picker.contains(ev.target as Node)) {
@@ -1955,7 +1959,7 @@ export class ResumeEditorView extends ItemView {
     const overlay = paper.createDiv({ cls: "re-page-overlay" });
     for (let i = 1; i < totalPages; i++) {
       const line = overlay.createDiv({ cls: "re-page-break" });
-      line.style.top = `${i * PAGE_H}px`;
+      line.setCssProps({ top: `${i * PAGE_H}px` });
       const label = line.createDiv({ cls: "re-page-break-label" });
       label.textContent = `${i} / ${totalPages}`;
     }
@@ -1994,13 +1998,17 @@ export class ResumeEditorView extends ItemView {
     const avail = scroll.clientWidth - 28; // 减去 .re-preview-scroll 左右内边距
     const PAPER_W = 794;
     const s = Math.max(0.2, Math.min(1, avail / PAPER_W));
-    holder.style.width = `${avail}px`;
-    holder.style.transformOrigin = "top left";
-    holder.style.transform = `scale(${s})`;
+    holder.setCssProps({
+      width: `${avail}px`,
+      "transform-origin": "top left",
+      transform: `scale(${s})`,
+    });
     const paper = holder.querySelector(".re-paper") as HTMLElement | null;
     if (paper) {
       requestAnimationFrame(() => {
-        holder.style.marginBottom = `-${paper.offsetHeight * (1 - s)}px`;
+        holder.setCssProps({
+          "margin-bottom": `-${paper.offsetHeight * (1 - s)}px`,
+        });
       });
     }
   }
@@ -2109,12 +2117,14 @@ export class ResumeEditorView extends ItemView {
       const vv = window.visualViewport;
       const ov = this.textareaZoomOverlay;
       if (!vv || !ov) return;
-      ov.style.top = `${vv.offsetTop}px`;
-      ov.style.left = `${vv.offsetLeft}px`;
-      ov.style.width = `${vv.width}px`;
-      ov.style.height = `${vv.height}px`;
-      ov.style.right = "auto";
-      ov.style.bottom = "auto";
+      ov.setCssProps({
+        top: `${vv.offsetTop}px`,
+        left: `${vv.offsetLeft}px`,
+        width: `${vv.width}px`,
+        height: `${vv.height}px`,
+        right: "auto",
+        bottom: "auto",
+      });
     };
     applyVV();
     if (window.visualViewport) {

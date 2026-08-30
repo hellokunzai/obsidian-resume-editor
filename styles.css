@@ -1868,6 +1868,10 @@
   object-fit: contain;
 }
 
+.re-cert-thumb-img.re-hidden {
+  visibility: hidden;
+}
+
 .re-cert-body {
   flex: 1;
   min-width: 0;

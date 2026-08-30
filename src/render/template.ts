@@ -639,7 +639,7 @@ export function renderResumeDom(
   // 注入全局样式 CSS 变量（主题色 / 字号 / 行距 / 模块间距 / 页边距 / 字体 / 段间距）
   const gs = data.globalSettings ?? DEFAULT_GLOBAL_SETTINGS;
   for (const [k, v] of Object.entries(globalSettingsCssProps(gs))) {
-    paper.style.setProperty(k, v);
+    paper.setCssProps({ [k]: v });
   }
   // 调试：在 DOM 上暴露当前渲染顺序，便于排查顺序是否生效
   paper.setAttribute(
