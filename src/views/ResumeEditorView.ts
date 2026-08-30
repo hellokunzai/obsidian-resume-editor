@@ -143,7 +143,6 @@ export class ResumeEditorView extends FileView {
   private activeIconPicker: HTMLElement | null = null;
   private dragEl: HTMLElement | null = null;
   private basicFieldDragEl: HTMLElement | null = null;
-  private entryDragEl: HTMLElement | null = null;
   private certDragEl: HTMLElement | null = null;
 
   // 移动端适配状态
@@ -954,79 +953,6 @@ export class ResumeEditorView extends FileView {
     return closest;
   }
 
-  private bindEntryDnd(section: string): void {
-    const list = this.formBody.querySelector(
-      `.re-entry-list[data-section-list="${section}"]`
-    ) as HTMLElement | null;
-    if (!list) return;
-    list.querySelectorAll(".re-entry-card").forEach((card) => {
-      const handle = card.querySelector(".re-entry-drag") as HTMLElement | null;
-      if (!handle) return;
-      // 避免重复绑定：标记后跳过
-      if ((handle as unknown as Record<string, boolean>)["__re-entry-dnd-bound"]) return;
-      (handle as unknown as Record<string, boolean>)["__re-entry-dnd-bound"] = true;
-      handle.addEventListener("pointerdown", (e: PointerEvent) => {
-        if (e.button !== 0 && e.pointerType === "mouse") return;
-        e.preventDefault();
-        this.startEntryDrag(card as HTMLElement, section);
-      });
-    });
-  }
-
-  private startEntryDrag(card: HTMLElement, section: string): void {
-    const list = this.formBody.querySelector(
-      `.re-entry-list[data-section-list="${section}"]`
-    ) as HTMLElement | null;
-    if (!list) return;
-    this.entryDragEl = card;
-    card.addClass("re-dragging");
-
-    const onMove = (ev: PointerEvent) => {
-      if (!this.entryDragEl || !list) return;
-      const after = this.getEntryDragAfterElement(list, ev.clientY);
-      if (after == null) {
-        if (list.lastElementChild !== this.entryDragEl) list.appendChild(this.entryDragEl);
-      } else if (after !== this.entryDragEl) {
-        list.insertBefore(this.entryDragEl, after);
-      }
-    };
-
-    const onUp = () => {
-      document.removeEventListener("pointermove", onMove);
-      document.removeEventListener("pointerup", onUp);
-      document.removeEventListener("pointercancel", onUp);
-      if (!this.entryDragEl || !list) return;
-
-      const sectionKey = section as keyof ResumeData;
-      const entries = this.model[sectionKey] as ResumeEntry[];
-      const cards = Array.from(list.querySelectorAll(".re-entry-card")) as HTMLElement[];
-      const newOrder: ResumeEntry[] = [];
-      const used = new Set<number>();
-      for (const c of cards) {
-        const idx = Number(c.getAttribute("data-index"));
-        if (!Number.isNaN(idx) && idx >= 0 && idx < entries.length && !used.has(idx)) {
-          newOrder.push(entries[idx]);
-          used.add(idx);
-        }
-      }
-      // 兜底：若渲染过程中有极短暂的悬空，保留未匹配项
-      for (let i = 0; i < entries.length; i++) {
-        if (!used.has(i)) newOrder.push(entries[i]);
-      }
-      (this.model[sectionKey] as ResumeEntry[]) = newOrder;
-
-      this.entryDragEl.removeClass("re-dragging");
-      this.entryDragEl = null;
-      this.renderModules();
-      this.renderPreview();
-      this.scheduleSave();
-    };
-
-    document.addEventListener("pointermove", onMove);
-    document.addEventListener("pointerup", onUp);
-    document.addEventListener("pointercancel", onUp);
-  }
-
   private getEntryDragAfterElement(container: HTMLElement, y: number): HTMLElement | null {
     const els = Array.from(
       container.querySelectorAll(".re-entry-card:not(.re-dragging)")
@@ -1474,11 +1400,9 @@ export class ResumeEditorView extends FileView {
       this.buildEntry(list, section, target, idx);
       // 把新增按钮保持在列表下方
       wrapper.appendChild(add);
-      this.bindEntryDnd(section);
       this.renderPreview();
       this.scheduleSave();
     });
-    this.bindEntryDnd(section);
   }
 
   private buildEntry(parent: HTMLElement, section: string, e: ResumeEntry, index: number): void {
@@ -1494,12 +1418,6 @@ export class ResumeEditorView extends FileView {
     });
 
     const bar = card.createEl("div", { cls: "re-entry-bar" });
-
-    const handle = bar.createEl("span", {
-      cls: "re-entry-drag",
-      attr: { title: t("module.drag") },
-    });
-    setIcon(handle, "re-grip-vertical");
 
     const summary = bar.createEl("div", { cls: "re-entry-summary" });
     const updateSummary = () => {
@@ -1562,7 +1480,7 @@ export class ResumeEditorView extends FileView {
     // 点击标题栏空白处折叠/展开
     bar.addEventListener("click", (ev) => {
       const target = ev.target as HTMLElement;
-      if (target.closest(".re-entry-actions") || target.closest(".re-entry-drag")) {
+      if (target.closest(".re-entry-actions")) {
         return;
       }
       e.collapsed = !e.collapsed;

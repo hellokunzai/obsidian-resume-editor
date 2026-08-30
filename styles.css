@@ -2197,5 +2197,254 @@
   height: 4.8em; /* 3 × line-height 1.6em */
 }
 
+/* =====================================================================
+   视觉精修（2026-08-30）
+   设计取向：在 Obsidian 主题变量体系内做"克制而精致的编辑工具"升级。
+   - 不引入任何固定品牌色，全部走 var(--interactive-accent) 等主题变量
+   - 统一过渡曲线与时长，让悬浮 / 聚焦 / 展开 / 拖拽都有连贯的"手感"
+   - 折叠指示符、滑块重绘、菜单入场、键盘聚焦环、拖拽抬升、操作项微交互
+   - 左侧强调色 rail 作为全编辑器统一的视觉签名
+   ===================================================================== */
+
+.review-editor-root {
+  --re-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --re-dur: 0.16s;
+  --re-dur-slow: 0.26s;
+}
+
+/* ---------- 折叠指示符（旋转 chevron） ---------- */
+.re-sect > summary {
+  position: relative;
+  padding-right: 30px;
+  transition: background var(--re-dur) var(--re-ease), color var(--re-dur) var(--re-ease);
+}
+
+.re-sect > summary::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid var(--text-faint);
+  border-bottom: 2px solid var(--text-faint);
+  transform: translateY(-70%) rotate(-45deg); /* 收起：指向右 ▸ */
+  transition: transform var(--re-dur-slow) var(--re-ease), border-color var(--re-dur) var(--re-ease);
+}
+
+.re-sect[open] > summary::after {
+  transform: translateY(-30%) rotate(45deg); /* 展开：指向下 ▾ */
+}
+
+.re-sect > summary:hover::after {
+  border-color: var(--interactive-accent);
+}
+
+/* 模块栏左侧 chevron（桌面端模块级用 ↑↓，但折叠态仍给一个旋转箭头） */
+.re-module-bar {
+  transition: background var(--re-dur) var(--re-ease), box-shadow var(--re-dur) var(--re-ease);
+}
+
+.re-module-bar::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  margin-right: 8px;
+  flex: none;
+  border-right: 2px solid var(--text-faint);
+  border-bottom: 2px solid var(--text-faint);
+  transform: rotate(45deg) translateY(-1px); /* 展开：指向下 ▾ */
+  transition: transform var(--re-dur-slow) var(--re-ease), border-color var(--re-dur) var(--re-ease);
+}
+
+.re-module.re-collapsed .re-module-bar::before {
+  transform: rotate(-45deg) translateY(0); /* 收起：指向右 ▸ */
+}
+
+.re-module-bar:hover::before {
+  border-color: var(--interactive-accent);
+}
+
+/* ---------- 滑块重绘（accent 拇指 + 轨道） ---------- */
+.re-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--background-modifier-border);
+  cursor: pointer;
+  transition: background var(--re-dur) var(--re-ease);
+}
+
+.re-range:hover {
+  background: var(--background-modifier-border-hover, var(--background-modifier-border));
+}
+
+.re-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--interactive-accent);
+  border: 2px solid var(--background-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform var(--re-dur) var(--re-ease), box-shadow var(--re-dur) var(--re-ease);
+}
+
+.re-range::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+.re-range:active::-webkit-slider-thumb {
+  transform: scale(1.05);
+  box-shadow: 0 0 0 4px var(--background-modifier-border-focus, rgba(124, 92, 255, 0.2));
+}
+
+.re-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--interactive-accent);
+  border: 2px solid var(--background-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+}
+
+.re-range::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--background-modifier-border);
+}
+
+/* ---------- 卡片 / 模块悬浮微抬升 ---------- */
+.re-pane,
+.re-module,
+.re-entry-card,
+.re-basic-field-row,
+.re-cf-row,
+.re-sect {
+  transition: box-shadow var(--re-dur) var(--re-ease), border-color var(--re-dur) var(--re-ease),
+    background var(--re-dur) var(--re-ease);
+}
+
+.re-module:hover {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);
+}
+
+.re-entry-card:hover {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  border-color: var(--background-modifier-border-hover, var(--background-modifier-border));
+}
+
+.re-basic-field-row:hover {
+  border-color: var(--background-modifier-border-hover, var(--background-modifier-border));
+}
+
+.re-cf-row:hover {
+  border-color: var(--background-modifier-border-hover, var(--background-modifier-border));
+}
+
+/* ---------- 按钮 / 操作项微交互 ---------- */
+.re-btn,
+.re-icon-btn,
+.re-layout-btn,
+.re-swatch,
+.re-export-item,
+.re-add-item,
+.re-icon-picker-item {
+  transition: background var(--re-dur) var(--re-ease), border-color var(--re-dur) var(--re-ease),
+    color var(--re-dur) var(--re-ease), box-shadow var(--re-dur) var(--re-ease),
+    transform var(--re-dur) var(--re-ease);
+}
+
+.re-btn:hover {
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
+}
+
+.re-btn:active,
+.re-icon-btn:active,
+.re-layout-btn:active {
+  transform: translateY(1px);
+}
+
+.re-icon-btn:hover {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+/* 导出 / 添加菜单项：悬浮时轻微右移 + 左侧 accent 条 */
+.re-export-item:hover,
+.re-add-item:hover {
+  padding-left: 14px;
+  box-shadow: inset 2px 0 0 var(--interactive-accent);
+}
+
+/* ---------- 键盘聚焦环（focus-visible） ---------- */
+.re-input:focus-visible,
+.re-textarea:focus-visible,
+.re-select:focus-visible,
+.re-tpl-select:focus-visible,
+.re-btn:focus-visible,
+.re-icon-btn:focus-visible,
+.re-swatch:focus-visible,
+.re-layout-btn:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 1px;
+}
+
+/* ---------- 拖拽抬升 ---------- */
+.re-module.re-dragging,
+.re-entry-card.re-dragging,
+.re-basic-field-row.re-dragging {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  border-color: var(--interactive-accent);
+  transform: scale(1.012);
+}
+
+.re-basic-field-row.re-dragging {
+  transform: scale(1.01);
+}
+
+/* ---------- 菜单 / 选择器入场动画 ---------- */
+.re-export-menu,
+.re-add-menu,
+.re-icon-picker {
+  animation: re-pop var(--re-dur-slow) var(--re-ease);
+  transform-origin: top;
+}
+
+@keyframes re-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ---------- 左侧强调色 rail（统一视觉签名） ---------- */
+.re-pane-head {
+  position: relative;
+  overflow: hidden;
+}
+
+.re-pane-head::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--interactive-accent);
+  opacity: 0.35;
+  transition: opacity var(--re-dur) var(--re-ease);
+}
+
+.re-pane:hover .re-pane-head::before {
+  opacity: 0.7;
+}
+
 
 
