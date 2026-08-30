@@ -20,21 +20,10 @@ export async function exportPdf(
   const body = resumeToHtml(data, app);
 
   // 离屏捕获容器：必须在文档中且可见（不能 display:none），html2canvas 才能读取布局。
-  // 宽度按纸张宽度设置；导出时取消 .re-paper 的 max-width 限制，让简历内容占满整个 A4/Letter
-  // 页面，避免在页面中再套一层居中的“纸片”导致两侧出现双重白边。页面边距由 --r-page-padding
-  // （.re-paper 的 padding）控制，与打印预览/其他 PDF 阅读器保持一致。
+  // 宽度按纸张尺寸通过 CSS 类控制（.re-pdf-a4 / .re-pdf-letter）；导出时取消 .re-paper 的 max-width 限制
   const marginMm = 0;
-  const paperPx = paperSize === "Letter" ? 816 : 794; // 96dpi 下的页宽（px）
   const holder = document.createElement("div");
-  holder.className = "re-pdf-capture";
-  holder.setCssProps({
-    position: "fixed",
-    left: "-10000px",
-    top: "0",
-    width: `${paperPx}px`,
-    "z-index": "-1",
-    "background-color": "#fff",
-  });
+  holder.className = "re-pdf-capture" + (paperSize === "Letter" ? " re-pdf-letter" : " re-pdf-a4");
   const overrideCss = `
     @page { size: ${paperSize === "Letter" ? "letter" : "A4"}; margin: ${marginMm}mm; }
     .re-paper { max-width: none !important; width: 100% !important; margin-left: 0 !important; margin-right: 0 !important; }

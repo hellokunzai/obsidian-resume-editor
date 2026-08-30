@@ -311,6 +311,15 @@
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
+/* 头像编辑器预览：通过 data-ratio / data-radius 属性驱动尺寸与圆角（避免 JS setCssProps） */
+.re-avatar-preview[data-ratio="1:1"] { width: 90px; height: 90px; }
+.re-avatar-preview[data-ratio="4:5"] { width: 90px; height: 113px; }
+.re-avatar-preview[data-ratio="3:4"] { width: 90px; height: 120px; }
+.re-avatar-preview[data-radius="none"] { border-radius: 0; }
+.re-avatar-preview[data-radius="sm"] { border-radius: 6px; }
+.re-avatar-preview[data-radius="md"] { border-radius: 14px; }
+.re-avatar-preview[data-radius="lg"] { border-radius: 999px; }
+
 .re-avatar-field .re-avatar-preview:hover {
   border-color: var(--interactive-accent);
   box-shadow: 0 0 0 2px var(--background-modifier-border-focus, rgba(120, 120, 200, 0.15));
@@ -1559,6 +1568,20 @@
   transition: transform 0.1s ease;
 }
 
+/* 主题色通过 data-color 属性驱动，避免 JS setCssProps */
+.re-swatch[data-color="#7c5cff"] { background-color: #7c5cff; }
+.re-swatch[data-color="#2563eb"] { background-color: #2563eb; }
+.re-swatch[data-color="#0891b2"] { background-color: #0891b2; }
+.re-swatch[data-color="#059669"] { background-color: #059669; }
+.re-swatch[data-color="#65a30d"] { background-color: #65a30d; }
+.re-swatch[data-color="#ca8a04"] { background-color: #ca8a04; }
+.re-swatch[data-color="#ea580c"] { background-color: #ea580c; }
+.re-swatch[data-color="#dc2626"] { background-color: #dc2626; }
+.re-swatch[data-color="#db2777"] { background-color: #db2777; }
+.re-swatch[data-color="#9333ea"] { background-color: #9333ea; }
+.re-swatch[data-color="#0f766e"] { background-color: #0f766e; }
+.re-swatch[data-color="#475569"] { background-color: #475569; }
+
 .re-swatch:hover {
   transform: scale(1.15);
 }
@@ -1920,6 +1943,18 @@
   color: var(--text-faint);
   margin: 6px 2px 0;
 }
+
+/* PDF 导出离屏捕获容器：固定定位、离屏隐藏、白色背景 */
+.re-pdf-capture {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  z-index: -1;
+  background-color: #fff;
+}
+
+.re-pdf-capture.re-pdf-a4 { width: 794px; }
+.re-pdf-capture.re-pdf-letter { width: 816px; }
 
 /* =====================================================================
    移动端（.re-mobile 由 Platform.isMobile 在 onOpen 时加到 view 根节点）
