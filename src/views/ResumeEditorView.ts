@@ -1,7 +1,7 @@
 // 双栏表单视图：左结构化表单、右实时预览（createEl 构造，禁用 innerHTML）
 
 import {
-  ItemView,
+  FileView,
   WorkspaceLeaf,
   Notice,
   TFile,
@@ -130,8 +130,9 @@ const AVATAR_RADIUS_LABEL_KEYS: Record<string, string> = {
   lg: "avatar.radius.lg",
 };
 
-export class ResumeEditorView extends ItemView {
+export class ResumeEditorView extends FileView {
   plugin: ResumeEditorPlugin;
+  allowNoFile = true;
   private model: ResumeData = { ...DEFAULT_RESUME };
   private currentFile: TFile | null = null;
   private formBody!: HTMLElement;
@@ -176,22 +177,18 @@ export class ResumeEditorView extends ItemView {
     return "file-text";
   }
 
-  getState(): Record<string, unknown> {
-    return {
-      file: this.currentFile?.path,
-    };
+  canAcceptExtension(extension: string): boolean {
+    return extension === RESUME_EXT;
   }
 
-  async setState(state: Record<string, unknown>): Promise<void> {
-    if (state.file && typeof state.file === "string") {
-      const file = this.app.vault.getAbstractFileByPath(state.file);
-      if (file instanceof TFile) {
-        await this.loadFile(file);
-        return;
-      }
+  async onLoadFile(file: TFile): Promise<void> {
+    await this.loadFile(file);
+  }
+
+  async onUnloadFile(file: TFile): Promise<void> {
+    if (this.currentFile === file) {
+      this.currentFile = null;
     }
-    // 兜底：尝试从当前激活文件加载（兼容 Obsidian 不同调用路径）
-    await this.loadActive();
   }
 
   async onOpen(): Promise<void> {
@@ -263,10 +260,11 @@ export class ResumeEditorView extends ItemView {
     this.previewPaper = scroll.createDiv({ cls: "re-preview-holder" });
     this.previewStatus = scroll.createDiv({ cls: "re-preview-status" });
 
-    // 监听活动文件变化
-    this.registerEvent(
-      this.app.workspace.on("file-open", () => void this.loadActive())
-    );
+    // FileView 通过 onLoadFile 为每个视图单独加载文件；这里只在无文件时
+    //（例如「打开简历编辑器」命令创建的空视图）渲染默认空表单。
+    if (!this.file) {
+      void this.loadActive();
+    }
 
     // 移动端：监听窗口/方向变化，切到预览时重算 A4 缩放
     if (this.isMobile) {
@@ -278,8 +276,6 @@ export class ResumeEditorView extends ItemView {
     // 默认进入编辑页（移动端单栏 + 切换由 CSS .re-active 控制显隐）
     this.activePane = "form";
     this.setActivePane("form");
-
-    void this.loadActive();
   }
 
   async onClose(): Promise<void> {

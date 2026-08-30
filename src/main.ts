@@ -8,6 +8,7 @@ import {
   DEFAULT_RESUME,
   createResumeJson,
   RESUME_EXT,
+  isResumeExt,
   isResumeFrontmatter,
   readResume,
   writeResume,
@@ -33,8 +34,8 @@ export default class ResumeEditorPlugin extends Plugin {
 
     this.registerView(VIEW_TYPE_RESUME, (leaf) => new ResumeEditorView(leaf, this));
 
-    // 把 .resume 扩展名注册到简历编辑器视图：点击该文件 Obsidian 原生打开编辑器，
-    // 多标签 / 复用 / 聚焦全部由 Obsidian 框架管理，无需手动拦截 file-open。
+    // 把 .resume 扩展名注册到简历编辑器视图
+    // ResumeEditorView 继承 FileView，Obsidian 会像 .md/.canvas 一样原生复用同一文件的标签页
     this.registerExtensions([RESUME_EXT], VIEW_TYPE_RESUME);
 
     this.addCommand({
