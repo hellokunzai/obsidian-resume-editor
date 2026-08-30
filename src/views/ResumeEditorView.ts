@@ -1516,8 +1516,8 @@ export class ResumeEditorView extends FileView {
   }
 
   private formatSummaryTime(start: string, end: string, current: boolean): string {
-    if (current && start) return `${start} - 至今`;
-    if (current) return "至今";
+    if (current && start) return `${start} - ${t("field.current")}`;
+    if (current) return t("field.current");
     if (start && end) return `${start} - ${end}`;
     return start || end || "";
   }

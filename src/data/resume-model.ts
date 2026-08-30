@@ -8,6 +8,7 @@
 //   - 兼容旧版 .resume / .md 文件（work→experience、skills→skillContent、sections→menuSections 自动迁移）
 
 import { App, TFile } from "obsidian";
+import { t } from "../i18n";
 
 export type TemplateId =
   | "single"
@@ -818,9 +819,9 @@ export function visibleEntries(entries: ResumeEntry[]): ResumeEntry[] {
 /** 组合 startTime/endTime/current 为展示时间，回退旧 time 字段 */
 export function formatEntryTime(e: ResumeEntry): string {
   if (e.startTime || e.endTime || e.current) {
-    const end = e.current ? "至今" : e.endTime;
+    const end = e.current ? t("field.current") : e.endTime;
     if (e.startTime && end) return `${e.startTime} - ${end}`;
-    if (e.startTime) return `${e.startTime} - 至今`;
+    if (e.startTime) return `${e.startTime} - ${t("field.current")}`;
     return end || "";
   }
   return e.time;

@@ -9,7 +9,7 @@ Form-driven resume editor for Obsidian. Edit structured fields on the left, see 
 - **Form-driven editing** — no custom Markdown syntax to learn. Fill in name, contact, education, work, projects, skills and more; the editor builds the resume for you.
 - **Live preview** — updates instantly as you type.
 - **12 templates** — Single column, Two columns, Academic, Classic, Timeline, Swiss, Modern, Minimalist, Left & right, Elegant, Creative, Editorial, all styled with A4-friendly typography.
-- **Multi-format export** — PDF (via `html2pdf.js`), HTML, DOCX (`docx` library) and LaTeX, all generated fully on-device.
+- **Multi-format export** — PDF (via `html2pdf.js`), HTML, DOCX (custom zero-dependency OOXML generator) and LaTeX, all generated fully on-device.
 - **Native `.resume` file format** — each resume is a structured JSON file that Obsidian opens directly in the editor. Legacy `.md` resumes (with the `resume` frontmatter marker or config block) are still recognized and migrated automatically.
 - **Per-resume style** — theme color (12-swatch palette), base font size, line height, section spacing, page padding, paragraph spacing, font family and a multi-page A4 boundary-line toggle. Stored inside each resume, so every file keeps its own look.
 - **Flexible sections** — basic info, education, work experience, projects, skills, self-evaluation, certificates and custom modules; reorder, collapse and toggle visibility per section.
@@ -70,7 +70,9 @@ Settings are stored in the note's config block, so each resume keeps its own app
 
 ## Data & privacy
 
-The plugin runs **fully offline**. It makes **no outbound network requests** — there is no AI/cloud feature, and your resume data never leaves your device. All files are stored in your vault and exported locally.
+The plugin runs **offline by default**. It makes **no outbound network requests** for editing, live preview, PDF/HTML/LaTeX export, or storage — there is no AI/cloud feature, and your resume data never leaves your device. All files are stored in your vault and exported locally.
+
+The one exception: when a **DOCX export** embeds an image hosted at an `https://` URL, the plugin fetches that image via Obsidian's `requestUrl` to embed it into the `.docx` file. No other data is sent anywhere, and the request only targets the exact image URL you referenced.
 
 ## Platform
 
@@ -79,7 +81,7 @@ The plugin runs **fully offline**. It makes **no outbound network requests** —
 All export formats are pure-frontend and use Obsidian's `vault.adapter` APIs — no Electron, `fs`, `path`, `os`, or `child_process`:
 
 - **PDF** — `html2pdf.js` (`html2canvas` + `jsPDF`), written with `app.vault.adapter.writeBinary`.
-- **DOCX** — `docx` library, written with `app.vault.adapter.writeBinary`.
+- **DOCX** — custom zero-dependency OOXML generator, written with `app.vault.adapter.writeBinary`.
 - **HTML / LaTeX** — written with `app.vault.adapter.write`.
 
 Mobile UI differences (compared to desktop):

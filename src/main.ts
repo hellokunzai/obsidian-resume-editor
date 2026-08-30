@@ -39,7 +39,7 @@ export default class ResumeEditorPlugin extends Plugin {
     this.registerExtensions([RESUME_EXT], VIEW_TYPE_RESUME);
 
     this.addCommand({
-      id: "open-resume-editor",
+      id: "open-editor",
       name: t("command.openEditor"),
       callback: () => {
         void this.activateView();
