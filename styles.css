@@ -829,6 +829,14 @@
   background: var(--background-secondary);
 }
 
+/* 移动端 A4 预览缩放：动态值由 setCssProps 注入 CSS 变量 */
+.re-preview-scaled {
+  width: var(--re-pw, 794px);
+  transform-origin: top left;
+  transform: scale(var(--re-scale, 1));
+  margin-bottom: var(--re-mb, 0);
+}
+
 .re-paper {
   background: var(--background-primary);
   border: 1px solid var(--background-modifier-border);

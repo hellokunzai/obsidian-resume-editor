@@ -1884,28 +1884,11 @@ export class ResumeEditorView extends FileView {
   /** 移动端预览：A4 纸张固定 794px，按可用宽度等比缩放，并补偿缩放后的空白高度 */
 
   /**
-   * 通过注入/更新 &lt;style&gt; 元素来设置动态样式。
+   * 移动端按比例缩放 A4 预览纸张。
    *
-   * 社区审核规则 obsidianmd/no-static-styles-assignment 禁止：
-   *   - element.style.xxx = ...
-   *   - element.setAttribute('style', ...)
-   *   - element.setCssProps(...) / setCssStyles(...)
-   *   - 对该规则的 eslint-disable（不允许禁用）
-   *
-   * 本方法绕过所有限制：动态值写入 &lt;style&gt; 元素的 textContent（合法 CSS 类规则），
-   * 目标元素仅切换 className，不触碰任何内联样式 API。
+   * 合规做法：动态值通过 setCssProps 写入 CSS 变量（Obsidian 官方推荐），
+   * 静态规则写在 styles.css 的 .re-preview-scaled 中，不创建 <style> 元素。
    */
-  private applyDynamicStyle(className: string, cssText: string): void {
-    const styleId = `re-dyn-${className}`;
-    let styleEl = document.getElementById(styleId) as HTMLStyleElement | null;
-    if (!styleEl) {
-      styleEl = document.createElement("style");
-      styleEl.id = styleId;
-      document.head.appendChild(styleEl);
-    }
-    styleEl.textContent = `.${className} { ${cssText} }`;
-  }
-
   private applyPreviewFit(): void {
     if (!this.isMobile) return;
     const holder = this.previewPaper;
@@ -1914,15 +1897,18 @@ export class ResumeEditorView extends FileView {
     const avail = scroll.clientWidth - 28; // 减去 .re-preview-scroll 左右内边距
     const PAPER_W = 794;
     const s = Math.max(0.2, Math.min(1, avail / PAPER_W));
-    // 通过 <style> 注入动态 CSS 类规则（避免 setCssProps 被社区审核标记）
     holder.addClass("re-preview-scaled");
-    this.applyDynamicStyle("re-preview-scaled",
-      `width:${avail}px;transform-origin:top left;transform:scale(${s})`);
+    holder.setCssProps({
+      "--re-pw": `${avail}px`,
+      "--re-scale": String(s),
+    });
     const paper = holder.querySelector(".re-paper") as HTMLElement | null;
     if (paper) {
       requestAnimationFrame(() => {
-        this.applyDynamicStyle("re-preview-scaled-margin",
-          `margin-bottom:-${paper.offsetHeight * (1 - s)}px`);
+        // 缩放后折叠原高度，避免下方留白
+        holder.setCssProps({
+          "--re-mb": `-${Math.round(paper.offsetHeight * (1 - s))}px`,
+        });
       });
     }
   }
