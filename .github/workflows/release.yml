@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "*"
+
+# 创建 Release 需要写入仓库内容的权限
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build
+        run: npm run build
+
+      # 构建产物缺失则提前失败，避免发布残缺的 Release
+      - name: Verify artifacts
+        run: |
+          test -f main.js || (echo "main.js missing" && exit 1)
+          test -f manifest.json || (echo "manifest.json missing" && exit 1)
+          test -f styles.css || (echo "styles.css missing" && exit 1)
+
+      - name: Create GitHub Release
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --title "${{ github.ref_name }}" \
+            main.js manifest.json styles.css
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
