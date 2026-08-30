@@ -2154,4 +2154,101 @@
   gap: 4px;
 }
 
+/* =====================================================================
+   移动端多行文本框放大编辑层（方案 A）
+   说明：该 overlay 由 JS 仅在不含 .re-mobile 的 document.body 下创建，
+   因此此处用全局选择器，桌面端因元素不存在而无任何副作用。
+   ===================================================================== */
+
+.re-textarea-zoom-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--layer-modal, 1000);
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  animation: re-zoom-fade 0.15s ease;
+}
+
+@keyframes re-zoom-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.re-textarea-zoom-panel {
+  background: var(--background-primary, #fff);
+  border-top-left-radius: 14px;
+  border-top-right-radius: 14px;
+  height: 88%;
+  max-height: calc(100% - 12px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.re-textarea-zoom-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--background-modifier-border, #ddd);
+  flex: 0 0 auto;
+}
+
+.re-textarea-zoom-title {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text-normal);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.re-textarea-zoom-done {
+  flex: 0 0 auto;
+  margin-left: 12px;
+}
+
+/* 滚动容器：由 div 负责滚动，比让 <textarea> 直接在 flex 列中滚动更可靠 */
+.re-textarea-zoom-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  position: relative;
+}
+
+.re-textarea-zoom-area {
+  display: block;
+  width: 100%;
+  min-height: 100%;
+  border: none;
+  border-radius: 0;
+  resize: none;
+  padding: 14px;
+  font-size: 16px;
+  line-height: 1.6;
+  background: var(--background-primary, #fff);
+  color: var(--text-normal);
+  font-family: var(--font-text, inherit);
+  box-sizing: border-box;
+}
+
+.re-textarea-zoom-area:focus {
+  outline: none;
+}
+
+/* 滚动容器底部空白占位：确保文字不满一页时也能滚动，
+   并且光标所在行可上移到键盘上方，留出约三行空白间距。
+   用独立 div 而不是 textarea padding，避免 min-height:100% 吃掉空白。 */
+.re-textarea-zoom-spacer {
+  flex: 0 0 auto;
+  height: 4.8em; /* 3 × line-height 1.6em */
+}
+
 

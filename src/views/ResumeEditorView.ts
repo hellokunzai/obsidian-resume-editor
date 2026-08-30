@@ -155,6 +155,11 @@ export class ResumeEditorView extends ItemView {
   private paneToggleBtn: HTMLElement | null = null;
   private paneToggleIcon: HTMLElement | null = null;
   private paneToggleLabel: HTMLElement | null = null;
+  // 移动端多行文本框放大编辑层（方案 A）
+  private textareaZoomOverlay: HTMLElement | null = null;
+  private textareaZoomKeyHandler: ((e: KeyboardEvent) => void) | null = null;
+  private textareaZoomVVHandler: (() => void) | null = null;
+  private textareaZoomOriginal: HTMLTextAreaElement | null = null;
 
   constructor(leaf: WorkspaceLeaf, plugin: ResumeEditorPlugin) {
     super(leaf);
@@ -292,6 +297,7 @@ export class ResumeEditorView extends ItemView {
 
   async onClose(): Promise<void> {
     if (this.saveTimer !== null) window.clearTimeout(this.saveTimer);
+    this.closeTextareaZoom();
   }
 
   private async loadFile(file: TFile): Promise<void> {
@@ -594,6 +600,7 @@ export class ResumeEditorView extends ItemView {
           sec.content = ta.value;
           this.syncFromForm();
         });
+        this.attachTextareaZoom(ta, sec.title || t("field.details"));
         break;
     }
   }
@@ -1078,6 +1085,7 @@ export class ResumeEditorView extends ItemView {
         this.renderPreview();
         this.scheduleSave();
       });
+      this.attachTextareaZoom(ta, t(labelKey));
     } else {
       const inp = wrap.createEl("input", {
         cls: "re-input",
@@ -1651,6 +1659,7 @@ export class ResumeEditorView extends ItemView {
         attr: { "data-key": key },
       });
       ta.value = value;
+      this.attachTextareaZoom(ta, t(labelKey));
     } else {
       const inp = wrap.createEl("input", {
         cls: "re-input",
@@ -2133,6 +2142,100 @@ export class ResumeEditorView extends ItemView {
       e.stopPropagation();
       onMove(1);
     });
+  }
+
+  // 移动端：点击多行文本框 → 弹出放大编辑层（方案 A）
+  private attachTextareaZoom(ta: HTMLTextAreaElement, title: string): void {
+    if (!this.isMobile) return;
+    ta.addEventListener("click", () => {
+      if (this.textareaZoomOverlay) return;
+      this.openTextareaZoom(ta, title);
+    });
+  }
+
+  private openTextareaZoom(original: HTMLTextAreaElement, title: string): void {
+    if (this.textareaZoomOverlay) return;
+    const overlay = document.body.createDiv({ cls: "re-textarea-zoom-overlay" });
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) this.closeTextareaZoom();
+    });
+
+    const panel = overlay.createDiv({ cls: "re-textarea-zoom-panel" });
+    const header = panel.createDiv({ cls: "re-textarea-zoom-header" });
+    header.createSpan({ cls: "re-textarea-zoom-title", text: title });
+    const doneBtn = header.createEl("button", {
+      cls: "re-btn re-textarea-zoom-done",
+      text: t("textarea.done"),
+      attr: { type: "button" },
+    });
+    doneBtn.addEventListener("click", () => this.closeTextareaZoom());
+
+    // 用 div 作为滚动容器，textarea 只负责输入；比直接让 <textarea> 在 flex 里滚动更可靠
+    const scrollWrap = panel.createDiv({ cls: "re-textarea-zoom-scroll" });
+    const zoomTa = scrollWrap.createEl("textarea", { cls: "re-textarea-zoom-area" });
+    zoomTa.value = original.value;
+    // 在 textarea 下方插入固定高度的空白占位，确保即使文字不满一页也能滚动，
+    // 并且编辑到末尾时文字与键盘之间始终有约三行空白间距。
+    scrollWrap.createDiv({ cls: "re-textarea-zoom-spacer" });
+    zoomTa.addEventListener("input", () => {
+      original.value = zoomTa.value;
+      this.syncFromForm();
+    });
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") this.closeTextareaZoom();
+    };
+    document.addEventListener("keydown", onKey);
+
+    this.textareaZoomOverlay = overlay;
+    this.textareaZoomKeyHandler = onKey;
+    this.textareaZoomOriginal = original;
+    original.blur();
+    zoomTa.focus();
+    const len = zoomTa.value.length;
+    zoomTa.setSelectionRange(len, len);
+
+    // 键盘弹出后可视区域（visualViewport）会缩小，浮层需贴合可视区域，
+    // 否则仍按整屏布局视口定位、被键盘遮挡一半，可见区过小且无滚动。
+    const applyVV = () => {
+      const vv = window.visualViewport;
+      const ov = this.textareaZoomOverlay;
+      if (!vv || !ov) return;
+      ov.style.top = `${vv.offsetTop}px`;
+      ov.style.left = `${vv.offsetLeft}px`;
+      ov.style.width = `${vv.width}px`;
+      ov.style.height = `${vv.height}px`;
+      ov.style.right = "auto";
+      ov.style.bottom = "auto";
+    };
+    applyVV();
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", applyVV);
+      window.visualViewport.addEventListener("scroll", applyVV);
+    }
+    this.textareaZoomVVHandler = applyVV;
+  }
+
+  private closeTextareaZoom(): void {
+    const overlay = this.textareaZoomOverlay;
+    if (!overlay) return;
+    const zoomTa = overlay.querySelector(".re-textarea-zoom-area") as HTMLTextAreaElement | null;
+    if (zoomTa && this.textareaZoomOriginal) {
+      this.textareaZoomOriginal.value = zoomTa.value;
+      this.syncFromForm();
+    }
+    if (this.textareaZoomKeyHandler) {
+      document.removeEventListener("keydown", this.textareaZoomKeyHandler);
+    }
+    if (this.textareaZoomVVHandler && window.visualViewport) {
+      window.visualViewport.removeEventListener("resize", this.textareaZoomVVHandler);
+      window.visualViewport.removeEventListener("scroll", this.textareaZoomVVHandler);
+    }
+    overlay.remove();
+    this.textareaZoomOverlay = null;
+    this.textareaZoomKeyHandler = null;
+    this.textareaZoomVVHandler = null;
+    this.textareaZoomOriginal = null;
   }
 
   private scheduleSave(): void {

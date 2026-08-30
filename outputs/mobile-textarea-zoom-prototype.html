@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Resume Editor · 多行文本框点击放大编辑原型</title>
+<style>
+:root{
+  --background-primary:#ffffff;
+  --background-secondary:#f6f6f7;
+  --background-secondary-alt:#eeeef0;
+  --background-modifier-border:#e2e2e5;
+  --background-modifier-hover:#f0f0f2;
+  --text-normal:#1f2328;
+  --text-muted:#6b7280;
+  --text-faint:#9aa0a6;
+  --interactive-accent:#7c5cff;
+  --text-on-accent:#ffffff;
+  --radius:8px;
+  --button-radius:6px;
+  --font-ui-medium:15px;
+  --font-ui-small:13px;
+  --font-ui-smaller:12px;
+  --mark:#e8503a;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;padding:0;background:#f2f3f5;color:var(--text-normal);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  font-size:14px;line-height:1.6;
+}
+.wrap{max-width:480px;margin:0 auto;min-height:100%;background:var(--background-primary);position:relative;overflow:hidden}
+
+/* 顶部说明（仅原型展示用） */
+.proto-note{
+  background:#f2effe;border-bottom:1px solid #ddd4ff;padding:10px 14px;
+  font-size:12px;color:#4c34c4;line-height:1.55;
+}
+.proto-note b{color:#2d1a8a}
+
+/* 模拟 Obsidian 移动视图 */
+.re-mobile-root{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+.re-header{
+  display:flex;align-items:center;gap:8px;padding:8px 12px;
+  border-bottom:1px solid var(--background-modifier-border);flex:0 0 auto;
+}
+.re-title{font-weight:600;font-size:var(--font-ui-medium);margin-right:auto;white-space:nowrap}
+.re-pane-toggle{
+  display:inline-flex;align-items:center;gap:5px;
+  border:0;background:var(--interactive-accent);color:var(--text-on-accent);
+  padding:5px 10px;border-radius:var(--button-radius);font-size:var(--font-ui-smaller);cursor:pointer;
+}
+.re-form{flex:1 1 auto;overflow:auto;padding:12px;background:#fafafb}
+
+/* 模块 */
+.re-module{background:#fff;border:1px solid var(--background-modifier-border);border-radius:var(--radius);margin-bottom:10px;overflow:hidden}
+.re-module-bar{
+  display:flex;align-items:center;gap:8px;padding:10px 12px;
+  background:var(--background-secondary);border-bottom:1px solid var(--background-modifier-border);
+}
+.re-module-name{font-weight:650;font-size:var(--font-ui-medium);margin-right:auto}
+.re-icon-btn{
+  width:26px;height:26px;border:0;background:transparent;border-radius:var(--button-radius);
+  display:inline-flex;align-items:center;justify-content:center;color:var(--text-muted);cursor:pointer;
+}
+.re-icon-btn svg{width:14px;height:14px}
+.re-module-body{padding:12px}
+
+/* 字段 */
+.re-field{margin-bottom:10px}
+.re-field span{display:block;font-size:var(--font-ui-small);color:var(--text-muted);margin-bottom:4px}
+.re-textarea{
+  width:100%;min-height:52px;resize:vertical;
+  border:1px solid var(--background-modifier-border);border-radius:0;
+  padding:8px;font-size:var(--font-ui-small);line-height:1.5;
+  background:var(--background-primary);color:var(--text-normal);font-family:inherit;
+}
+
+/* 放大编辑层 */
+.re-text-zoom-overlay{
+  position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.35);
+  display:flex;flex-direction:column;justify-content:flex-end;
+  opacity:0;pointer-events:none;transition:opacity .2s ease;
+}
+.re-text-zoom-overlay.active{opacity:1;pointer-events:auto}
+.re-text-zoom-sheet{
+  background:var(--background-primary);
+  border-radius:16px 16px 0 0;
+  box-shadow:0 -4px 24px rgba(0,0,0,.12);
+  display:flex;flex-direction:column;
+  height:88vh;max-height:700px;
+  transform:translateY(100%);transition:transform .25s cubic-bezier(.2,.8,.2,1);
+}
+.re-text-zoom-overlay.active .re-text-zoom-sheet{transform:translateY(0)}
+.re-text-zoom-head{
+  display:flex;align-items:center;gap:10px;padding:12px 14px;
+  border-bottom:1px solid var(--background-modifier-border);flex:0 0 auto;
+}
+.re-text-zoom-title{font-weight:650;font-size:var(--font-ui-medium);margin-right:auto}
+.re-text-zoom-done{
+  border:0;background:var(--interactive-accent);color:var(--text-on-accent);
+  padding:6px 14px;border-radius:var(--button-radius);font-size:var(--font-ui-small);cursor:pointer;
+}
+.re-text-zoom-body{flex:1 1 auto;padding:12px 14px;display:flex;flex-direction:column;overflow:hidden}
+.re-text-zoom-ta{
+  flex:1 1 auto;width:100%;resize:none;border:1px solid var(--background-modifier-border);
+  border-radius:var(--button-radius);padding:10px 12px;font-size:var(--font-ui-medium);
+  line-height:1.6;background:var(--background-primary);color:var(--text-normal);font-family:inherit;
+  outline:none;
+}
+.re-text-zoom-ta:focus{border-color:var(--interactive-accent);box-shadow:0 0 0 2px rgba(124,92,255,.12)}
+.re-text-zoom-hint{
+  flex:0 0 auto;margin-top:8px;font-size:var(--font-ui-smaller);color:var(--text-faint);
+}
+
+/* 方案 B：内联展开（对比用，默认隐藏，可通过按钮切换） */
+.re-textarea.inline-expanded{min-height:180px}
+
+/* 方案切换器 */
+.scheme-tabs{
+  display:flex;gap:6px;padding:8px 14px;background:#fff;border-bottom:1px solid var(--background-modifier-border);
+}
+.scheme-tab{
+  flex:1;border:1px solid var(--background-modifier-border);background:#fff;
+  border-radius:var(--button-radius);padding:6px 8px;font-size:12px;cursor:pointer;
+  color:var(--text-muted);
+}
+.scheme-tab.active{background:var(--interactive-accent);border-color:var(--interactive-accent);color:#fff}
+
+/* 桌面预览提示 */
+.desktop-hint{display:none}
+@media(min-width:769px){
+  .wrap{border-left:1px solid var(--background-modifier-border);border-right:1px solid var(--background-modifier-border)}
+  .desktop-hint{display:block;position:fixed;top:10px;right:14px;background:#fff;border:1px solid var(--background-modifier-border);padding:6px 10px;border-radius:8px;font-size:12px;color:var(--text-muted);box-shadow:0 2px 8px rgba(0,0,0,.06)}
+}
+</style>
+</head>
+<body>
+<div class="desktop-hint">在浏览器中按 F12 → 切换手机视图体验真实尺寸</div>
+
+<div class="wrap" id="app">
+  <div class="proto-note">
+    <b>原型说明</b>：点击下方「专业技能」文本框，会弹出一个占屏 88% 的底部放大编辑层。<br>
+    共两套方案可切换：<b>方案 A · 弹出放大层（推荐）</b> / 方案 B · 内联展开。点「完成」关闭并回写内容。
+  </div>
+
+  <div class="scheme-tabs">
+    <button class="scheme-tab active" data-scheme="modal">方案 A · 弹出放大层</button>
+    <button class="scheme-tab" data-scheme="inline">方案 B · 内联展开</button>
+  </div>
+
+  <div class="re-mobile-root">
+    <div class="re-header">
+      <button class="re-pane-toggle">👁 预览</button>
+      <span class="re-title">简历编辑器</span>
+    </div>
+
+    <div class="re-form">
+      <div class="re-module">
+        <div class="re-module-bar">
+          <span class="re-module-name">专业技能</span>
+          <button class="re-icon-btn" title="上移">↑</button>
+          <button class="re-icon-btn" title="下移">↓</button>
+          <button class="re-icon-btn" title="隐藏">👁</button>
+          <button class="re-icon-btn" title="删除">🗑</button>
+        </div>
+        <div class="re-module-body">
+          <div class="re-field">
+            <span>专业技能（每行一条）</span>
+            <textarea class="re-textarea" id="smallTa" rows="2" placeholder="前端框架：熟悉 React、Vue.js，熟悉 Next.js、Nuxt.js 等 SSR 框架">前端框架：熟悉 React、Vue.js，熟悉 Next.js、Nuxt.js 等 SSR 框架
+开发语言：TypeScript、JavaScript(ES6+)</textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="re-module">
+        <div class="re-module-bar">
+          <span class="re-module-name">自我评价</span>
+          <button class="re-icon-btn" title="上移">↑</button>
+          <button class="re-icon-btn" title="下移">↓</button>
+          <button class="re-icon-btn" title="隐藏">👁</button>
+        </div>
+        <div class="re-module-body">
+          <div class="re-field">
+            <span>自我评价</span>
+            <textarea class="re-textarea" rows="2" placeholder="简要描述你的核心优势...">5 年 Java 开发经验，具备扎实的 AI 落地经验...</textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 方案 A：弹出放大层 -->
+<div class="re-text-zoom-overlay" id="zoomOverlay">
+  <div class="re-text-zoom-sheet">
+    <div class="re-text-zoom-head">
+      <span class="re-text-zoom-title">编辑专业技能</span>
+      <button class="re-text-zoom-done" id="doneBtn">完成</button>
+    </div>
+    <div class="re-text-zoom-body">
+      <textarea class="re-text-zoom-ta" id="zoomTa" placeholder="前端框架：熟悉 React、Vue.js，熟悉 Next.js、Nuxt.js 等 SSR 框架"></textarea>
+      <div class="re-text-zoom-hint">点击「完成」保存并返回；内容会实时同步到简历预览。</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const smallTa = document.getElementById('smallTa');
+const zoomOverlay = document.getElementById('zoomOverlay');
+const zoomTa = document.getElementById('zoomTa');
+const doneBtn = document.getElementById('doneBtn');
+let currentScheme = 'modal';
+
+// 方案切换
+const tabs = document.querySelectorAll('.scheme-tab');
+tabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    tabs.forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentScheme = tab.dataset.scheme;
+    if (currentScheme === 'inline') {
+      document.querySelectorAll('.re-textarea').forEach(ta => ta.classList.add('inline-expanded'));
+    } else {
+      document.querySelectorAll('.re-textarea').forEach(ta => ta.classList.remove('inline-expanded'));
+    }
+  });
+});
+
+// 方案 A：点击小文本框打开放大层
+function openZoom(ta, title) {
+  if (currentScheme !== 'modal') return;
+  zoomTa.value = ta.value;
+  document.querySelector('.re-text-zoom-title').textContent = '编辑' + title;
+  zoomOverlay.classList.add('active');
+  // 模拟移动端键盘弹起后聚焦
+  setTimeout(() => zoomTa.focus(), 220);
+}
+
+function closeZoom() {
+  zoomOverlay.classList.remove('active');
+  smallTa.value = zoomTa.value;
+}
+
+smallTa.addEventListener('focus', () => openZoom(smallTa, '专业技能'));
+doneBtn.addEventListener('click', closeZoom);
+
+// 点击遮罩关闭
+zoomOverlay.addEventListener('click', (e) => {
+  if (e.target === zoomOverlay) closeZoom();
+});
+
+// ESC 关闭
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && zoomOverlay.classList.contains('active')) closeZoom();
+});
+</script>
+</body>
+</html>
