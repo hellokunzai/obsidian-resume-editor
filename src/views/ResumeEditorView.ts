@@ -363,7 +363,8 @@ export class ResumeEditorView extends ItemView {
   private buildStylePanel(parent: HTMLElement): void {
     const gs = this.model.globalSettings;
 
-    const det = parent.createEl("details", { cls: "re-sect re-style-panel" });
+    // 默认展开全局样式模块；其他模块（基本信息/教育经历/工作经历/项目经历/专业技能）保持折叠
+    const det = parent.createEl("details", { cls: "re-sect re-style-panel", attr: { open: "" } });
     det.createEl("summary", { text: t("style.heading") });
     const body = det.createDiv({ cls: "re-sect-body" });
 

@@ -249,7 +249,7 @@ export const SECTION_TITLE_KEY: Record<Exclude<SectionType, "custom">, string> =
 };
 
 export const DEFAULT_MENU_SECTIONS: MenuSection[] = [
-  { id: "basic", type: "basic", visible: true, collapsed: false, title: "", content: "" },
+  { id: "basic", type: "basic", visible: true, collapsed: true, title: "", content: "" },
   { id: "education", type: "education", visible: true, collapsed: true, title: "", content: "" },
   { id: "experience", type: "experience", visible: true, collapsed: true, title: "", content: "" },
   { id: "projects", type: "projects", visible: true, collapsed: true, title: "", content: "" },
@@ -506,7 +506,7 @@ function migrateMagicResumeShape(raw: Record<string, unknown>): Record<string, u
           id,
           type,
           visible: typeof s.enabled === "boolean" ? s.enabled : true,
-          collapsed: id === "basic" ? false : true,
+          collapsed: id === "basic" ? true : true,
           title: type === "custom" ? (typeof s.title === "string" ? s.title : "") : "",
           content: "",
         };
@@ -753,7 +753,7 @@ export function parseResume(
       dedup.push(s);
     }
     if (!dedup.some((s) => s.type === "basic")) {
-      dedup.unshift({ id: "basic", type: "basic", visible: true, collapsed: false, title: "", content: "" });
+      dedup.unshift({ id: "basic", type: "basic", visible: true, collapsed: true, title: "", content: "" });
     }
     menuSections = dedup;
   } else {
