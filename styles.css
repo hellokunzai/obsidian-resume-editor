@@ -2070,14 +2070,20 @@
 
 .re-mobile .re-btn {
   padding: 4px 8px;
+  /* 灰底圆角矩形，与参考图一工具栏统一风格 */
+  border-radius: 4px;
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
 }
 
 .re-mobile .re-tpl-select {
   min-width: 96px;
   max-width: 140px;
+  border-radius: 4px;
 }
 
-/* 单按钮切换：始终显示，排在最前 */
+/* 单按钮切换：始终显示，排在最前。统一为灰底圆角矩形，不再用蓝色强调 */
 .re-mobile .re-pane-toggle {
   display: inline-flex;
   align-items: center;
@@ -2085,10 +2091,10 @@
   order: -1;
   margin-right: 2px;
   padding: 4px 10px;
-  border: 1px solid var(--interactive-accent);
-  border-radius: var(--button-radius, 6px);
-  background: var(--interactive-accent);
-  color: var(--text-on-accent);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-secondary);
+  color: var(--text-normal);
   font-size: var(--font-ui-small, 13px);
   cursor: pointer;
 }

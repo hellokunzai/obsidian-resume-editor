@@ -256,7 +256,7 @@ export class ResumeEditorView extends ItemView {
     btnCheck.addEventListener("click", () => void this.runAiCheck());
 
     const btnSave = header.createEl("button", {
-      cls: "re-btn re-primary",
+      cls: "re-btn",
       attr: { "aria-label": t("btn.save") },
     });
     const saveIcon = btnSave.createSpan({ cls: "re-btn-icon-mobile" });
