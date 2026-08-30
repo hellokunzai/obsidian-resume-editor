@@ -246,14 +246,18 @@ export class ResumeEditorView extends ItemView {
     setIcon(exportBtn, "re-download");
     exportBtn.addEventListener("click", () => this.openExportMenu(exportBtn, exportWrap));
 
-    const btnCheck = header.createEl("button", {
-      cls: "re-btn",
-      attr: { "aria-label": t("btn.aiCheck") },
-    });
-    const checkIcon = btnCheck.createSpan({ cls: "re-btn-icon-mobile" });
-    setIcon(checkIcon, "sparkles");
-    btnCheck.createSpan({ cls: "re-btn-label", text: t("btn.aiCheck") });
-    btnCheck.addEventListener("click", () => void this.runAiCheck());
+    // AI 体检按钮：仅在启用 AI 润色时显示
+    let btnCheck: HTMLButtonElement | null = null;
+    if (this.plugin.settings.aiEnabled) {
+      btnCheck = header.createEl("button", {
+        cls: "re-btn",
+        attr: { "aria-label": t("btn.aiCheck") },
+      });
+      const checkIcon = btnCheck.createSpan({ cls: "re-btn-icon-mobile" });
+      setIcon(checkIcon, "sparkles");
+      btnCheck.createSpan({ cls: "re-btn-label", text: t("btn.aiCheck") });
+      btnCheck.addEventListener("click", () => void this.runAiCheck());
+    }
 
     const btnSave = header.createEl("button", {
       cls: "re-btn",
