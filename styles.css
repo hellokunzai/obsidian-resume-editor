@@ -51,20 +51,6 @@
   display: inline-flex;
 }
 
-.re-export-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--size-4-1, 4px);
-}
-
-.re-export-btn svg,
-.re-export-btn .svg-icon {
-  width: 14px !important;
-  height: 14px !important;
-  min-width: 14px !important;
-  min-height: 14px !important;
-}
-
 .re-export-menu {
   position: absolute;
   top: calc(100% + 4px);
@@ -92,7 +78,7 @@
   color: var(--text-accent);
 }
 
-.re-btn {
+.re-btn.re-btn {
   font-size: var(--font-ui-small, 13px);
   padding: 4px 12px;
   border: 1px solid var(--background-modifier-border);
@@ -100,20 +86,23 @@
   cursor: pointer;
   background: var(--background-secondary);
   color: var(--text-normal);
+  height: auto;
+  min-height: 28px;
+  box-shadow: none;
 }
 
-.re-btn:hover {
+.re-btn.re-btn:hover {
   border-color: var(--interactive-accent);
   color: var(--interactive-accent);
 }
 
-.re-btn.re-primary {
+.re-btn.re-btn.re-primary {
   background: var(--interactive-accent);
   border-color: var(--interactive-accent);
   color: var(--text-on-accent);
 }
 
-.re-btn.re-primary:hover {
+.re-btn.re-btn.re-primary:hover {
   filter: brightness(1.05);
   color: var(--text-on-accent);
 }
@@ -513,7 +502,7 @@
 .re-entry-actions {
   display: flex;
   align-items: center;
-  gap: 1px;
+  gap: 4px;
   flex: none;
 }
 
@@ -571,11 +560,11 @@
   white-space: nowrap;
 }
 
-.re-entry-rm {
+.re-icon-btn.re-entry-rm {
   color: var(--text-faint);
 }
 
-.re-entry-rm:hover {
+.re-icon-btn.re-entry-rm:hover {
   color: var(--text-error, #d24b4b);
   background: var(--background-modifier-hover);
 }
@@ -611,7 +600,7 @@
   gap: var(--size-4-1, 4px);
 }
 
-.re-layout-btn {
+.re-layout-btn.re-layout-btn {
   flex: 1;
   display: flex;
   align-items: center;
@@ -622,9 +611,10 @@
   background: var(--background-secondary);
   cursor: pointer;
   padding: 0;
+  box-shadow: none;
 }
 
-.re-layout-btn.re-on {
+.re-layout-btn.re-layout-btn.re-on {
   border-color: var(--interactive-accent);
   background: var(--background-modifier-hover);
 }
@@ -697,7 +687,7 @@
   margin-bottom: 0;
 }
 
-.re-cf-icon-btn {
+.re-icon-btn.re-cf-icon-btn {
   width: 30px;
   height: 30px;
   border: 1px dashed var(--background-modifier-border);
@@ -708,14 +698,14 @@
   padding: 0;
 }
 
-.re-cf-icon-btn:hover {
+.re-icon-btn.re-cf-icon-btn:hover {
   border-color: var(--background-modifier-border-hover);
   color: var(--text-normal);
   background: var(--background-modifier-hover);
 }
 
-.re-cf-icon-btn svg,
-.re-cf-icon-btn .svg-icon {
+.re-icon-btn.re-cf-icon-btn svg,
+.re-icon-btn.re-cf-icon-btn .svg-icon {
   width: 16px !important;
   height: 16px !important;
   min-width: 16px !important;
@@ -739,7 +729,7 @@
   gap: 4px;
 }
 
-.re-icon-picker-item {
+.re-icon-picker-item.re-icon-picker-item {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -751,21 +741,22 @@
   border-radius: var(--button-radius, 6px);
   cursor: pointer;
   padding: 0;
+  box-shadow: none;
 }
 
-.re-icon-picker-item:hover {
+.re-icon-picker-item.re-icon-picker-item:hover {
   background: var(--background-modifier-hover);
   color: var(--text-normal);
 }
 
-.re-icon-picker-item.re-on {
+.re-icon-picker-item.re-icon-picker-item.re-on {
   border-color: var(--interactive-accent);
   color: var(--interactive-accent);
   background: var(--background-modifier-active-hover);
 }
 
-.re-icon-picker-item svg,
-.re-icon-picker-item .svg-icon {
+.re-icon-picker-item.re-icon-picker-item svg,
+.re-icon-picker-item.re-icon-picker-item .svg-icon {
   width: 15px !important;
   height: 15px !important;
   min-width: 15px !important;
@@ -798,20 +789,20 @@
   display: none;
 }
 
-.re-cf-toggle-btn {
+.re-icon-btn.re-cf-toggle-btn {
   color: var(--text-faint);
 }
 
-.re-cf-toggle-btn.re-on {
+.re-icon-btn.re-cf-toggle-btn.re-on {
   color: var(--interactive-accent);
   background: var(--background-modifier-active-hover);
 }
 
-.re-cf-rm {
+.re-icon-btn.re-cf-rm {
   color: var(--text-faint);
 }
 
-.re-cf-rm:hover {
+.re-icon-btn.re-cf-rm:hover {
   color: var(--text-error, #d24b4b);
   background: var(--background-modifier-hover);
 }
@@ -1244,40 +1235,42 @@
 .re-module-actions {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   flex: none;
 }
 
-.re-icon-btn {
+.re-icon-btn.re-icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   border: none;
   background: transparent;
   color: var(--text-muted);
   border-radius: var(--button-radius, 6px);
   cursor: pointer;
+  padding: 0;
+  box-shadow: none;
 }
 
-.re-icon-btn:hover {
+.re-icon-btn.re-icon-btn:hover {
   background: var(--background-modifier-hover);
   color: var(--text-normal);
 }
 
-.re-icon-btn.re-disabled {
+.re-icon-btn.re-icon-btn.re-disabled {
   opacity: 0.35;
   cursor: not-allowed;
   pointer-events: none;
 }
 
-.re-icon-btn svg,
-.re-icon-btn .svg-icon {
-  width: 15px !important;
-  height: 15px !important;
-  min-width: 15px !important;
-  min-height: 15px !important;
+.re-icon-btn.re-icon-btn svg,
+.re-icon-btn.re-icon-btn .svg-icon {
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px !important;
+  min-height: 16px !important;
 }
 
 .re-module-body {
@@ -1540,7 +1533,7 @@
   flex: 1;
 }
 
-.re-swatch {
+.re-swatch.re-swatch {
   width: 20px;
   height: 20px;
   border-radius: 50%;
@@ -1549,6 +1542,7 @@
   cursor: pointer;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
   transition: transform 0.1s ease;
+  background: transparent;
 }
 
 /* 主题色通过 data-color 属性驱动，避免 JS setCssProps */
@@ -1565,11 +1559,11 @@
 .re-swatch[data-color="#0f766e"] { background-color: #0f766e; }
 .re-swatch[data-color="#475569"] { background-color: #475569; }
 
-.re-swatch:hover {
+.re-swatch.re-swatch:hover {
   transform: scale(1.15);
 }
 
-.re-swatch.re-on {
+.re-swatch.re-swatch.re-on {
   box-shadow:
     inset 0 0 0 1px rgba(0, 0, 0, 0.12),
     0 0 0 2px var(--background-primary),
@@ -1990,13 +1984,16 @@
   display: none;
 }
 
-.re-mobile .re-btn {
+.re-mobile .re-btn.re-btn {
   padding: 4px 8px;
   /* 灰底圆角矩形，与参考图一工具栏统一风格 */
   border-radius: 4px;
   background: var(--background-secondary);
   color: var(--text-normal);
   border: 1px solid var(--background-modifier-border);
+  height: auto;
+  min-height: 28px;
+  box-shadow: none;
 }
 
 .re-mobile .re-tpl-select {
@@ -2006,7 +2003,7 @@
 }
 
 /* 单按钮切换：始终显示，排在最前。统一为灰底圆角矩形，不再用蓝色强调 */
-.re-mobile .re-pane-toggle {
+.re-mobile .re-pane-toggle.re-pane-toggle {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -2019,9 +2016,12 @@
   color: var(--text-normal);
   font-size: var(--font-ui-small, 13px);
   cursor: pointer;
+  height: auto;
+  min-height: 28px;
+  box-shadow: none;
 }
 
-.re-mobile .re-pane-toggle:hover {
+.re-mobile .re-pane-toggle.re-pane-toggle:hover {
   filter: brightness(1.05);
 }
 
@@ -2334,17 +2334,17 @@
     transform var(--re-dur) var(--re-ease);
 }
 
-.re-btn:hover {
+.re-btn.re-btn:hover {
   box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
 }
 
-.re-btn:active,
-.re-icon-btn:active,
-.re-layout-btn:active {
+.re-btn.re-btn:active,
+.re-icon-btn.re-icon-btn:active,
+.re-layout-btn.re-layout-btn:active {
   transform: translateY(1px);
 }
 
-.re-icon-btn:hover {
+.re-icon-btn.re-icon-btn:hover {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
@@ -2360,10 +2360,10 @@
 .re-textarea:focus-visible,
 .re-select:focus-visible,
 .re-tpl-select:focus-visible,
-.re-btn:focus-visible,
-.re-icon-btn:focus-visible,
-.re-swatch:focus-visible,
-.re-layout-btn:focus-visible {
+.re-btn.re-btn:focus-visible,
+.re-icon-btn.re-icon-btn:focus-visible,
+.re-swatch.re-swatch:focus-visible,
+.re-layout-btn.re-layout-btn:focus-visible {
   outline: 2px solid var(--interactive-accent);
   outline-offset: 1px;
 }

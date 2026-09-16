@@ -278,22 +278,20 @@ export class ResumeEditorView extends FileView {
     }
     tplSelect.addEventListener("change", () => this.switchTemplate(tplSelect.value as TemplateId));
 
-    // 导出下拉菜单
+    // 导出下拉菜单（Obsidian 风格：图标按钮 + aria-label tooltip）
     const exportWrap = header.createDiv({ cls: "re-export-wrap" });
     const exportBtn = exportWrap.createEl("button", {
-      cls: "re-btn re-export-btn",
+      cls: "re-icon-btn re-export-btn clickable-icon",
       attr: { type: "button", "aria-label": t("btn.export") },
     });
-    exportBtn.createSpan({ text: t("btn.export") });
     setIcon(exportBtn, "re-download");
     exportBtn.addEventListener("click", () => this.openExportMenu(exportBtn, exportWrap));
 
     const btnSave = header.createEl("button", {
-      cls: "re-btn",
-      attr: { "aria-label": t("btn.save") },
+      cls: "re-icon-btn re-save-btn clickable-icon",
+      attr: { type: "button", "aria-label": t("btn.save") },
     });
-    const saveIcon = btnSave.createSpan({ cls: "re-btn-icon-mobile" });
-    setIcon(saveIcon, "save");
+    setIcon(btnSave, "save");
     btnSave.addEventListener("click", () => this.saveNow());
 
     // 双栏
@@ -455,7 +453,7 @@ export class ResumeEditorView extends FileView {
     labelWrap.createEl("span", { cls: "re-style-label", text: t("style.showPageLines") });
     labelWrap.createSpan({ cls: "re-style-hint", text: t("style.showPageLines.desc") });
     const toggleBtn = toggleRow.createEl("button", {
-      cls: "re-icon-btn re-style-toggle-btn" + (gs.showPageLines ? " re-on" : ""),
+      cls: "re-icon-btn clickable-icon re-style-toggle-btn" + (gs.showPageLines ? " re-on" : ""),
       attr: { type: "button", "aria-label": t("style.showPageLines") },
     });
     setIcon(toggleBtn, gs.showPageLines ? "re-eye" : "re-eye-off");
@@ -544,28 +542,28 @@ export class ResumeEditorView extends FileView {
       this.scheduleSave();
     });
     const hideBtn = actions.createEl("button", {
-      cls: "re-icon-btn",
-      attr: { title: sec.visible ? t("module.hide") : t("module.show") },
+      cls: "re-icon-btn clickable-icon",
+      attr: { "aria-label": sec.visible ? t("module.hide") : t("module.show") },
     });
     setIcon(hideBtn, sec.visible ? "re-eye" : "re-eye-off");
     hideBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       sec.visible = !sec.visible;
-      hideBtn.setAttribute("title", sec.visible ? t("module.hide") : t("module.show"));
+      hideBtn.setAttribute("aria-label", sec.visible ? t("module.hide") : t("module.show"));
       setIcon(hideBtn, sec.visible ? "re-eye" : "re-eye-off");
       this.renderPreview();
       this.scheduleSave();
     });
 
     const delBtn = actions.createEl("button", {
-      cls: "re-icon-btn",
-      attr: { title: t("module.delete") },
+      cls: "re-icon-btn clickable-icon",
+      attr: { "aria-label": t("module.delete") },
     });
     setIcon(delBtn, "re-trash");
     if (sec.type === "basic") {
       delBtn.setAttribute("disabled", "true");
       delBtn.addClass("re-disabled");
-      delBtn.setAttribute("title", t("module.basicNoDelete"));
+      delBtn.setAttribute("aria-label", t("module.basicNoDelete"));
     } else {
       delBtn.addEventListener("click", (e) => {
         e.stopPropagation();
@@ -648,8 +646,8 @@ export class ResumeEditorView extends FileView {
     const layoutRow = layoutWrap.createDiv({ cls: "re-layout-row" });
     (["left", "top", "right"] as ResumeLayout[]).forEach((id) => {
       const btn = layoutRow.createEl("button", {
-        cls: "re-layout-btn" + (this.model.layout === id ? " re-on" : ""),
-        attr: { "data-layout": id, title: t("layout." + id) },
+        cls: "re-layout-btn clickable-icon" + (this.model.layout === id ? " re-on" : ""),
+        attr: { "data-layout": id, "aria-label": t("layout." + id) },
       });
       btn.createSpan({ cls: "re-layout-icon re-layout-" + id });
       btn.addEventListener("click", () => {
@@ -699,7 +697,7 @@ export class ResumeEditorView extends FileView {
 
     const handle = row.createEl("span", {
       cls: "re-basic-field-drag",
-      attr: { title: t("module.drag") },
+      attr: { "aria-label": t("module.drag") },
     });
     setIcon(handle, "re-grip-vertical");
 
@@ -732,23 +730,23 @@ export class ResumeEditorView extends FileView {
     });
 
     const hideBtn = actions.createEl("button", {
-      cls: "re-icon-btn",
-      attr: { title: f.visible ? t("module.hide") : t("module.show"), type: "button" },
+      cls: "re-icon-btn clickable-icon",
+      attr: { "aria-label": f.visible ? t("module.hide") : t("module.show"), type: "button" },
     });
     setIcon(hideBtn, f.visible ? "re-eye" : "re-eye-off");
     hideBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       f.visible = !f.visible;
       row.classList.toggle("re-hidden", !f.visible);
-      hideBtn.setAttribute("title", f.visible ? t("module.hide") : t("module.show"));
+      hideBtn.setAttribute("aria-label", f.visible ? t("module.hide") : t("module.show"));
       setIcon(hideBtn, f.visible ? "re-eye" : "re-eye-off");
       this.renderPreview();
       this.scheduleSave();
     });
 
     const delBtn = actions.createEl("button", {
-      cls: "re-icon-btn",
-      attr: { title: t("module.delete"), type: "button" },
+      cls: "re-icon-btn clickable-icon",
+      attr: { "aria-label": t("module.delete"), type: "button" },
     });
     setIcon(delBtn, "re-trash");
     delBtn.addEventListener("click", (e) => {
@@ -1152,22 +1150,22 @@ export class ResumeEditorView extends FileView {
     });
 
     const hideBtn = actions.createEl("button", {
-      cls: "re-icon-btn",
-      attr: { title: cert.visible === false ? t("module.show") : t("module.hide"), type: "button" },
+      cls: "re-icon-btn clickable-icon",
+      attr: { "aria-label": cert.visible === false ? t("module.show") : t("module.hide"), type: "button" },
     });
     setIcon(hideBtn, cert.visible === false ? "re-eye-off" : "re-eye");
     hideBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       cert.visible = cert.visible === false ? true : false;
       card.classList.toggle("re-hidden", cert.visible === false);
-      hideBtn.setAttribute("title", cert.visible === false ? t("module.show") : t("module.hide"));
+      hideBtn.setAttribute("aria-label", cert.visible === false ? t("module.show") : t("module.hide"));
       setIcon(hideBtn, cert.visible === false ? "re-eye-off" : "re-eye");
       this.renderPreview();
       this.scheduleSave();
     });
     const delBtn = actions.createEl("button", {
-      cls: "re-icon-btn",
-      attr: { title: t("module.delete"), type: "button" },
+      cls: "re-icon-btn clickable-icon",
+      attr: { "aria-label": t("module.delete"), type: "button" },
     });
     setIcon(delBtn, "re-trash");
     delBtn.addEventListener("click", (e) => {
@@ -1192,7 +1190,7 @@ export class ResumeEditorView extends FileView {
     const preview = card.createDiv({ cls: "re-avatar-preview" });
     preview.setAttribute("role", "button");
     preview.setAttribute("tabindex", "0");
-    preview.setAttribute("title", t("btn.chooseImage"));
+    preview.setAttribute("aria-label", t("btn.chooseImage"));
     preview.setAttribute("aria-label", t("btn.chooseImage"));
     const previewImg = preview.createEl("img", { cls: "re-avatar-preview-img", attr: { alt: "" } });
     preview.createDiv({ cls: "re-avatar-preview-hint", text: t("avatar.clickToSelect") });
@@ -1425,15 +1423,15 @@ export class ResumeEditorView extends FileView {
 
     // 显示/隐藏
     const hideBtn = actions.createEl("button", {
-      cls: "re-icon-btn",
-      attr: { type: "button", title: visible ? t("entry.hide") : t("entry.show") },
+      cls: "re-icon-btn clickable-icon",
+      attr: { type: "button", "aria-label": visible ? t("entry.hide") : t("entry.show") },
     });
     setIcon(hideBtn, visible ? "re-eye" : "re-eye-off");
     hideBtn.addEventListener("click", (ev) => {
       ev.stopPropagation();
       e.visible = !visible;
       card.classList.toggle("re-hidden", !e.visible);
-      hideBtn.setAttribute("title", e.visible ? t("entry.hide") : t("entry.show"));
+      hideBtn.setAttribute("aria-label", e.visible ? t("entry.hide") : t("entry.show"));
       setIcon(hideBtn, e.visible ? "re-eye" : "re-eye-off");
       this.renderPreview();
       this.scheduleSave();
@@ -1441,8 +1439,8 @@ export class ResumeEditorView extends FileView {
 
     // 删除
     const rm = actions.createEl("button", {
-      cls: "re-icon-btn re-entry-rm",
-      attr: { type: "button", title: t("module.delete") },
+      cls: "re-icon-btn clickable-icon re-entry-rm",
+      attr: { type: "button", "aria-label": t("module.delete") },
     });
     setIcon(rm, "re-trash");
     rm.addEventListener("click", (ev) => {
@@ -1665,8 +1663,8 @@ export class ResumeEditorView extends FileView {
 
     const iconKey = normalizeCustomFieldIcon(f.icon);
     const iconBtn = row.createEl("button", {
-      cls: "re-icon-btn re-cf-icon-btn",
-      attr: { type: "button", title: t("field.cfIcon"), "aria-label": t("field.cfIcon") },
+      cls: "re-icon-btn clickable-icon re-cf-icon-btn",
+      attr: { type: "button", "aria-label": t("field.cfIcon") },
     });
     setIcon(iconBtn, contactIconId(iconKey));
     const iconHidden = row.createEl("input", {
@@ -1702,8 +1700,8 @@ export class ResumeEditorView extends FileView {
     });
     showLabelCb.checked = f.showLabel;
     const showLabelBtn = showLabelWrap.createEl("button", {
-      cls: "re-icon-btn re-cf-toggle-btn" + (f.showLabel ? " re-on" : ""),
-      attr: { type: "button", title: t("field.cfShowLabel") },
+      cls: "re-icon-btn clickable-icon re-cf-toggle-btn" + (f.showLabel ? " re-on" : ""),
+      attr: { type: "button", "aria-label": t("field.cfShowLabel") },
     });
     setIcon(showLabelBtn, "re-tag");
     showLabelBtn.addEventListener("click", (e) => {
@@ -1720,8 +1718,8 @@ export class ResumeEditorView extends FileView {
     });
     visibleCb.checked = f.visible;
     const visibleBtn = visibleWrap.createEl("button", {
-      cls: "re-icon-btn re-cf-toggle-btn" + (f.visible ? " re-on" : ""),
-      attr: { type: "button", title: t("field.cfVisible") },
+      cls: "re-icon-btn clickable-icon re-cf-toggle-btn" + (f.visible ? " re-on" : ""),
+      attr: { type: "button", "aria-label": t("field.cfVisible") },
     });
     setIcon(visibleBtn, f.visible ? "re-eye" : "re-eye-off");
     visibleBtn.addEventListener("click", (e) => {
@@ -1734,8 +1732,8 @@ export class ResumeEditorView extends FileView {
 
     // 删除
     const rm = actions.createEl("button", {
-      cls: "re-icon-btn re-cf-rm",
-      attr: { type: "button", title: t("module.delete") },
+      cls: "re-icon-btn clickable-icon re-cf-rm",
+      attr: { type: "button", "aria-label": t("module.delete") },
     });
     setIcon(rm, "re-trash");
     rm.addEventListener("click", () => {
@@ -1760,8 +1758,8 @@ export class ResumeEditorView extends FileView {
     const grid = picker.createDiv({ cls: "re-icon-picker-grid" });
     for (const key of CUSTOM_FIELD_ICON_KEYS) {
       const item = grid.createEl("button", {
-        cls: "re-icon-picker-item" + (key === currentKey ? " re-on" : ""),
-        attr: { type: "button", title: key, "data-key": key },
+        cls: "re-icon-picker-item clickable-icon" + (key === currentKey ? " re-on" : ""),
+        attr: { type: "button", "aria-label": key, "data-key": key },
       });
       setIcon(item, contactIconId(key));
       item.addEventListener("click", (e) => {
@@ -1932,8 +1930,8 @@ export class ResumeEditorView extends FileView {
     onMove: (dir: -1 | 1) => void
   ): void {
     const up = parent.createEl("button", {
-      cls: "re-icon-btn re-move-btn",
-      attr: { type: "button", title: t("btn.moveUp"), "aria-label": t("btn.moveUp") },
+      cls: "re-icon-btn clickable-icon re-move-btn",
+      attr: { type: "button", "aria-label": t("btn.moveUp") },
     });
     setIcon(up, "arrow-up");
     if (index <= 0) {
@@ -1946,8 +1944,8 @@ export class ResumeEditorView extends FileView {
     });
 
     const down = parent.createEl("button", {
-      cls: "re-icon-btn re-move-btn",
-      attr: { type: "button", title: t("btn.moveDown"), "aria-label": t("btn.moveDown") },
+      cls: "re-icon-btn clickable-icon re-move-btn",
+      attr: { type: "button", "aria-label": t("btn.moveDown") },
     });
     setIcon(down, "arrow-down");
     if (index >= total - 1) {
