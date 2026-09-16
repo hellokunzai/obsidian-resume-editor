@@ -9,6 +9,8 @@
 }
 
 .re-header {
+  /* 导出进度条以本元素为定位基准（top:100% 挂到下沿），见下方 .re-progress */
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--size-4-2, 8px);
@@ -76,6 +78,72 @@
 .re-export-item:hover {
   background: var(--background-modifier-hover);
   color: var(--text-accent);
+}
+
+/* ===== 导出进度条（顶栏下沿的通栏细条） =====
+   挂在 .re-header 的 top:100%，落在工具栏那一行与两栏内容之间的空白里
+   （.re-dual 自带 8px 内边距，条只有 3px，压不到任何文字）。
+   绝对定位 → 出现和消失都不会把下面的表单/预览推一下，零布局位移。
+   pointer-events: none → 导出期间不拦截任何鼠标/触摸事件，
+   这是"不要卡到没法操作"这条需求的硬保证，而不是靠视觉上看起来没卡。
+   进度只动 transform：渲染阶段主线程会被 html2canvas 独占，
+   而声明式关键帧动画由合成线程驱动，此时仍会继续跑，条不会停住。 */
+.re-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  z-index: 1;
+  height: 3px;
+  background: var(--background-modifier-border);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.re-progress-bar {
+  height: 100%;
+  width: 100%;
+  background: var(--interactive-accent, #4c6ef5);
+  transform: scaleX(var(--re-progress, 0));
+  transform-origin: left center;
+  transition: transform 160ms linear;
+}
+
+/* 不定进度：该阶段内部无法量化（渲染排版、编码分页），只表示"仍在进行" */
+.re-progress.is-indeterminate .re-progress-bar {
+  width: 34%;
+  transform: none;
+  animation: re-progress-slide 1.1s ease-in-out infinite;
+}
+
+@keyframes re-progress-slide {
+  0% { transform: translateX(-110%); }
+  100% { transform: translateX(300%); }
+}
+
+.re-progress.is-done .re-progress-bar {
+  background: var(--color-green, #2f9e44);
+}
+
+.re-progress.is-failed .re-progress-bar {
+  background: var(--color-red, #e03131);
+}
+
+.re-export-btn.is-exporting {
+  opacity: 0.5;
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .re-progress-bar {
+    transition: none;
+  }
+  .re-progress.is-indeterminate .re-progress-bar {
+    animation: none;
+    transform: none;
+    width: 100%;
+    opacity: 0.55;
+  }
 }
 
 .re-btn.re-btn {

@@ -34,6 +34,10 @@ Form-driven resume editor for Obsidian. Edit structured fields on the left, see 
 
 Use the export button in the editor, or the commands: **Export resume as PDF / HTML / DOCX / LaTeX**. Exports are written next to the current note via Obsidian's vault API.
 
+Export runs asynchronously and shows a thin progress bar across the top of the editor, so the rest of the workspace stays usable while a PDF renders. The bar takes no layout space and never intercepts clicks; the export button is dimmed while a job is running so repeated clicks cannot queue up extra work.
+
+Exports run asynchronously and show a non-blocking progress card in the bottom-right corner, so the rest of the workspace stays usable while a PDF is being rendered. The card never intercepts clicks, and the export button is disabled until the run finishes to prevent stacking duplicate jobs.
+
 ## Templates
 
 The default template (Settings → Resume Editor → Default template) applies to new resumes; each saved resume stores its own `templateId`, so existing files keep their look.

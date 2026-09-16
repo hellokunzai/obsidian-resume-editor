@@ -59,12 +59,28 @@ import { exportPdf } from "../export/pdf";
 import { exportHtml } from "../export/html";
 import { exportDocx } from "../export/docx";
 import { exportLatex } from "../export/latex";
+import { ExportProgress, type ProgressReporter } from "../export/progress";
+import { settleUi } from "../utils/async-util";
 import { PAPER_SIZE_PX } from "../utils/auto-one-page";
 import { uniqueResumeBasename } from "../utils/file-name";
 
 export const VIEW_TYPE_RESUME = "resume-editor-view";
 
 const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg"]);
+
+// 导出格式在进度浮层标题里的显示名。按键返回字面量 t() 键，便于 i18n 静态检查。
+function exportKindLabel(kind: "pdf" | "html" | "docx" | "latex"): string {
+  switch (kind) {
+    case "pdf":
+      return t("format.pdf");
+    case "html":
+      return t("format.html");
+    case "docx":
+      return t("format.docx");
+    default:
+      return t("format.latex");
+  }
+}
 
 class ImagePickerModal extends FuzzySuggestModal<TFile> {
   private onPick: (file: TFile) => void;
@@ -166,6 +182,14 @@ export class ResumeEditorView extends FileView {
   private domReady = false;
   private pendingFile: TFile | null = null;
 
+  // 导出并发锁：导出期间不允许再次触发（连点会排队多个渲染任务，卡顿叠加）。
+  private exporting = false;
+  private exportBtnEl: HTMLButtonElement | null = null;
+
+  // 导出进度条挂在顶栏下沿（见 .re-progress 的 CSS 注释）。onOpen 时记录，
+  // 视图尚未渲染时为 null —— 此时 doExport 会因没有 currentFile 提前返回。
+  private headerEl: HTMLElement | null = null;
+
   constructor(leaf: WorkspaceLeaf, plugin: ResumeEditorPlugin) {
     super(leaf);
     this.plugin = plugin;
@@ -253,6 +277,7 @@ export class ResumeEditorView extends FileView {
 
     // 顶栏
     const header = shell.createDiv({ cls: "re-header" });
+    this.headerEl = header;
     header.createEl("div", { cls: "re-title", text: t("view.title") });
 
     // 移动端：在顶栏最左注入「编辑/预览」单按钮切换（方案 A）
@@ -284,6 +309,7 @@ export class ResumeEditorView extends FileView {
       cls: "re-icon-btn re-export-btn clickable-icon",
       attr: { type: "button", "aria-label": t("btn.export") },
     });
+    this.exportBtnEl = exportBtn;
     setIcon(exportBtn, "re-download");
     exportBtn.addEventListener("click", () => this.openExportMenu(exportBtn, exportWrap));
 
@@ -925,7 +951,7 @@ export class ResumeEditorView extends FileView {
     for (const item of items) {
       const row = menu.createEl("div", { cls: "re-export-item", text: item.label });
       row.addEventListener("click", () => {
-        this.doExport(item.kind);
+        void this.doExport(item.kind);
         menu.remove();
       });
     }
@@ -2163,27 +2189,71 @@ export class ResumeEditorView extends FileView {
     return "resume";
   }
 
-  doExport(kind: "pdf" | "html" | "docx" | "latex"): void {
+  /**
+   * 导出入口：全程异步 + 顶部进度条 + 并发锁。
+   *
+   * 这里的三个动作缺一不可：
+   * - await settleUi()：先把进度条画到屏幕上，再开始重计算，否则用户先看到的是"卡住"；
+   * - exporting 锁 + 按钮置灰：连点不再排队多个渲染任务（卡顿会叠加）；
+   * - 导出函数返回 boolean，据此给出完成/失败终态。
+   */
+  async doExport(kind: "pdf" | "html" | "docx" | "latex"): Promise<void> {
+    if (this.exporting) {
+      new Notice(t("notice.exportBusy"));
+      return;
+    }
     if (!this.currentFile) {
       new Notice(t("notice.noActive"));
       return;
     }
+
+    this.exporting = true;
+    this.setExportingUi(true);
+
     const base = this.baseName();
     const data = this.model;
     const paper = this.plugin.settings.paperSize;
-    switch (kind) {
-      case "pdf":
-        void exportPdf(this.app, data, base, paper);
-        break;
-      case "html":
-        void exportHtml(this.app, data, base);
-        break;
-      case "docx":
-        void exportDocx(this.app, data, base);
-        break;
-      case "latex":
-        void exportLatex(this.app, data, base);
-        break;
+    // 进度条挂顶栏下沿；headerEl 缺失时退回 contentEl，条依然能画出来。
+    const progress = new ExportProgress(this.headerEl ?? this.contentEl);
+    progress.report(0, t("progress.title", { kind: exportKindLabel(kind) }));
+
+    try {
+      await settleUi();
+      const report: ProgressReporter = (ratio, label) => progress.report(ratio, label);
+
+      let ok = false;
+      switch (kind) {
+        case "pdf":
+          ok = await exportPdf(this.app, data, base, paper, report);
+          break;
+        case "html":
+          ok = await exportHtml(this.app, data, base, report);
+          break;
+        case "docx":
+          ok = await exportDocx(this.app, data, base, report);
+          break;
+        case "latex":
+          ok = await exportLatex(this.app, data, base, report);
+          break;
+      }
+      if (ok) progress.succeed();
+      else progress.fail();
+      progress.dispose(ok ? 1200 : 2200);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      new Notice(t("error.export", { msg }));
+      progress.fail();
+      progress.dispose(2200);
+    } finally {
+      this.exporting = false;
+      this.setExportingUi(false);
     }
+  }
+
+  private setExportingUi(busy: boolean): void {
+    const btn = this.exportBtnEl;
+    if (!btn) return;
+    btn.disabled = busy;
+    btn.classList.toggle("is-exporting", busy);
   }
 }

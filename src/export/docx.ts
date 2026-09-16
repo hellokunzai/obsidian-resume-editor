@@ -10,6 +10,8 @@ import { App, Notice, requestUrl, TFile } from "obsidian";
 import { renderResumeDocx, type ImageLoader, type LoadedImage } from "./docx-core";
 import { ResumeData } from "../data/resume-model";
 import { t } from "../i18n";
+import { settleUi, yieldToUi } from "../utils/async-util";
+import type { ProgressReporter } from "./progress";
 
 type ImageExt = "png" | "jpg" | "gif" | "bmp";
 
@@ -65,18 +67,30 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
 export async function exportDocx(
   app: App,
   data: ResumeData,
-  baseName: string
-): Promise<void> {
+  baseName: string,
+  report?: ProgressReporter
+): Promise<boolean> {
   try {
+    // 生成阶段可能包含头像的网络下载，是不定长的等待，因此标记为不定进度；
+    // 先把进度文案绘制出去，再开始打包。
+    report?.(null, t("progress.generating"));
+    await settleUi();
+
     const loader: ImageLoader = (path) => loadImage(app, path);
     const bytes = await renderResumeDocx(data, loader);
+
+    report?.(0.85, t("progress.writing"));
+    await yieldToUi();
     const ab = toArrayBuffer(bytes);
     const path = `${baseName}.docx`;
     await app.vault.adapter.writeBinary(path, ab);
+    report?.(1, t("progress.done"));
     new Notice(t("notice.exported", { name: path }));
+    return true;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     new Notice(t("error.export", { msg }));
     console.error("DOCX export failed", err);
+    return false;
   }
 }

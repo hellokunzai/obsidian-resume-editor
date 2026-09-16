@@ -66,7 +66,7 @@ export default class ResumeEditorPlugin extends Plugin {
       id: "export-pdf",
       name: t("command.exportPdf"),
       callback: () => {
-        this.getView()?.doExport("pdf");
+        void this.getView()?.doExport("pdf");
       },
     });
 
@@ -74,7 +74,7 @@ export default class ResumeEditorPlugin extends Plugin {
       id: "export-html",
       name: t("command.exportHtml"),
       callback: () => {
-        this.getView()?.doExport("html");
+        void this.getView()?.doExport("html");
       },
     });
 
@@ -82,7 +82,7 @@ export default class ResumeEditorPlugin extends Plugin {
       id: "export-docx",
       name: t("command.exportDocx"),
       callback: () => {
-        this.getView()?.doExport("docx");
+        void this.getView()?.doExport("docx");
       },
     });
 
@@ -90,7 +90,7 @@ export default class ResumeEditorPlugin extends Plugin {
       id: "export-latex",
       name: t("command.exportLatex"),
       callback: () => {
-        this.getView()?.doExport("latex");
+        void this.getView()?.doExport("latex");
       },
     });
 

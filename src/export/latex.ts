@@ -10,6 +10,8 @@ import {
 import { t } from "../i18n";
 import { splitSkills } from "../render/template";
 import { safeFileName } from "./utils";
+import { yieldToUi } from "../utils/async-util";
+import type { ProgressReporter } from "./progress";
 
 function escTex(s: string): string {
   return s
@@ -67,10 +69,12 @@ function classicContactTex(data: ResumeData): string {
 export async function exportLatex(
   app: App,
   data: ResumeData,
-  baseName: string
-): Promise<void> {
+  baseName: string,
+  report?: ProgressReporter
+): Promise<boolean> {
   const name = safeFileName(baseName);
   try {
+    report?.(0.3, t("progress.generating"));
     const classic = data.templateId === "classic";
     const bodyLines: string[] = [];
     const sections = data.menuSections ?? [];
@@ -141,11 +145,16 @@ export async function exportLatex(
     lines.push("\\end{document}");
 
     const tex = lines.join("\n");
+    report?.(0.8, t("progress.writing"));
+    await yieldToUi();
     const path = `${name}.tex`;
     await app.vault.adapter.write(path, tex);
+    report?.(1, t("progress.done"));
     new Notice(t("notice.exported", { name: path }));
+    return true;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     new Notice(t("error.export", { msg }));
+    return false;
   }
 }
