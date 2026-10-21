@@ -175,9 +175,10 @@ export class ResumeEditorView extends FileView {
   private viewMode: "edit" | "split" | "preview" = "split";
   private shellEl!: HTMLElement;
   private modeControlWrap: HTMLElement | null = null;
-  private modeSegBtns: HTMLElement[] = [];
-  private modeCyclicBtn: HTMLElement | null = null;
   private modeDropdownBtn: HTMLElement | null = null;
+  // 模式图标的专属容器：setIcon 只打在它身上，
+  // 避免 Obsidian setIcon「只移除 firstChild」的语义误删 caret 箭头
+  private modeIconEl: HTMLElement | null = null;
   // 移动端多行文本框放大编辑层（方案 A）
   private textareaZoomOverlay: HTMLElement | null = null;
   private textareaZoomKeyHandler: ((e: KeyboardEvent) => void) | null = null;
@@ -347,7 +348,7 @@ export class ResumeEditorView extends FileView {
     this.activePane = "form";
     this.setActivePane("form");
 
-    // 桌面端：在工具栏最左注入「调整页面显示」三态切换，并应用已保存的显示模式
+    // 桌面端：在工具栏最左注入「显示模式」下拉控件，并应用已保存的显示模式
     // （移动端保留原单按钮切换，不叠加本控件）
     if (!this.isMobile) {
       const spacer = toolbar.createDiv({ cls: "re-toolbar-spacer" });
@@ -1926,19 +1927,15 @@ export class ResumeEditorView extends FileView {
 
   /* ---------- 桌面端：显示模式三态切换（编辑 / 编辑预览 / 预览） ---------- */
 
-  /** 构建工具栏「调整页面显示」控件，按设置中的按钮形态渲染并应用当前模式 */
+  /** 构建工具栏「显示模式」下拉控件并应用当前模式 */
   private buildViewModeControl(): HTMLElement {
     const wrap = document.createElement("div");
     wrap.className = "re-mode-wrap";
     this.modeControlWrap = wrap;
-    this.modeSegBtns = [];
-    this.modeCyclicBtn = null;
     this.modeDropdownBtn = null;
+    this.modeIconEl = null;
     this.viewMode = this.plugin.settings.viewMode;
-    const style = this.plugin.settings.viewModeControl;
-    if (style === "segment") this.renderModeSegment(wrap);
-    else if (style === "dropdown") this.renderModeDropdown(wrap);
-    else this.renderModeCyclic(wrap);
+    this.renderModeDropdown(wrap);
     this.applyViewModeClasses();
     return wrap;
   }
@@ -1952,61 +1949,20 @@ export class ResumeEditorView extends FileView {
     old.parentElement.replaceChild(wrap, old);
   }
 
-  /** 变体 B：分段控件（三个图标并排，当前态高亮） */
-  private renderModeSegment(wrap: HTMLElement): void {
-    const seg = wrap.createDiv({ cls: "re-mode-seg" });
-    (["edit", "split", "preview"] as const).forEach((m) => {
-      const b = seg.createEl("button", {
-        cls:
-          "re-mode-btn re-icon-btn clickable-icon" +
-          (m === this.viewMode ? " is-active" : ""),
-        attr: {
-          type: "button",
-          "aria-label": t("viewMode." + m),
-          title: t("viewMode." + m),
-        },
-      });
-      setIcon(b, "re-mode-" + m);
-      b.addEventListener("click", () => this.applyViewMode(m));
-      this.modeSegBtns.push(b);
-    });
-  }
-
-  /** 变体 A：循环图标（每次点击在 编辑→编辑预览→预览 间循环） */
-  private renderModeCyclic(wrap: HTMLElement): void {
-    const b = wrap.createEl("button", {
-      cls: "re-mode-btn re-icon-btn clickable-icon",
-      attr: { type: "button" },
-    });
-    this.modeCyclicBtn = b;
-    this.setCyclicIcon();
-    b.addEventListener("click", () => {
-      const order = ["edit", "split", "preview"] as const;
-      const next = order[(order.indexOf(this.viewMode) + 1) % 3];
-      this.applyViewMode(next);
-    });
-  }
-
-  private setCyclicIcon(): void {
-    if (!this.modeCyclicBtn) return;
-    const m = this.viewMode;
-    setIcon(this.modeCyclicBtn, "re-mode-" + m);
-    this.modeCyclicBtn.setAttribute("aria-label", t("viewMode." + m));
-    this.modeCyclicBtn.title = t("viewMode." + m);
-  }
-
-  /** 变体 C：下拉菜单（Obsidian Menu，图标+箭头触发） */
+  /** 下拉菜单（Obsidian Menu，图标+箭头触发） */
   private renderModeDropdown(wrap: HTMLElement): void {
     const btn = wrap.createEl("button", {
       cls: "re-mode-btn re-icon-btn clickable-icon",
       attr: {
         type: "button",
-        "aria-label": t("settings.viewModeControl.name"),
-        title: t("settings.viewModeControl.name"),
+        "aria-label": t("toolbar.viewMode"),
+        title: t("toolbar.viewMode"),
       },
     });
     this.modeDropdownBtn = btn;
-    setIcon(btn, "re-mode-" + this.viewMode);
+    const iconEl = btn.createSpan({ cls: "re-mode-icon" });
+    this.modeIconEl = iconEl;
+    setIcon(iconEl, "re-mode-" + this.viewMode);
     const caret = btn.createSpan({ cls: "re-mode-caret" });
     setIcon(caret, "re-chevron-down");
     btn.addEventListener("click", (e) => {
@@ -2031,13 +1987,8 @@ export class ResumeEditorView extends FileView {
   ): void {
     this.viewMode = mode;
     this.applyViewModeClasses();
-    this.modeSegBtns.forEach((b, i) => {
-      const m = (["edit", "split", "preview"] as const)[i];
-      b.toggleClass("is-active", m === mode);
-    });
-    if (this.modeCyclicBtn) this.setCyclicIcon();
-    if (this.modeDropdownBtn) {
-      setIcon(this.modeDropdownBtn, "re-mode-" + mode);
+    if (this.modeIconEl) {
+      setIcon(this.modeIconEl, "re-mode-" + mode);
     }
     // 进入含预览的模式时重渲染：display:none 下尺寸为 0，A4 分页线需重算
     if (mode !== "edit") this.renderPreview();

@@ -12,7 +12,6 @@ import { TEMPLATE_REGISTRY } from "../render/templates/registry";
 import { t } from "../i18n";
 
 export type ViewMode = "edit" | "split" | "preview";
-export type ViewModeControl = "cyclic" | "segment" | "dropdown";
 
 export interface ResumeEditorSettings {
   template: TemplateId;
@@ -20,8 +19,6 @@ export interface ResumeEditorSettings {
   autoSave: boolean;
   /** 页面显示模式：编辑页 / 编辑预览页 / 预览页（持久化用户最后选择） */
   viewMode: ViewMode;
-  /** 工具栏「调整页面显示」按钮的形态：循环图标 / 分段控件 / 下拉菜单 */
-  viewModeControl: ViewModeControl;
 }
 
 export const DEFAULT_SETTINGS: ResumeEditorSettings = {
@@ -29,7 +26,6 @@ export const DEFAULT_SETTINGS: ResumeEditorSettings = {
   paperSize: "A4",
   autoSave: true,
   viewMode: "split",
-  viewModeControl: "dropdown",
 };
 
 export class ResumeSettingTab extends PluginSettingTab {
@@ -96,23 +92,6 @@ export class ResumeSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
             this.plugin.getView()?.syncFromSettings();
           });
-      });
-
-    new Setting(containerEl)
-      .setName(t("settings.viewModeControl.name"))
-      .setDesc(t("settings.viewModeControl.desc"))
-      .addDropdown((dd) => {
-        dd.addOption("cyclic", t("viewModeControl.cyclic"));
-        dd.addOption("segment", t("viewModeControl.segment"));
-        dd.addOption("dropdown", t("viewModeControl.dropdown"));
-        return dd
-          .setValue(this.plugin.settings.viewModeControl)
-          .onChange(async (v) => {
-            this.plugin.settings.viewModeControl = v as ViewModeControl;
-            await this.plugin.saveSettings();
-            this.plugin.getView()?.syncFromSettings();
-          });
-      });
-
+    });
   }
 }
