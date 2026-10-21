@@ -305,6 +305,14 @@ export class ResumeEditorView extends FileView {
 
     // 模板下拉已移入「全局样式」面板（buildStylePanel），工具栏只留导出 / 保存。
 
+    // 保存按钮（图标按钮 + aria-label tooltip；桌面端顺序：保存 → 显示模式 → 导出）
+    const btnSave = toolbar.createEl("button", {
+      cls: "re-icon-btn re-save-btn clickable-icon",
+      attr: { type: "button", "aria-label": t("btn.save") },
+    });
+    setIcon(btnSave, "save");
+    btnSave.addEventListener("click", () => this.saveNow());
+
     // 导出下拉菜单（Obsidian 风格：图标按钮 + aria-label tooltip）
     const exportWrap = toolbar.createDiv({ cls: "re-export-wrap" });
     const exportBtn = exportWrap.createEl("button", {
@@ -314,13 +322,6 @@ export class ResumeEditorView extends FileView {
     this.exportBtnEl = exportBtn;
     setIcon(exportBtn, "re-download");
     exportBtn.addEventListener("click", () => this.openExportMenu(exportBtn, exportWrap));
-
-    const btnSave = toolbar.createEl("button", {
-      cls: "re-icon-btn re-save-btn clickable-icon",
-      attr: { type: "button", "aria-label": t("btn.save") },
-    });
-    setIcon(btnSave, "save");
-    btnSave.addEventListener("click", () => this.saveNow());
 
     // 双栏
     const dual = shell.createDiv({ cls: "re-dual" });
@@ -350,7 +351,8 @@ export class ResumeEditorView extends FileView {
     if (!this.isMobile) {
       const spacer = toolbar.createDiv({ cls: "re-toolbar-spacer" });
       const wrap = this.buildViewModeControl();
-      toolbar.insertBefore(wrap, spacer);
+      // 插在导出之前，保证顺序：保存 → 显示模式 → 导出（spacer 保持在末尾）
+      toolbar.insertBefore(wrap, exportWrap);
     }
 
     // DOM 构建完成，标记就绪并触发数据加载：
