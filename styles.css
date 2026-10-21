@@ -2477,7 +2477,8 @@
    markdown 视图被官方单独清零、自定义视图没有），这就是视图底部那条
    留白的真身。针对本视图清零，让双栏卡片直接顶到窗口底。 */
 .workspace-leaf-content[data-type="resume-editor-view"] .view-content {
-  padding: 0;
+  /* 底部留 11px，让编辑/预览区整体上移共 11px，与窗口底/状态栏留呼吸感 */
+  padding: 0 0 11px;
   overflow: hidden;
 }
 
