@@ -167,11 +167,8 @@ export class ResumeEditorView extends FileView {
   private activePane: "form" | "preview" = "form";
   private formPane!: HTMLElement;
   private previewPane!: HTMLElement;
-  private paneToggleBtn: HTMLElement | null = null;
-  private paneToggleIcon: HTMLElement | null = null;
-  private paneToggleLabel: HTMLElement | null = null;
 
-  // 桌面端显示模式（三态切换：编辑 / 编辑预览 / 预览）
+  // 移动端 / 桌面端共用的显示模式（桌面三态：编辑 / 编辑预览 / 预览；移动端仅 编辑页 / 预览页）
   private viewMode: "edit" | "split" | "preview" = "split";
   private shellEl!: HTMLElement;
   private modeControlWrap: HTMLElement | null = null;
@@ -288,21 +285,6 @@ export class ResumeEditorView extends FileView {
     this.headerEl = toolbar;
     this.shellEl = shell;
 
-    // 移动端：在工具栏最左注入「编辑/预览」单按钮切换（方案 A）
-    if (this.isMobile) {
-      this.paneToggleBtn = toolbar.createEl("button", {
-        cls: "re-pane-toggle",
-        attr: { type: "button" },
-      });
-      this.paneToggleIcon = this.paneToggleBtn.createSpan({ cls: "re-pane-toggle-icon" });
-      this.paneToggleLabel = this.paneToggleBtn.createSpan({ cls: "re-pane-toggle-label" });
-      this.paneToggleBtn.addEventListener("click", () =>
-        this.setActivePane(this.activePane === "form" ? "preview" : "form")
-      );
-      // 置于最前（移动端该按钮即最左）
-      toolbar.insertBefore(this.paneToggleBtn, toolbar.firstChild);
-    }
-
     // 模板下拉已移入「全局样式」面板（buildStylePanel），工具栏只留导出 / 保存。
 
     // 保存按钮（图标按钮 + aria-label tooltip；桌面端顺序：保存 → 显示模式 → 导出）
@@ -342,17 +324,20 @@ export class ResumeEditorView extends FileView {
       });
     }
 
-    // 默认进入编辑页（移动端单栏 + 切换由 CSS .re-active 控制显隐）
-    this.activePane = "form";
-    this.setActivePane("form");
+    // 默认进入编辑页（移动端单栏 + 切换由 CSS .re-active 控制显隐）。
+    // 移动端按已保存的显示模式决定初始 pane（仅 编辑页 / 预览页 两态）
+    const initMode = this.plugin.settings.viewMode;
+    this.setActivePane(this.isMobile && initMode === "preview" ? "preview" : "form");
 
-    // 桌面端：在工具栏最左注入「显示模式」下拉控件，并应用已保存的显示模式
-    // （移动端保留原单按钮切换，不叠加本控件）
-    if (!this.isMobile) {
+    // 注入「显示模式」下拉控件：桌面端含 编辑/编辑预览/预览 三态；
+    // 移动端仅 编辑页/预览页 两项（窄屏无法并排显示「编辑预览」，故去掉），置于最左替换原单按钮切换
+    const modeWrap = this.buildViewModeControl();
+    if (this.isMobile) {
+      toolbar.insertBefore(modeWrap, toolbar.firstChild);
+    } else {
       const spacer = toolbar.createDiv({ cls: "re-toolbar-spacer" });
-      const wrap = this.buildViewModeControl();
       // 插在导出之前，保证顺序：保存 → 显示模式 → 导出（spacer 保持在末尾）
-      toolbar.insertBefore(wrap, exportWrap);
+      toolbar.insertBefore(modeWrap, exportWrap);
     }
 
     // DOM 构建完成，标记就绪并触发数据加载：
@@ -1912,11 +1897,6 @@ export class ResumeEditorView extends FileView {
     this.activePane = pane;
     this.formPane.toggleClass("re-active", pane === "form");
     this.previewPane.toggleClass("re-active", pane === "preview");
-    if (this.paneToggleBtn && this.paneToggleIcon && this.paneToggleLabel) {
-      const toPreview = pane === "form";
-      this.paneToggleLabel.setText(toPreview ? t("btn.showPreview") : t("btn.showEditor"));
-      setIcon(this.paneToggleIcon, toPreview ? "eye" : "pencil");
-    }
     if (pane === "preview") {
       // 切回预览必须重渲染：applyPreviewPageLines 依赖 paper.scrollHeight，
       // 元素在 display:none 下测量为 0，A4 分页线会算错
@@ -1933,6 +1913,10 @@ export class ResumeEditorView extends FileView {
     this.modeControlWrap = wrap;
     this.modeDropdownBtn = null;
     this.viewMode = this.plugin.settings.viewMode;
+    // 移动端不支持「编辑预览」，回退到 编辑页（仅 preview 保持 预览页）
+    if (this.isMobile && this.viewMode === "split") {
+      this.viewMode = "edit";
+    }
     this.renderModeDropdown(wrap);
     this.applyViewModeClasses();
     return wrap;
@@ -1961,7 +1945,11 @@ export class ResumeEditorView extends FileView {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       const menu = new Menu();
-      (["edit", "preview", "split"] as const).forEach((m) => {
+      // 移动端窄屏无法并排编辑/预览，仅提供 编辑页 / 预览页 两项
+      const modes = this.isMobile
+        ? (["edit", "preview"] as const)
+        : (["edit", "preview", "split"] as const);
+      modes.forEach((m) => {
         menu.addItem((item) =>
           item
             .setTitle(t("viewMode." + m))
@@ -1979,7 +1967,12 @@ export class ResumeEditorView extends FileView {
     persist = true
   ): void {
     this.viewMode = mode;
-    this.applyViewModeClasses();
+    if (this.isMobile) {
+      // 移动端单栏：靠 .re-active 控制显隐，映射 edit→form / preview→preview
+      this.setActivePane(mode === "preview" ? "preview" : "form");
+    } else {
+      this.applyViewModeClasses();
+    }
     if (this.modeDropdownBtn) {
       setIcon(this.modeDropdownBtn, "re-mode-" + mode);
     }

@@ -195,7 +195,8 @@
 }
 
 /* ===== 桌面端「调整页面显示」三态切换 =====
-   .re-mode-* 仅由桌面端 JS 加在视图根节点（移动端保留原单按钮切换，不会加这些类） */
+   .re-mode-* 仅由桌面端 JS 加在视图根节点；移动端用「显示模式」下拉框（仅 编辑页/预览页）
+   切换，靠 .re-active 控制显隐，不会加这些类 */
 .review-editor-root:not(.re-mobile).re-mode-edit .re-dual {
   grid-template-columns: 1fr;
 }
@@ -2078,35 +2079,6 @@
   min-width: 96px;
   max-width: 140px;
   border-radius: 4px;
-}
-
-/* 单按钮切换：始终显示，排在最前。统一为灰底圆角矩形，不再用蓝色强调 */
-.re-mobile .re-pane-toggle.re-pane-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  order: -1;
-  margin-right: 2px;
-  padding: 4px 10px;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 4px;
-  background: var(--background-secondary);
-  color: var(--text-normal);
-  font-size: var(--font-ui-small, 13px);
-  cursor: pointer;
-  height: auto;
-  min-height: 28px;
-  box-shadow: none;
-}
-
-.re-mobile .re-pane-toggle.re-pane-toggle:hover {
-  filter: brightness(1.05);
-}
-
-.re-mobile .re-pane-toggle-icon svg,
-.re-mobile .re-pane-toggle-icon .svg-icon {
-  width: 15px !important;
-  height: 15px !important;
 }
 
 /* 表单内边距收紧 */

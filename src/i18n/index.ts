@@ -108,8 +108,6 @@ const translations: Record<string, Record<string, string>> = {
     "layout.right": "Avatar right",
 
     "btn.save": "Save",
-    "btn.showPreview": "Preview",
-    "btn.showEditor": "Edit",
     "btn.moveUp": "Move up",
     "btn.moveDown": "Move down",
     "textarea.done": "Done",
@@ -283,8 +281,6 @@ const translations: Record<string, Record<string, string>> = {
     "layout.right": "头像在右",
 
     "btn.save": "保存",
-    "btn.showPreview": "预览",
-    "btn.showEditor": "编辑",
     "btn.moveUp": "上移",
     "btn.moveDown": "下移",
     "textarea.done": "完成",
