@@ -223,18 +223,6 @@
   align-items: center;
 }
 
-/* 下拉箭头 */
-.re-mode-caret {
-  width: 13px;
-  height: 13px;
-  margin-left: 1px;
-  opacity: 0.7;
-}
-.re-mode-caret .svg-icon {
-  width: 13px;
-  height: 13px;
-}
-
 /* 表单 */
 .re-sect {
   border: 1px solid var(--background-modifier-border);

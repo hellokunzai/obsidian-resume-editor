@@ -1963,8 +1963,6 @@ export class ResumeEditorView extends FileView {
     const iconEl = btn.createSpan({ cls: "re-mode-icon" });
     this.modeIconEl = iconEl;
     setIcon(iconEl, "re-mode-" + this.viewMode);
-    const caret = btn.createSpan({ cls: "re-mode-caret" });
-    setIcon(caret, "re-chevron-down");
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       const menu = new Menu();
