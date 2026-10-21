@@ -1954,7 +1954,6 @@ export class ResumeEditorView extends FileView {
       attr: {
         type: "button",
         "aria-label": t("toolbar.viewMode"),
-        title: t("toolbar.viewMode"),
       },
     });
     this.modeDropdownBtn = btn;
