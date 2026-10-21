@@ -8,34 +8,19 @@
   background: var(--background-primary);
 }
 
-.re-header {
+.re-toolbar {
   /* 导出进度条以本元素为定位基准（top:100% 挂到下沿），见下方 .re-progress */
   position: relative;
   display: flex;
   align-items: center;
-  gap: var(--size-4-2, 8px);
-  padding: var(--size-4-2, 8px) var(--size-4-3, 12px);
+  gap: 2px;
+  /* 上边距收紧到 0，按钮直接贴着 Obsidian 视图头部；下边距保留 4px 呼吸感 */
+  padding: 0 var(--size-4-3, 12px) 4px;
   border-bottom: 1px solid var(--background-modifier-border);
   flex-wrap: wrap;
 }
 
-.re-header .re-title {
-  font-weight: 600;
-  font-size: var(--font-ui-medium, 15px);
-  margin-right: auto;
-}
-
-.re-tpl-select-wrap {
-  display: flex;
-  align-items: center;
-  gap: var(--size-4-1, 4px);
-}
-
-.re-tpl-select-label {
-  font-size: var(--font-ui-smaller, 12px);
-  color: var(--text-muted);
-}
-
+/* 模板下拉（现居「全局样式」面板内，样式沿用 re-style-row 布局） */
 .re-tpl-select {
   width: auto;
   min-width: 110px;
@@ -80,8 +65,8 @@
   color: var(--text-accent);
 }
 
-/* ===== 导出进度条（顶栏下沿的通栏细条） =====
-   挂在 .re-header 的 top:100%，落在工具栏那一行与两栏内容之间的空白里
+/* ===== 导出进度条（工具栏下沿的通栏细条） =====
+   挂在 .re-toolbar 的 top:100%，落在工具栏那一行与两栏内容之间的空白里
    （.re-dual 自带 8px 内边距，条只有 3px，压不到任何文字）。
    绝对定位 → 出现和消失都不会把下面的表单/预览推一下，零布局位移。
    pointer-events: none → 导出期间不拦截任何鼠标/触摸事件，
@@ -181,7 +166,8 @@
   gap: var(--size-4-2, 8px);
   flex: 1;
   min-height: 0;
-  padding: var(--size-4-2, 8px);
+  /* 底部内边距收为 0，编辑/预览卡片直接顶到视图下沿（状态栏上方）；左右上保留 8px 呼吸感 */
+  padding: var(--size-4-2, 8px) var(--size-4-2, 8px) 0;
 }
 
 .re-pane {
@@ -2038,17 +2024,12 @@
 }
 
 /* 紧凑 header：隐藏标题，按钮只显示图标 */
-.re-mobile .re-header {
+.re-mobile .re-toolbar {
   gap: 6px;
   padding: 6px 8px;
 }
 
-.re-mobile .re-title {
-  display: none;
-}
-
-.re-mobile .re-btn-label,
-.re-mobile .re-tpl-select-label {
+.re-mobile .re-btn-label {
   display: none;
 }
 
@@ -2488,6 +2469,16 @@
 
 .re-pane:hover .re-pane-head::before {
   opacity: 0.7;
+}
+
+/* ===== 视图底部撑满窗口 =====
+   Obsidian 对所有自定义视图的 .view-content 加了底部 32px 内边距
+   （.workspace-leaf-content .view-content { padding: 12px 12px 32px }，
+   markdown 视图被官方单独清零、自定义视图没有），这就是视图底部那条
+   留白的真身。针对本视图清零，让双栏卡片直接顶到窗口底。 */
+.workspace-leaf-content[data-type="resume-editor-view"] .view-content {
+  padding: 0;
+  overflow: hidden;
 }
 
 

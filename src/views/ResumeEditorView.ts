@@ -275,14 +275,14 @@ export class ResumeEditorView extends FileView {
     this.isMobile = Platform.isMobile;
     if (this.isMobile) shell.addClass("re-mobile");
 
-    // 顶栏
-    const header = shell.createDiv({ cls: "re-header" });
-    this.headerEl = header;
-    header.createEl("div", { cls: "re-title", text: t("view.title") });
+    // 顶部工具栏：承载模板选择 / 导出 / 保存。
+    // 标题（「简历编辑器」）已移除，仅保留工具栏按钮；进度条锚在工具栏下沿。
+    const toolbar = shell.createDiv({ cls: "re-toolbar" });
+    this.headerEl = toolbar;
 
-    // 移动端：在顶栏最左注入「编辑/预览」单按钮切换（方案 A）
+    // 移动端：在工具栏最左注入「编辑/预览」单按钮切换（方案 A）
     if (this.isMobile) {
-      this.paneToggleBtn = header.createEl("button", {
+      this.paneToggleBtn = toolbar.createEl("button", {
         cls: "re-pane-toggle",
         attr: { type: "button" },
       });
@@ -291,20 +291,14 @@ export class ResumeEditorView extends FileView {
       this.paneToggleBtn.addEventListener("click", () =>
         this.setActivePane(this.activePane === "form" ? "preview" : "form")
       );
-      // 置于标题之前（移动端标题隐藏，按钮即最左）
-      header.insertBefore(this.paneToggleBtn, header.firstChild);
+      // 置于最前（移动端该按钮即最左）
+      toolbar.insertBefore(this.paneToggleBtn, toolbar.firstChild);
     }
 
-    // 模板下拉选择（放在 header 右侧，与导出按钮同行）
-    const tplWrap = header.createDiv({ cls: "re-tpl-select-wrap" });
-    const tplSelect = tplWrap.createEl("select", { cls: "re-select re-tpl-select", attr: { "data-tpl-select": "" } });
-    for (const id of TEMPLATE_IDS) {
-      tplSelect.createEl("option", { value: id, text: t("template." + id) });
-    }
-    tplSelect.addEventListener("change", () => this.switchTemplate(tplSelect.value as TemplateId));
+    // 模板下拉已移入「全局样式」面板（buildStylePanel），工具栏只留导出 / 保存。
 
     // 导出下拉菜单（Obsidian 风格：图标按钮 + aria-label tooltip）
-    const exportWrap = header.createDiv({ cls: "re-export-wrap" });
+    const exportWrap = toolbar.createDiv({ cls: "re-export-wrap" });
     const exportBtn = exportWrap.createEl("button", {
       cls: "re-icon-btn re-export-btn clickable-icon",
       attr: { type: "button", "aria-label": t("btn.export") },
@@ -313,7 +307,7 @@ export class ResumeEditorView extends FileView {
     setIcon(exportBtn, "re-download");
     exportBtn.addEventListener("click", () => this.openExportMenu(exportBtn, exportWrap));
 
-    const btnSave = header.createEl("button", {
+    const btnSave = toolbar.createEl("button", {
       cls: "re-icon-btn re-save-btn clickable-icon",
       attr: { type: "button", "aria-label": t("btn.save") },
     });
@@ -403,12 +397,6 @@ export class ResumeEditorView extends FileView {
     const b = this.formBody;
     b.empty();
 
-    // 同步 header 中模板选择器的选中值（select 在 onOpen 创建，此处只更新值）
-    const headerSelect = this.contentEl.querySelector('[data-tpl-select]') as HTMLSelectElement | null;
-    if (headerSelect && headerSelect.value !== this.model.templateId) {
-      headerSelect.value = this.model.templateId;
-    }
-
     // 兜底：旧文件可能没有 globalSettings
     if (!this.model.globalSettings) {
       this.model.globalSettings = { ...DEFAULT_GLOBAL_SETTINGS };
@@ -444,6 +432,19 @@ export class ResumeEditorView extends FileView {
     const det = parent.createEl("details", { cls: "re-sect re-style-panel", attr: { open: "" } });
     det.createEl("summary", { text: t("style.heading") });
     const body = det.createDiv({ cls: "re-sect-body" });
+
+    // 模板选择（从顶部工具栏移入；renderForm 每次重建，直接按当前 templateId 选中）
+    const tplRow = body.createDiv({ cls: "re-style-row" });
+    tplRow.createEl("span", { cls: "re-style-label", text: t("template.label") });
+    const tplSelect = tplRow.createEl("select", {
+      cls: "re-select re-tpl-select",
+      attr: { "data-tpl-select": "" },
+    });
+    for (const id of TEMPLATE_IDS) {
+      tplSelect.createEl("option", { value: id, text: t("template." + id) });
+    }
+    tplSelect.value = this.model.templateId;
+    tplSelect.addEventListener("change", () => this.switchTemplate(tplSelect.value as TemplateId));
 
     // 主题色色板
     const colorRow = body.createDiv({ cls: "re-style-row" });

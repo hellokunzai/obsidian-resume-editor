@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+<meta charset="UTF-8">
+<title>简历编辑器 · 顶栏按钮迁移工具栏 — 原型</title>
+<!--
+  原型范围说明（对照真机的差异）：
+  - 页签栏 / 视图头部（← → 与 ⋮）是 Obsidian 宿主 UI 的模拟，仅为还原图一场景；
+  - 插件自身结构 = .re-header（标题行）+ .re-toolbar（新增工具栏行）+ .re-dual（双栏占位）；
+  - z-index / tooltip / 菜单挂载在真机上走 Obsidian 运行时，本原型只验「长什么样、点一下出什么」。
+-->
+<style>
+  /* ===== Obsidian 亮色主题变量（贴近默认主题取值） ===== */
+  :root {
+    --background-primary: #ffffff;
+    --background-secondary: #f2f3f5;
+    --background-modifier-border: #e0e0e0;
+    --background-modifier-hover: rgba(0, 0, 0, 0.055);
+    --background-modifier-active-hover: rgba(0, 0, 0, 0.09);
+    --text-normal: #222222;
+    --text-muted: #808080;
+    --text-faint: #999999;
+    --text-accent: #7c3aed;
+    --icon-color: var(--text-muted);
+    --icon-opacity: 0.85;
+    --interactive-accent: #7c3aed;
+    --font-ui-small: 13px;
+    --font-ui-medium: 15px;
+    --font-ui-smaller: 12px;
+    --radius: 8px;
+    --button-radius: 6px;
+    --size-4-1: 4px;
+    --size-4-2: 8px;
+    --size-4-3: 12px;
+  }
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+    font-size: 14px;
+    color: var(--text-normal);
+    background: var(--background-secondary);
+    padding: 24px 0 96px; /* 底部留给控制条 */
+  }
+
+  /* ===== 模拟 Obsidian 宿主窗口 ===== */
+  .stage {
+    width: 960px;
+    margin: 0 auto;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+  }
+  .tabbar {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 10px;
+    background: var(--background-secondary);
+    border-bottom: 1px solid var(--background-modifier-border);
+    font-size: 12.5px; color: var(--text-muted);
+  }
+  .tab {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    color: var(--text-normal);
+  }
+  .tab .x { color: var(--text-faint); font-size: 12px; }
+  .tabbar .plus { color: var(--text-muted); padding: 0 4px; }
+  .tabbar .win { margin-left: auto; display: flex; gap: 14px; color: var(--text-faint); font-size: 11px; }
+
+  /* 视图头部（Obsidian 工作区那行：← → ｜居中标题｜⋮） */
+  .view-header {
+    display: flex; align-items: center;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--background-modifier-border);
+    position: relative;
+  }
+  .view-header .nav { display: flex; gap: 2px; }
+  .view-header .crumb {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    color: var(--text-muted); font-size: 13px; white-space: nowrap;
+  }
+  .view-header .kebab { margin-left: auto; }
+
+  /* ===== Obsidian 原生按钮规则（保真：原型里也要被它压着写） ===== */
+  button:not(.clickable-icon) {
+    color: var(--text-normal);
+    background-color: var(--interactive-normal, #e9e9e9);
+    box-shadow: var(--input-shadow, inset 0 0 0 1px rgba(0,0,0,0.08));
+  }
+  .clickable-icon {
+    background: transparent; border: none; box-shadow: none;
+    padding: var(--size-4-2) var(--size-4-3);
+    color: var(--icon-color);
+    opacity: var(--icon-opacity);
+    cursor: pointer; border-radius: var(--button-radius);
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 0; min-height: 0; height: auto;
+  }
+  .clickable-icon:hover {
+    background: var(--background-modifier-hover);
+    opacity: 1;
+  }
+  .clickable-icon.is-active {
+    background: var(--background-modifier-active-hover);
+    opacity: 1; color: var(--text-normal);
+  }
+  .clickable-icon svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+
+  /* ================= 插件 UI（与 styles.css 同源语义） ================= */
+  .review-editor-root { display: flex; flex-direction: column; }
+
+  .re-header {
+    position: relative;
+    display: flex; align-items: center;
+    gap: var(--size-4-2, 8px);
+    padding: var(--size-4-2, 8px) var(--size-4-3, 12px);
+    border-bottom: 1px solid var(--background-modifier-border);
+    flex-wrap: wrap;
+  }
+  .re-header .re-title {
+    font-weight: 600;
+    font-size: var(--font-ui-medium, 15px);
+    margin-right: auto;
+  }
+
+  /* ===== 新增：工具栏行（参考图二的图标工具条样式） ===== */
+  .re-toolbar {
+    display: flex; align-items: center;
+    gap: 2px;
+    padding: 4px var(--size-4-3, 12px);
+    border-bottom: 1px solid var(--background-modifier-border);
+  }
+  .re-toolbar .sep {
+    width: 1px; height: 18px;
+    background: var(--background-modifier-border);
+    margin: 0 8px;
+    flex-shrink: 0;
+  }
+  /* 图标按钮（沿用插件 re-icon-btn + clickable-icon 的组合语义） */
+  .re-icon-btn.re-icon-btn {
+    width: 30px; height: 30px;
+    padding: 0;
+    background: transparent; border: none; box-shadow: none;
+    color: var(--icon-color);
+    opacity: var(--icon-opacity);
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer; border-radius: var(--button-radius);
+    flex-shrink: 0;
+  }
+  .re-icon-btn.re-icon-btn:hover { background: var(--background-modifier-hover); opacity: 1; }
+  .re-icon-btn.re-icon-btn:active { background: var(--background-modifier-active-hover); opacity: 1; }
+  .re-icon-btn.re-icon-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* 模板下拉（紧凑版，工具栏内） */
+  .re-tpl-select-wrap { display: flex; align-items: center; gap: var(--size-4-1, 4px); }
+  .re-tpl-select-label { font-size: var(--font-ui-smaller, 12px); color: var(--text-muted); }
+  .re-tpl-select {
+    width: auto; min-width: 96px; max-width: 150px;
+    height: 28px;
+    padding: 2px 6px;
+    font-size: var(--font-ui-small, 13px);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--button-radius, 6px);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    outline: none;
+  }
+  .re-tpl-select:focus { border-color: var(--interactive-accent); }
+
+  /* 导出菜单（复用现有 .re-export-menu 语义） */
+  .re-export-wrap { position: relative; display: inline-flex; }
+  .re-tpl-menu-wrap { position: relative; display: inline-flex; }
+  .re-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    min-width: 150px;
+    padding: 4px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius, 8px);
+    background: var(--background-primary);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14);
+    z-index: 55; /* 真机夹在 --layer-modal(50) 与 --layer-notice(60) 之间；原型自绘同理 */
+  }
+  .re-menu-item {
+    padding: 6px 10px;
+    border-radius: var(--button-radius, 6px);
+    font-size: var(--font-ui-small, 13px);
+    color: var(--text-normal);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .re-menu-item:hover { background: var(--background-modifier-hover); color: var(--text-accent); }
+  .re-menu-item.is-checked { color: var(--text-accent); }
+
+  /* 双栏占位 */
+  .re-dual {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 8px;
+    flex: 1;
+    min-height: 300px;
+  }
+  .re-pane {
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius, 8px);
+    background: var(--background-primary);
+    padding: 14px;
+    color: var(--text-faint);
+    font-size: 12px;
+  }
+
+  /* ===== 底部控制条 ===== */
+  .controls {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 20px;
+    background: rgba(255,255,255,0.94);
+    border-top: 1px solid var(--background-modifier-border);
+    z-index: 100;
+  }
+  .seg { display: inline-flex; border: 1px solid var(--background-modifier-border); border-radius: 8px; overflow: hidden; }
+  .seg button {
+    border: none; box-shadow: none; background: var(--background-primary);
+    padding: 7px 14px; font-size: 13px; cursor: pointer; color: var(--text-muted);
+    border-right: 1px solid var(--background-modifier-border);
+  }
+  .seg button:last-child { border-right: none; }
+  .seg button.is-on { background: var(--interactive-accent); color: #fff; }
+  .readout { font-size: 12.5px; color: var(--text-muted); }
+  .readout b { color: var(--text-normal); }
+
+  .re-header-right { display: flex; align-items: center; gap: 8px; }
+  /* ===== 变体样式（由 JS 挂 .variant-* 切换） ===== */
+  /* 现状：控件在标题行右侧 */
+  .variant-current .re-toolbar { display: none; }
+  /* 方案 A / B：标题行只留标题 */
+  .variant-a .re-header-right, .variant-b .re-header-right { display: none; }
+  /* 方案 B：隐藏下拉框，显示图标菜单按钮 */
+  .variant-b .re-tpl-select-wrap { display: none; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage">
+  <!-- 模拟：Obsidian 页签栏（图一顶部） -->
+  <div class="tabbar">
+    <span class="tab">张玉坤-Java开发工程师 <span class="x">×</span></span>
+    <span class="plus">+</span>
+    <span class="win"><span>—</span><span>▢</span><span>×</span></span>
+  </div>
+  <!-- 模拟：Obsidian 视图头部（图一第二行 / 图二第一行） -->
+  <div class="view-header">
+    <span class="nav">
+      <button class="clickable-icon" title="后退"><svg viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg></button>
+      <button class="clickable-icon" title="前进"><svg viewBox="0 0 24 24"><path d="m12 5 7 7-7 7"/><path d="M5 12h14"/></svg></button>
+    </span>
+    <span class="crumb">简历编辑器</span>
+    <button class="clickable-icon kebab" title="更多选项"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="19" r="1.6" fill="currentColor" stroke="none"/></svg></button>
+  </div>
+
+  <!-- 插件内容 -->
+  <div class="review-editor-root" id="root">
+    <!-- 标题行（标题已移除，仅作控件容器定位锚；现状对照组在这里展示右侧控件） -->
+    <div class="re-header" id="reHeader">
+      <!-- 现状：右侧控件组（迁移对象） -->
+      <div class="re-header-right">
+        <div class="re-tpl-select-wrap">
+          <select class="re-tpl-select" id="tplSelectHeader" data-tpl-select>
+            <option value="classic" selected>经典</option>
+            <option value="single">单栏</option>
+            <option value="twoCol">双栏</option>
+            <option value="academic">学术</option>
+            <option value="timeline">时间线</option>
+            <option value="swiss">瑞士风</option>
+            <option value="modern">现代</option>
+            <option value="minimalist">极简</option>
+            <option value="leftRight">左右分布</option>
+            <option value="elegant">雅致</option>
+          </select>
+        </div>
+        <div class="re-export-wrap">
+          <button class="re-icon-btn clickable-icon re-export-btn" type="button" aria-label="导出" title="导出">
+            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
+          </button>
+        </div>
+        <button class="re-icon-btn clickable-icon re-save-btn" type="button" aria-label="保存" title="保存">
+          <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- 方案 A / B：新增工具栏行（参考图二第二行的图标工具条） -->
+    <div class="re-toolbar" id="reToolbar">
+      <div class="re-tpl-select-wrap">
+        <select class="re-select re-tpl-select" id="tplSelectToolbar" data-tpl-select>
+          <option value="classic" selected>经典</option>
+          <option value="single">单栏</option>
+          <option value="twoCol">双栏</option>
+          <option value="academic">学术</option>
+          <option value="timeline">时间线</option>
+          <option value="swiss">瑞士风</option>
+          <option value="modern">现代</option>
+          <option value="minimalist">极简</option>
+          <option value="leftRight">左右分布</option>
+          <option value="elegant">雅致</option>
+        </select>
+      </div>
+      <!-- 方案 B：模板改为图标 + 菜单 -->
+      <div class="re-tpl-menu-wrap hidden" id="tplMenuWrap">
+        <button class="re-icon-btn clickable-icon re-tpl-btn" type="button" id="tplMenuBtn" aria-label="切换模板" title="切换模板">
+          <svg viewBox="0 0 24 24"><rect width="18" height="7" x="3" y="3" rx="1"/><rect width="9" height="7" x="3" y="14" rx="1"/><rect width="5" height="7" x="14" y="14" rx="1"/></svg>
+        </button>
+      </div>
+      <span class="sep"></span>
+      <div class="re-export-wrap">
+        <button class="re-icon-btn clickable-icon re-export-btn" type="button" aria-label="导出" title="导出">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
+        </button>
+      </div>
+      <button class="re-icon-btn clickable-icon re-save-btn" type="button" aria-label="保存" title="保存">
+        <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
+      </button>
+    </div>
+
+    <div class="re-dual">
+      <div class="re-pane">（表单区占位）</div>
+      <div class="re-pane">（预览区占位）</div>
+    </div>
+  </div>
+</div>
+
+<div class="controls">
+  <span class="seg" id="variantSeg">
+    <button data-v="a" class="is-on">方案 A · 下拉框工具栏</button>
+    <button data-v="b">方案 B · 全图标工具栏</button>
+    <button data-v="current">现状（对照）</button>
+  </span>
+  <span class="readout" id="readout"></span>
+</div>
+
+<script>
+(function () {
+  var root = document.getElementById("root");
+  var readout = document.getElementById("readout");
+  var seg = document.getElementById("variantSeg");
+  var tplMenuWrap = document.getElementById("tplMenuWrap");
+  var tplSelectToolbar = document.getElementById("tplSelectToolbar");
+  var TEMPLATES = [
+    ["classic", "经典"], ["single", "单栏"], ["twoCol", "双栏"], ["academic", "学术"],
+    ["timeline", "时间线"], ["swiss", "瑞士风"], ["modern", "现代"],
+    ["minimalist", "极简"], ["leftRight", "左右分布"], ["elegant", "雅致"]
+  ];
+  var current = "classic";
+  var variant = "a"; // 唯一真源：hash / seg 点击都写它，sync 只读它
+
+  function sync() {
+    root.className = "variant-" + variant;
+    var isB = variant === "b";
+    tplMenuWrap.classList.toggle("hidden", !isB);
+    // 两个下拉（标题行的/工具栏的）都同步当前模板，读数栏自证
+    var selA = document.getElementById("tplSelectHeader");
+    var selB = tplSelectToolbar;
+    if (selA) selA.value = current;
+    if (selB) selB.value = current;
+    var names = { "a": "方案 A（下拉框留在工具栏）", "b": "方案 B（模板也图标化）", "current": "现状（对照组）" };
+    readout.innerHTML = "变体：<b>" + names[variant] + "</b> ｜ 当前模板：<b>" +
+      (TEMPLATES.find(function (t) { return t[0] === current; }) || ["", "?"])[1] +
+      "</b> ｜ 工具栏可见：" + (variant === "current" ? "否" : "是");
+  }
+
+  seg.addEventListener("click", function (e) {
+    var btn = e.target.closest("button[data-v]");
+    if (!btn) return;
+    seg.querySelectorAll("button").forEach(function (b) { b.classList.remove("is-on"); });
+    btn.classList.add("is-on");
+    variant = btn.dataset.v;
+    closeAllMenus();
+    sync();
+  });
+
+  // 模板下拉（两处都改值）
+  ["tplSelectHeader", "tplSelectToolbar"].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener("change", function () { current = el.value; closeAllMenus(); sync(); });
+  });
+
+  // ---- 通用菜单 ----
+  function openMenu(anchor, items, checkedValue, onPick) {
+    closeAllMenus();
+    var wrap = anchor.parentElement;
+    var menu = document.createElement("div");
+    menu.className = "re-menu";
+    items.forEach(function (it) {
+      var row = document.createElement("div");
+      row.className = "re-menu-item" + (it[0] === checkedValue ? " is-checked" : "");
+      row.textContent = it[1];
+      row.addEventListener("click", function () { onPick(it[0]); closeAllMenus(); sync(); });
+      menu.appendChild(row);
+    });
+    wrap.appendChild(menu);
+    var close = function (ev) {
+      if (!menu.contains(ev.target) && !anchor.contains(ev.target)) { closeAllMenus(); document.removeEventListener("click", close); }
+    };
+    setTimeout(function () { document.addEventListener("click", close); }, 0);
+  }
+  function closeAllMenus() {
+    document.querySelectorAll(".re-menu").forEach(function (m) { m.remove(); });
+  }
+
+  // 方案 B：模板图标菜单
+  tplMenuWrap.addEventListener("click", function (e) {
+    var btn = e.target.closest(".re-tpl-btn");
+    if (!btn) return;
+    if (btn.parentElement.querySelector(".re-menu")) { closeAllMenus(); return; }
+    openMenu(btn, TEMPLATES, current, function (v) { current = v; });
+  });
+
+  // 导出菜单（两处导出按钮都可用）
+  root.addEventListener("click", function (e) {
+    var btn = e.target.closest(".re-export-btn");
+    if (!btn) return;
+    if (btn.parentElement.querySelector(".re-menu")) { closeAllMenus(); return; }
+    openMenu(btn, [["pdf", "导出 PDF"], ["html", "导出 HTML"], ["docx", "导出 Word"], ["latex", "导出 LaTeX"]], null, function () {});
+  });
+
+  // 保存按钮：视觉反馈（原型级别）
+  root.addEventListener("click", function (e) {
+    var btn = e.target.closest(".re-save-btn");
+    if (!btn) return;
+    readout.innerHTML += " ｜ <b>已触发保存（原型演示）</b>";
+  });
+
+  // hash 支持变体直达（#a / #b / #current），供截图脚本寻址
+  var h = (location.hash || "").replace("#", "");
+  if (["a", "b", "current"].indexOf(h) >= 0) {
+    variant = h;
+    seg.querySelectorAll("button").forEach(function (b) {
+      b.classList.toggle("is-on", b.dataset.v === h);
+    });
+  }
+  sync();
+})();
+</script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 // 导出进度条：视图顶部一条 3px 通栏细条。
 //
-// 位置：挂在顶栏 `.re-header` 上、`top: 100%` —— 也就是工具栏那一行的正下方。
+// 位置：挂在顶栏 `.re-toolbar` 上、`top: 100%` —— 也就是工具栏那一行的正下方。
 // 这条带在两栏内容之上，原本就是空白（`.re-dual` 的 8px 内边距），所以：
 //
 //   1) 绝对定位，**不占布局**：出现和消失都不会把下面的表单/预览推一下；
@@ -22,7 +22,7 @@ export class ExportProgress {
   private barEl: HTMLElement;
   private hideTimer: number | null = null;
 
-  /** host 应为顶栏元素（`.re-header`）：细条会挂到它的下沿。 */
+  /** host 应为顶栏元素（`.re-toolbar`）：细条会挂到它的下沿。 */
   constructor(host: HTMLElement) {
     const root = host.createDiv({ cls: "re-progress" });
     root.setAttribute("role", "progressbar");
