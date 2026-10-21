@@ -8,6 +8,7 @@ import {
   App,
   FuzzySuggestModal,
   setIcon,
+  Menu,
   Platform,
   ViewStateResult,
 } from "obsidian";
@@ -169,6 +170,14 @@ export class ResumeEditorView extends FileView {
   private paneToggleBtn: HTMLElement | null = null;
   private paneToggleIcon: HTMLElement | null = null;
   private paneToggleLabel: HTMLElement | null = null;
+
+  // 桌面端显示模式（三态切换：编辑 / 编辑预览 / 预览）
+  private viewMode: "edit" | "split" | "preview" = "split";
+  private shellEl!: HTMLElement;
+  private modeControlWrap: HTMLElement | null = null;
+  private modeSegBtns: HTMLElement[] = [];
+  private modeCyclicBtn: HTMLElement | null = null;
+  private modeDropdownBtn: HTMLElement | null = null;
   // 移动端多行文本框放大编辑层（方案 A）
   private textareaZoomOverlay: HTMLElement | null = null;
   private textareaZoomKeyHandler: ((e: KeyboardEvent) => void) | null = null;
@@ -279,6 +288,7 @@ export class ResumeEditorView extends FileView {
     // 标题（「简历编辑器」）已移除，仅保留工具栏按钮；进度条锚在工具栏下沿。
     const toolbar = shell.createDiv({ cls: "re-toolbar" });
     this.headerEl = toolbar;
+    this.shellEl = shell;
 
     // 移动端：在工具栏最左注入「编辑/预览」单按钮切换（方案 A）
     if (this.isMobile) {
@@ -317,11 +327,11 @@ export class ResumeEditorView extends FileView {
     // 双栏
     const dual = shell.createDiv({ cls: "re-dual" });
 
-    this.formPane = dual.createDiv({ cls: "re-pane" });
+    this.formPane = dual.createDiv({ cls: "re-pane re-form-pane" });
     this.formBody = this.formPane.createDiv({ cls: "re-pane-body" });
     this.formBody.addEventListener("input", () => this.syncFromForm());
 
-    this.previewPane = dual.createDiv({ cls: "re-pane" });
+    this.previewPane = dual.createDiv({ cls: "re-pane re-preview-pane" });
     const scroll = this.previewPane.createDiv({ cls: "re-preview-scroll" });
     this.previewPaper = scroll.createDiv({ cls: "re-preview-holder" });
     this.previewStatus = scroll.createDiv({ cls: "re-preview-status" });
@@ -336,6 +346,14 @@ export class ResumeEditorView extends FileView {
     // 默认进入编辑页（移动端单栏 + 切换由 CSS .re-active 控制显隐）
     this.activePane = "form";
     this.setActivePane("form");
+
+    // 桌面端：在工具栏最左注入「调整页面显示」三态切换，并应用已保存的显示模式
+    // （移动端保留原单按钮切换，不叠加本控件）
+    if (!this.isMobile) {
+      const spacer = toolbar.createDiv({ cls: "re-toolbar-spacer" });
+      const wrap = this.buildViewModeControl();
+      toolbar.insertBefore(wrap, spacer);
+    }
 
     // DOM 构建完成，标记就绪并触发数据加载：
     // - 若 setViewState / setState 已先于 onOpen 触发（启动恢复常见顺序），
@@ -1904,6 +1922,140 @@ export class ResumeEditorView extends FileView {
       // 元素在 display:none 下测量为 0，A4 分页线会算错
       this.renderPreview();
     }
+  }
+
+  /* ---------- 桌面端：显示模式三态切换（编辑 / 编辑预览 / 预览） ---------- */
+
+  /** 构建工具栏「调整页面显示」控件，按设置中的按钮形态渲染并应用当前模式 */
+  private buildViewModeControl(): HTMLElement {
+    const wrap = document.createElement("div");
+    wrap.className = "re-mode-wrap";
+    this.modeControlWrap = wrap;
+    this.modeSegBtns = [];
+    this.modeCyclicBtn = null;
+    this.modeDropdownBtn = null;
+    this.viewMode = this.plugin.settings.viewMode;
+    const style = this.plugin.settings.viewModeControl;
+    if (style === "segment") this.renderModeSegment(wrap);
+    else if (style === "dropdown") this.renderModeDropdown(wrap);
+    else this.renderModeCyclic(wrap);
+    this.applyViewModeClasses();
+    return wrap;
+  }
+
+  /** 设置变更后同步当前打开的视图：重建控件并应用显示模式（不再写盘） */
+  syncFromSettings(): void {
+    if (this.isMobile) return;
+    const old = this.modeControlWrap;
+    if (!old || !old.parentElement) return;
+    const wrap = this.buildViewModeControl();
+    old.parentElement.replaceChild(wrap, old);
+  }
+
+  /** 变体 B：分段控件（三个图标并排，当前态高亮） */
+  private renderModeSegment(wrap: HTMLElement): void {
+    const seg = wrap.createDiv({ cls: "re-mode-seg" });
+    (["edit", "split", "preview"] as const).forEach((m) => {
+      const b = seg.createEl("button", {
+        cls:
+          "re-mode-btn re-icon-btn clickable-icon" +
+          (m === this.viewMode ? " is-active" : ""),
+        attr: {
+          type: "button",
+          "aria-label": t("viewMode." + m),
+          title: t("viewMode." + m),
+        },
+      });
+      setIcon(b, "re-mode-" + m);
+      b.addEventListener("click", () => this.applyViewMode(m));
+      this.modeSegBtns.push(b);
+    });
+  }
+
+  /** 变体 A：循环图标（每次点击在 编辑→编辑预览→预览 间循环） */
+  private renderModeCyclic(wrap: HTMLElement): void {
+    const b = wrap.createEl("button", {
+      cls: "re-mode-btn re-icon-btn clickable-icon",
+      attr: { type: "button" },
+    });
+    this.modeCyclicBtn = b;
+    this.setCyclicIcon();
+    b.addEventListener("click", () => {
+      const order = ["edit", "split", "preview"] as const;
+      const next = order[(order.indexOf(this.viewMode) + 1) % 3];
+      this.applyViewMode(next);
+    });
+  }
+
+  private setCyclicIcon(): void {
+    if (!this.modeCyclicBtn) return;
+    const m = this.viewMode;
+    setIcon(this.modeCyclicBtn, "re-mode-" + m);
+    this.modeCyclicBtn.setAttribute("aria-label", t("viewMode." + m));
+    this.modeCyclicBtn.title = t("viewMode." + m);
+  }
+
+  /** 变体 C：下拉菜单（Obsidian Menu，图标+箭头触发） */
+  private renderModeDropdown(wrap: HTMLElement): void {
+    const btn = wrap.createEl("button", {
+      cls: "re-mode-btn re-icon-btn clickable-icon",
+      attr: {
+        type: "button",
+        "aria-label": t("settings.viewModeControl.name"),
+        title: t("settings.viewModeControl.name"),
+      },
+    });
+    this.modeDropdownBtn = btn;
+    setIcon(btn, "re-mode-" + this.viewMode);
+    const caret = btn.createSpan({ cls: "re-mode-caret" });
+    setIcon(caret, "re-chevron-down");
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const menu = new Menu();
+      (["edit", "split", "preview"] as const).forEach((m) => {
+        menu.addItem((item) =>
+          item
+            .setTitle(t("viewMode." + m))
+            .setIcon("re-mode-" + m)
+            .onClick(() => this.applyViewMode(m))
+        );
+      });
+      menu.showAtMouseEvent(e);
+    });
+  }
+
+  /** 切换显示模式：更新控件视觉并持久化（persist=false 用于设置联动，避免重复写盘） */
+  private applyViewMode(
+    mode: "edit" | "split" | "preview",
+    persist = true
+  ): void {
+    this.viewMode = mode;
+    this.applyViewModeClasses();
+    this.modeSegBtns.forEach((b, i) => {
+      const m = (["edit", "split", "preview"] as const)[i];
+      b.toggleClass("is-active", m === mode);
+    });
+    if (this.modeCyclicBtn) this.setCyclicIcon();
+    if (this.modeDropdownBtn) {
+      setIcon(this.modeDropdownBtn, "re-mode-" + mode);
+    }
+    // 进入含预览的模式时重渲染：display:none 下尺寸为 0，A4 分页线需重算
+    if (mode !== "edit") this.renderPreview();
+    if (persist) {
+      this.plugin.settings.viewMode = mode;
+      void this.plugin.saveSettings();
+    }
+  }
+
+  /** 仅切换根节点的 .re-mode-* 类，由 CSS 控制 pane 显隐与单列占满 */
+  private applyViewModeClasses(): void {
+    if (!this.shellEl) return;
+    this.shellEl.removeClass(
+      "re-mode-edit",
+      "re-mode-split",
+      "re-mode-preview"
+    );
+    this.shellEl.addClass("re-mode-" + this.viewMode);
   }
 
   /** 移动端预览：A4 纸张固定 794px，按可用宽度等比缩放，并补偿缩放后的空白高度 */

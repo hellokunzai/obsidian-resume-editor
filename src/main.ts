@@ -122,7 +122,7 @@ export default class ResumeEditorPlugin extends Plugin {
     await this.saveData(this.settings);
   }
 
-  private getView(): ResumeEditorView | null {
+  getView(): ResumeEditorView | null {
     const leaf = this.app.workspace.getLeavesOfType(VIEW_TYPE_RESUME)[0];
     return (leaf?.view as ResumeEditorView) ?? null;
   }

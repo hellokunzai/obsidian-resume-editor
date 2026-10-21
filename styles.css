@@ -194,6 +194,70 @@
   flex: 1;
 }
 
+/* ===== 桌面端「调整页面显示」三态切换 =====
+   .re-mode-* 仅由桌面端 JS 加在视图根节点（移动端保留原单按钮切换，不会加这些类） */
+.review-editor-root:not(.re-mobile).re-mode-edit .re-dual {
+  grid-template-columns: 1fr;
+}
+.review-editor-root:not(.re-mobile).re-mode-edit .re-preview-pane {
+  display: none;
+}
+.review-editor-root:not(.re-mobile).re-mode-preview .re-dual {
+  grid-template-columns: 1fr;
+}
+.review-editor-root:not(.re-mobile).re-mode-preview .re-form-pane {
+  display: none;
+}
+.review-editor-root:not(.re-mobile).re-mode-split .re-dual {
+  grid-template-columns: minmax(300px, 1fr) minmax(340px, 1.1fr);
+}
+
+/* 工具栏占位：把右侧导出/保存推到最右 */
+.re-toolbar-spacer {
+  flex: 1;
+  min-width: 8px;
+}
+
+.re-mode-wrap {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* 变体 B：分段控件 */
+.re-mode-seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--button-radius, 6px);
+  padding: 2px;
+}
+.re-mode-seg .re-mode-btn {
+  padding: 4px 9px;
+  border-radius: calc(var(--button-radius, 6px) - 1px);
+}
+.re-mode-seg .re-mode-btn.is-active {
+  background: var(--background-modifier-active-hover);
+  background: color-mix(in srgb, var(--interactive-accent) 16%, transparent);
+  color: var(--interactive-accent);
+}
+.re-mode-seg .re-mode-btn.is-active .svg-icon {
+  color: var(--interactive-accent);
+}
+
+/* 变体 C：下拉箭头 */
+.re-mode-caret {
+  width: 13px;
+  height: 13px;
+  margin-left: 1px;
+  opacity: 0.7;
+}
+.re-mode-caret .svg-icon {
+  width: 13px;
+  height: 13px;
+}
+
 /* 表单 */
 .re-sect {
   border: 1px solid var(--background-modifier-border);
