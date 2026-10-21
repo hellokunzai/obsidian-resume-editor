@@ -83,8 +83,8 @@ export class ResumeSettingTab extends PluginSettingTab {
       .setDesc(t("settings.viewMode.desc"))
       .addDropdown((dd) => {
         dd.addOption("edit", t("viewMode.edit"));
-        dd.addOption("split", t("viewMode.split"));
         dd.addOption("preview", t("viewMode.preview"));
+        dd.addOption("split", t("viewMode.split"));
         return dd
           .setValue(this.plugin.settings.viewMode)
           .onChange(async (v) => {

@@ -176,9 +176,6 @@ export class ResumeEditorView extends FileView {
   private shellEl!: HTMLElement;
   private modeControlWrap: HTMLElement | null = null;
   private modeDropdownBtn: HTMLElement | null = null;
-  // 模式图标的专属容器：setIcon 只打在它身上，
-  // 避免 Obsidian setIcon「只移除 firstChild」的语义误删 caret 箭头
-  private modeIconEl: HTMLElement | null = null;
   // 移动端多行文本框放大编辑层（方案 A）
   private textareaZoomOverlay: HTMLElement | null = null;
   private textareaZoomKeyHandler: ((e: KeyboardEvent) => void) | null = null;
@@ -1933,7 +1930,6 @@ export class ResumeEditorView extends FileView {
     wrap.className = "re-mode-wrap";
     this.modeControlWrap = wrap;
     this.modeDropdownBtn = null;
-    this.modeIconEl = null;
     this.viewMode = this.plugin.settings.viewMode;
     this.renderModeDropdown(wrap);
     this.applyViewModeClasses();
@@ -1960,13 +1956,11 @@ export class ResumeEditorView extends FileView {
       },
     });
     this.modeDropdownBtn = btn;
-    const iconEl = btn.createSpan({ cls: "re-mode-icon" });
-    this.modeIconEl = iconEl;
-    setIcon(iconEl, "re-mode-" + this.viewMode);
+    setIcon(btn, "re-mode-" + this.viewMode);
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       const menu = new Menu();
-      (["edit", "split", "preview"] as const).forEach((m) => {
+      (["edit", "preview", "split"] as const).forEach((m) => {
         menu.addItem((item) =>
           item
             .setTitle(t("viewMode." + m))
@@ -1985,8 +1979,8 @@ export class ResumeEditorView extends FileView {
   ): void {
     this.viewMode = mode;
     this.applyViewModeClasses();
-    if (this.modeIconEl) {
-      setIcon(this.modeIconEl, "re-mode-" + mode);
+    if (this.modeDropdownBtn) {
+      setIcon(this.modeDropdownBtn, "re-mode-" + mode);
     }
     // 进入含预览的模式时重渲染：display:none 下尺寸为 0，A4 分页线需重算
     if (mode !== "edit") this.renderPreview();
