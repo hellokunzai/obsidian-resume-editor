@@ -330,15 +330,11 @@ export class ResumeEditorView extends FileView {
     this.setActivePane(this.isMobile && initMode === "preview" ? "preview" : "form");
 
     // 注入「显示模式」下拉控件：桌面端含 编辑/编辑预览/预览 三态；
-    // 移动端仅 编辑页/预览页 两项（窄屏无法并排显示「编辑预览」，故去掉），置于最左替换原单按钮切换
+    // 移动端仅 编辑页/预览页 两项（窄屏无法并排显示「编辑预览」，故去掉）。
+    // 两端顺序统一：保存 → 显示模式 → 导出
     const modeWrap = this.buildViewModeControl();
-    if (this.isMobile) {
-      toolbar.insertBefore(modeWrap, toolbar.firstChild);
-    } else {
-      const spacer = toolbar.createDiv({ cls: "re-toolbar-spacer" });
-      // 插在导出之前，保证顺序：保存 → 显示模式 → 导出（spacer 保持在末尾）
-      toolbar.insertBefore(modeWrap, exportWrap);
-    }
+    const spacer = toolbar.createDiv({ cls: "re-toolbar-spacer" });
+    toolbar.insertBefore(modeWrap, exportWrap);
 
     // DOM 构建完成，标记就绪并触发数据加载：
     // - 若 setViewState / setState 已先于 onOpen 触发（启动恢复常见顺序），
