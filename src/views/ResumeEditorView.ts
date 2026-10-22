@@ -682,7 +682,7 @@ export class ResumeEditorView extends FileView {
     (["left", "top", "right"] as ResumeLayout[]).forEach((id) => {
       const btn = layoutRow.createEl("button", {
         cls: "re-layout-btn clickable-icon" + (this.model.layout === id ? " re-on" : ""),
-        attr: { "data-layout": id, "aria-label": t("layout." + id) },
+        attr: { "data-layout": id, "aria-label": t(`layout.${id}`) },
       });
       btn.createSpan({ cls: "re-layout-icon re-layout-" + id });
       btn.addEventListener("click", () => {
