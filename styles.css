@@ -20,17 +20,36 @@
   flex-wrap: wrap;
 }
 
-/* 模板下拉（现居「全局样式」面板内，样式沿用 re-style-row 布局） */
-.re-tpl-select {
+/* 模板下拉（现居「全局样式」面板内）：胶囊型——
+   大圆角 999px + secondary 底 + 自绘箭头，hover 提亮底色。
+   用 .re-select.re-tpl-select 提权到 (0,2,0)，压住后文的 .re-select 通版规则（width:100% 等）。 */
+.re-select.re-tpl-select {
+  appearance: none;
+  -webkit-appearance: none;
   width: auto;
   min-width: 110px;
   max-width: 160px;
-  padding: 4px 8px;
+  padding: 4px 28px 4px 12px;
   font-size: var(--font-ui-small, 13px);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: var(--button-radius, 6px);
-  background: var(--background-secondary);
   color: var(--text-normal);
+  background-color: var(--background-secondary);
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23666' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color 100ms, border-color 100ms;
+}
+
+.re-select.re-tpl-select:hover {
+  background-color: var(--background-modifier-border-hover);
+}
+
+.re-select.re-tpl-select:focus {
+  outline: none;
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 2px var(--background-modifier-border-focus, rgba(120, 120, 200, 0.15));
 }
 
 .re-export-wrap {
@@ -2100,7 +2119,6 @@
 .re-mobile .re-tpl-select {
   min-width: 96px;
   max-width: 140px;
-  border-radius: 4px;
 }
 
 /* 表单内边距收紧 */

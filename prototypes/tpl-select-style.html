@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+<meta charset="UTF-8">
+<title>模板下拉框样式原型</title>
+<style>
+  /* ===== Obsidian 变量垫片（亮色主题） ===== */
+  :root {
+    --background-primary: #ffffff;
+    --background-secondary: #f2f3f5;
+    --background-modifier-border: #dddddd;
+    --background-modifier-border-hover: #c9c9c9;
+    --background-modifier-border-focus: rgba(112, 93, 207, 0.25);
+    --text-normal: #222222;
+    --text-muted: #666666;
+    --text-faint: #999999;
+    --interactive-accent: #705dcf;
+    --interactive-accent-hover: #7f6df2;
+    --button-radius: 6px;
+    --font-ui-small: 13px;
+    --font-ui-smaller: 11px;
+    --size-4-2: 8px;
+  }
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 24px;
+    font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: #e8e8e8;
+    color: var(--text-normal);
+  }
+
+  /* ===== 顶部方案切换条 ===== */
+  .topbar {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 16px; margin-bottom: 20px;
+    background: #fff; border: 1px solid #ddd; border-radius: 8px;
+  }
+  .topbar .hint { font-size: 12px; color: var(--text-muted); }
+  .seg { display: inline-flex; border: 1px solid var(--background-modifier-border); border-radius: 6px; overflow: hidden; }
+  .seg button {
+    appearance: none; border: none; background: transparent;
+    padding: 5px 14px; font-size: 13px; cursor: pointer; color: var(--text-muted);
+    border-right: 1px solid var(--background-modifier-border);
+  }
+  .seg button:last-child { border-right: none; }
+  .seg button.is-on { background: var(--interactive-accent); color: #fff; }
+
+  .stage { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+  .panel-col h3 { margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--text-muted); }
+
+  /* ===== 模拟插件「全局样式」面板 ===== */
+  .mock-view {
+    width: var(--panel-w, 340px);
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
+    padding: 12px;
+  }
+  .re-sect { border: 1px solid var(--background-modifier-border); border-radius: 6px; }
+  .re-sect summary {
+    padding: 6px 10px; font-size: 13px; font-weight: 600; cursor: pointer; user-select: none;
+    background: var(--background-secondary); border-radius: 5px;
+  }
+  .re-sect-body { display: flex; flex-direction: column; gap: 8px; padding: 10px; }
+  .re-style-row { display: flex; align-items: center; gap: 8px; min-height: 28px; }
+  .re-style-label { flex: none; width: 80px; white-space: nowrap; font-size: var(--font-ui-small); color: var(--text-muted); }
+  .re-swatch-grid { display: flex; gap: 6px; flex-wrap: wrap; }
+  .re-swatch { width: 18px; height: 18px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; }
+  .re-swatch.re-on { border-color: var(--text-normal); }
+  .re-style-range-row .bar { flex: 1; height: 4px; background: var(--background-modifier-border); border-radius: 2px; position: relative; }
+  .re-style-range-row .bar i { position: absolute; left: 0; top: 0; bottom: 0; width: 55%; background: var(--interactive-accent); border-radius: 2px; }
+  .re-style-val { flex: none; min-width: 40px; text-align: right; font-size: var(--font-ui-smaller); color: var(--text-faint); }
+
+  /* ============================================================
+     方案 A：现状 —— 原生 select（对照组）
+     ============================================================ */
+  .v-a .re-tpl-select {
+    width: auto; min-width: 110px; max-width: 160px;
+    padding: 4px 8px; font-size: var(--font-ui-small);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--button-radius);
+    background: var(--background-secondary);
+    color: var(--text-normal);
+  }
+
+  /* ============================================================
+     方案 B：极简无边框 —— 平时无底色无边框，hover/焦点才显边框
+     （符合「极简干净」偏好；原生化 appearance:none + 自绘箭头）
+     ============================================================ */
+  .v-b .re-tpl-select {
+    appearance: none; -webkit-appearance: none;
+    width: auto; min-width: 110px;
+    padding: 4px 26px 4px 8px;
+    font-size: var(--font-ui-small); font-family: inherit;
+    color: var(--text-normal);
+    background-color: transparent;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    border: 1px solid transparent;
+    border-radius: var(--button-radius);
+    cursor: pointer;
+    transition: border-color 100ms, background-color 100ms;
+  }
+  .v-b .re-tpl-select:hover {
+    border-color: var(--background-modifier-border);
+    background-color: var(--background-secondary);
+  }
+  .v-b .re-tpl-select:focus {
+    outline: none;
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
+  }
+
+  /* ============================================================
+     方案 C：胶囊型 —— 大圆角 + secondary 底 + 自绘箭头 + hover 提亮
+     ============================================================ */
+  .v-c .re-tpl-select {
+    appearance: none; -webkit-appearance: none;
+    width: auto; min-width: 110px;
+    padding: 4px 28px 4px 12px;
+    font-size: var(--font-ui-small); font-family: inherit;
+    color: var(--text-normal);
+    background-color: var(--background-secondary);
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23666' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background-color 100ms, border-color 100ms;
+  }
+  .v-c .re-tpl-select:hover {
+    background-color: var(--background-modifier-border-hover);
+  }
+  .v-c .re-tpl-select:focus {
+    outline: none;
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
+  }
+
+  /* ============================================================
+     方案 D：Chip 网格 —— 11 个模板平铺成小胶囊，点击切换（替换下拉）
+     ============================================================ */
+  .v-d .re-tpl-chips { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; min-width: 0; }
+  .v-d .re-tpl-chip {
+    appearance: none;
+    padding: 3px 10px;
+    font-size: 12px; font-family: inherit;
+    color: var(--text-muted);
+    background: var(--background-secondary);
+    border: 1px solid transparent;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background-color 100ms, color 100ms, border-color 100ms;
+  }
+  .v-d .re-tpl-chip:hover { background: var(--background-modifier-border-hover); color: var(--text-normal); }
+  .v-d .re-tpl-chip.is-on {
+    background: transparent;
+    border-color: var(--interactive-accent);
+    color: var(--interactive-accent);
+    font-weight: 600;
+  }
+  /* D 方案里「模板」标签行换行：标签独占一行，chips 占满整行 */
+  .v-d .re-style-row.tpl { flex-wrap: wrap; }
+  .v-d .re-style-row.tpl .re-style-label { width: auto; }
+
+  .tpl-names { display: none; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span style="font-weight:600;font-size:14px;">模板下拉样式原型</span>
+  <div class="seg" id="seg">
+    <button data-v="v-a" class="is-on">A 现状</button>
+    <button data-v="v-b">B 极简无边框</button>
+    <button data-v="v-c">C 胶囊型</button>
+    <button data-v="v-d">D Chip 网格</button>
+  </div>
+  <span class="hint">左侧 320px（窄栏）· 右侧 600px（宽栏）</span>
+</div>
+
+<div class="stage" id="stage"></div>
+
+<div class="tpl-names" id="tplNames">
+  单栏,双栏,学术,经典,时间轴,瑞士,现代,极简,左右分栏,优雅,创意,杂志风
+</div>
+
+<script>
+(function () {
+  var TPLS = ["单栏","双栏","学术","经典","时间轴","瑞士","现代","极简","左右分栏","优雅","创意","杂志风"];
+  var COLORS = ["#8b5cf6","#2563eb","#0d9488","#059669","#84cc16","#ca8a04","#ea580c","#dc2626","#e11d48","#d946ef","#0f766e","#475569"];
+  var CURRENT = "v-a";
+
+  function buildPanel(width, variant) {
+    var col = document.createElement("div");
+    col.className = "panel-col";
+    col.style.setProperty("--panel-w", width + "px");
+    col.innerHTML = '<h3>' + width + 'px</h3>';
+
+    var view = document.createElement("div");
+    view.className = "mock-view " + variant;
+
+    var sect = document.createElement("details");
+    sect.className = "re-sect re-style-panel";
+    sect.open = true;
+    var summary = document.createElement("summary");
+    summary.textContent = "全局样式";
+    sect.appendChild(summary);
+
+    var body = document.createElement("div");
+    body.className = "re-sect-body";
+
+    // --- 模板行 ---
+    var tplRow = document.createElement("div");
+    tplRow.className = "re-style-row tpl";
+    var label = document.createElement("span");
+    label.className = "re-style-label";
+    label.textContent = "模板";
+    tplRow.appendChild(label);
+
+    if (variant === "v-d") {
+      var chips = document.createElement("div");
+      chips.className = "re-tpl-chips";
+      TPLS.forEach(function (name, i) {
+        var chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "re-tpl-chip" + (i === 3 ? " is-on" : "");
+        chip.textContent = name;
+        chip.addEventListener("click", function () {
+          chips.querySelectorAll(".re-tpl-chip").forEach(function (c) { c.classList.remove("is-on"); });
+          chip.classList.add("is-on");
+        });
+        chips.appendChild(chip);
+      });
+      tplRow.appendChild(chips);
+    } else {
+      var sel = document.createElement("select");
+      sel.className = "re-tpl-select";
+      TPLS.forEach(function (name, i) {
+        var opt = document.createElement("option");
+        opt.value = String(i);
+        opt.textContent = name;
+        if (i === 3) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      tplRow.appendChild(sel);
+    }
+    body.appendChild(tplRow);
+
+    // --- 主题色行 ---
+    var colorRow = document.createElement("div");
+    colorRow.className = "re-style-row";
+    var clabel = document.createElement("span");
+    clabel.className = "re-style-label";
+    clabel.textContent = "主题色";
+    colorRow.appendChild(clabel);
+    var grid = document.createElement("div");
+    grid.className = "re-swatch-grid";
+    COLORS.forEach(function (c, i) {
+      var sw = document.createElement("button");
+      sw.type = "button";
+      sw.className = "re-swatch" + (i === 0 ? " re-on" : "");
+      sw.style.background = c;
+      sw.addEventListener("click", function () {
+        grid.querySelectorAll(".re-swatch").forEach(function (s) { s.classList.remove("re-on"); });
+        sw.classList.add("re-on");
+      });
+      grid.appendChild(sw);
+    });
+    colorRow.appendChild(grid);
+    body.appendChild(colorRow);
+
+    // --- 字号行 ---
+    var sizeRow = document.createElement("div");
+    sizeRow.className = "re-style-row re-style-range-row";
+    sizeRow.innerHTML =
+      '<span class="re-style-label">字号</span>' +
+      '<div class="bar"><i></i></div>' +
+      '<span class="re-style-val">15px</span>';
+    body.appendChild(sizeRow);
+
+    // --- 行距行 ---
+    var lhRow = document.createElement("div");
+    lhRow.className = "re-style-row re-style-range-row";
+    lhRow.innerHTML =
+      '<span class="re-style-label">行距</span>' +
+      '<div class="bar"><i style="width:65%"></i></div>' +
+      '<span class="re-style-val">1.60</span>';
+    body.appendChild(lhRow);
+
+    sect.appendChild(body);
+    view.appendChild(sect);
+    col.appendChild(view);
+    return col;
+  }
+
+  function renderAll() {
+    var stage = document.getElementById("stage");
+    stage.innerHTML = "";
+    stage.appendChild(buildPanel(320, CURRENT));
+    stage.appendChild(buildPanel(600, CURRENT));
+  }
+
+  document.getElementById("seg").addEventListener("click", function (e) {
+    var btn = e.target.closest("button");
+    if (!btn) return;
+    document.querySelectorAll("#seg button").forEach(function (b) { b.classList.remove("is-on"); });
+    btn.classList.add("is-on");
+    CURRENT = btn.dataset.v;
+    renderAll();
+  });
+
+  renderAll();
+})();
+</script>
+</body>
+</html>
