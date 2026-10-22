@@ -2071,6 +2071,16 @@
   padding: 6px 8px;
 }
 
+/* 移动端工具栏图标采用 Obsidian 默认 18px（--icon-s / --icon-xs），
+   桌面端保持插件自定的 16px。基础规则用 !important 写死 16px，故此处需同等覆盖。 */
+.re-mobile .re-icon-btn.re-icon-btn svg,
+.re-mobile .re-icon-btn.re-icon-btn .svg-icon {
+  width: 18px !important;
+  height: 18px !important;
+  min-width: 18px !important;
+  min-height: 18px !important;
+}
+
 .re-mobile .re-btn-label {
   display: none;
 }
