@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>简历编辑器 · 移动端预览缩放 — 原型</title>
+<!--
+  原型范围说明（对照真机的差异）：
+  - 顶栏（← → ⋮ 与标签页）是 Obsidian 宿主 UI 的模拟，仅为还原移动端场景；
+  - 插件自身结构 = .re-toolbar（工具栏：保存 / 显示模式 / 导出）+ .re-pane（编辑/预览）；
+  - 真实实现复用 styles.css 的 .re-toolbar / .re-preview-scroll / .re-preview-holder 等类，
+    用 transform: scale()（origin: top left）做缩放，本原型自带等义 CSS 便于对比；
+  - 真实实现里「显示模式」下拉按 isMobile 只有 编辑页 / 预览页 两项，本原型保持一致。
+
+  本原型要确认的点：
+  1) 无任何可见缩放控件（用户明确：不要显示浮动胶囊）；
+  2) 预览页直接支持双指捏合缩放（真实手机手势），以捏合中心为锚点缩放；
+  3) 桌面浏览器验证等价手势：Ctrl + 滚轮 缩放（以光标为锚点）、双击复位 100%；
+  4) 100% = 适应屏幕宽度（整页可见），范围 50%–300%；放大后可双向滚动。
+-->
+<style>
+  :root {
+    --background-primary: #ffffff;
+    --background-secondary: #f2f3f5;
+    --background-modifier-border: #e0e0e0;
+    --background-modifier-hover: rgba(0, 0, 0, 0.055);
+    --background-modifier-active-hover: rgba(0, 0, 0, 0.09);
+    --text-normal: #222222;
+    --text-muted: #808080;
+    --text-faint: #9aa0a6;
+    --interactive-accent: #6d4aff;
+    --interactive-accent-hover: #5b3ae0;
+    --font-ui-small: 13px;
+    --radius: 8px;
+    --button-radius: 6px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text-normal);
+    background: #e9eaee;
+    padding: 18px 0 60px;
+    display: flex; flex-direction: column; align-items: center; gap: 16px;
+  }
+
+  /* ===== 顶部说明条 ===== */
+  .note {
+    width: 380px; max-width: 94vw;
+    background: #fff; border: 1px solid var(--background-modifier-border);
+    border-radius: 10px; padding: 10px 12px; font-size: 12.5px; line-height: 1.6;
+    color: var(--text-muted);
+  }
+  .note b { color: var(--text-normal); }
+  .note .k { color: var(--interactive-accent); font-weight: 600; }
+
+  /* ===== 模拟手机 ===== */
+  .phone {
+    position: relative;
+    width: 380px; max-width: 94vw; height: 720px;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 18px; overflow: hidden;
+    box-shadow: 0 8px 34px rgba(0,0,0,0.12);
+    display: flex; flex-direction: column;
+  }
+  /* 模拟 Obsidian 顶栏 */
+  .appbar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; background: var(--background-secondary);
+    border-bottom: 1px solid var(--background-modifier-border);
+    font-size: 12px; color: var(--text-muted);
+  }
+  .appbar .nav { font-size: 16px; color: var(--text-faint); }
+  .appbar .tab { background: var(--background-primary); border: 1px solid var(--background-modifier-border); padding: 3px 8px; border-radius: 6px; color: var(--text-normal); }
+  .appbar .dots { margin-left: auto; letter-spacing: 2px; }
+
+  /* ===== 插件工具栏（保存 / 显示模式 / 导出） ===== */
+  .re-toolbar {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 8px; border-bottom: 1px solid var(--background-modifier-border);
+  }
+  .re-icon-btn {
+    width: 30px; height: 30px; flex: 0 0 auto;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--background-modifier-border); border-radius: 6px;
+    background: var(--background-secondary); color: var(--text-muted);
+    cursor: pointer; font-size: 15px;
+  }
+  .re-icon-btn:active { background: var(--background-modifier-active-hover); }
+  .re-toolbar-spacer { flex: 1; min-width: 8px; }
+
+  /* 显示模式下拉（移动端仅 编辑页 / 预览页 两项） */
+  .re-mode-wrap { display: inline-flex; align-items: center; }
+  .re-mode-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+    height: 30px; padding: 0 8px;
+    border: 1px solid var(--background-modifier-border); border-radius: 6px;
+    background: var(--background-secondary); color: var(--text-normal);
+    cursor: pointer; font-size: 13px;
+  }
+  .re-mode-btn .ic { font-size: 14px; }
+
+  /* ===== 内容区 ===== */
+  .stage { flex: 1; position: relative; overflow: hidden; background: #fafafa; }
+
+  /* 编辑页（占位，证明缩放控件只属于预览页） */
+  .re-form-pane { padding: 14px; }
+  .field { height: 34px; border: 1px solid var(--background-modifier-border); border-radius: 6px; margin-bottom: 10px; display: flex; align-items: center; padding: 0 10px; color: var(--text-faint); font-size: 13px; }
+  .field.lbl { background: var(--background-secondary); color: var(--text-muted); font-weight: 600; }
+
+  /* 预览页 */
+  .re-preview-scroll {
+    position: absolute; inset: 0; overflow: auto; padding: 14px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .re-preview-sizer { position: relative; }
+  .re-preview-holder {
+    width: 794px; max-width: 794px;
+    transform-origin: top left;
+  }
+  .re-paper {
+    width: 794px; background: #fff;
+    border: 1px solid #ddd; box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    padding: 48px 56px; color: #1a1a1a;
+  }
+  .re-paper h1 { font-size: 30px; margin: 0 0 4px; }
+  .re-paper .sub { color: #666; font-size: 14px; margin-bottom: 18px; }
+  .re-paper h2 { font-size: 17px; border-bottom: 2px solid #333; padding-bottom: 4px; margin: 18px 0 10px; }
+  .re-paper p, .re-paper li { font-size: 13.5px; line-height: 1.7; color: #333; }
+  .re-paper .row { display: flex; justify-content: space-between; font-size: 13px; color: #444; }
+
+  /* ===== 无可见缩放控件：预览区直接响应双指捏合 ===== */
+  /* touch-action: pan-x pan-y = 单指仍可滚动，双指交给 JS（避免浏览器/宿主抢手势） */
+  .re-preview-scroll { touch-action: pan-x pan-y; }
+</style>
+</head>
+<body>
+
+  <div class="note">
+    <b>移动端「预览页」缩放原型（无可见控件 · 双指捏合）</b><br>
+    确认点：① <b>不显示任何缩放控件</b>（浮动胶囊已去掉）；<br>
+    ② 预览页直接<b>双指捏合</b>放大/缩小，以捏合中心为锚点；<br>
+    ③ <b>100% = 适应屏幕宽度</b>，范围 50%–300%，放大后可双向滚动；<br>
+    ④ <span class="k">桌面验证方式</span>：Ctrl + 滚轮 缩放（光标为锚点），<b>双击</b>复位 100%。
+  </div>
+
+  <div class="phone">
+    <!-- 模拟 Obsidian 顶栏 -->
+    <div class="appbar">
+      <span class="nav">‹</span>
+      <span class="tab">我的简历.md</span>
+      <span class="dots">⋯</span>
+    </div>
+
+    <!-- 插件工具栏 -->
+    <div class="re-toolbar">
+      <button class="re-icon-btn" title="保存">💾</button>
+
+      <div class="re-mode-wrap">
+        <button class="re-mode-btn" id="modeBtn">
+          <span class="ic" id="modeIc">▥</span><span id="modeTxt">预览页</span>
+        </button>
+      </div>
+
+      <div class="re-toolbar-spacer"></div>
+      <button class="re-icon-btn" title="导出">⤓</button>
+    </div>
+
+    <!-- 内容区 -->
+    <div class="stage">
+      <!-- 编辑页占位 -->
+      <div class="re-form-pane" id="formPane">
+        <div class="field lbl">基本信息</div>
+        <div class="field">姓名</div>
+        <div class="field">电话</div>
+        <div class="field">邮箱</div>
+        <div class="field lbl">工作经历</div>
+        <div class="field">公司 / 职位</div>
+        <div class="field">职责描述…</div>
+      </div>
+
+      <!-- 预览页：无任何可见缩放控件，直接双指捏合 -->
+      <div class="re-preview-scroll" id="scroll" style="display:none">
+        <div class="re-preview-sizer" id="sizer">
+          <div class="re-preview-holder" id="holder">
+            <div class="re-paper">
+              <h1>张三</h1>
+              <div class="sub">Java 开发工程师 · 5 年经验 · 上海</div>
+              <h2>个人简介</h2>
+              <p>五年 Java 后端开发经验，主导过多个高并发微服务系统的设计与落地，熟悉 Spring Cloud、Kafka、Redis 等主流技术栈，具备 AI 应用落地经验。</p>
+              <h2>工作经历</h2>
+              <div class="row"><span><b>某某科技</b> · 高级 Java 工程师</span><span>2022.03 – 至今</span></div>
+              <p>负责订单中心微服务重构，QPS 从 2k 提升至 1.2w；推动 CI/CD 落地，发布效率提升 60%。</p>
+              <div class="row"><span><b>某某网络</b> · Java 工程师</span><span>2019.07 – 2022.02</span></div>
+              <p>参与支付清结算系统开发，保障日均千万级交易稳定。</p>
+              <h2>项目经历</h2>
+              <p><b>智能阅卷系统</b>：基于 Spring AI 实现主观题自动评分，准确率 92%。</p>
+              <p><b>OCR 填表工具</b>：落地证件识别 + 结构化录入，人工耗时下降 70%。</p>
+              <h2>技能</h2>
+              <p>Java / Spring Boot / Spring Cloud / MySQL / Redis / Kafka / Docker / K8s / Python</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const NATIVE_W = 794;            // A4 页面原始宽度（与真实插件一致）
+  const MIN_Z = 0.5, MAX_Z = 3.0; // 缩放倍率范围
+  let zoom = 1.0;                  // 1.0 = 适应宽度
+
+  const scroll  = document.getElementById('scroll');
+  const sizer   = document.getElementById('sizer');
+  const holder  = document.getElementById('holder');
+  const formPane = document.getElementById('formPane');
+
+  function fitScale() {
+    // 可用宽度 = 滚动容器内容宽度 − 左右内边距(14*2)
+    const avail = scroll.clientWidth - 28;
+    return Math.max(0.1, avail / NATIVE_W);
+  }
+
+  function apply() {
+    const eff = fitScale() * zoom;          // 实际缩放 = 适应宽度 × 用户倍率
+    holder.style.transform = `scale(${eff})`;
+    // sizer 撑出缩放后的真实尺寸，使滚动容器可双向滚动
+    sizer.style.width  = (NATIVE_W * eff) + 'px';
+    sizer.style.height = (holder.offsetHeight * eff) + 'px';
+  }
+
+  /** 以视口锚点 (ax, ay)（相对 scroll 内容原点）为中心缩放，保持锚点下的内容不动 */
+  function zoomAt(newZoom, ax, ay) {
+    const oldEff = fitScale() * zoom;
+    zoom = Math.min(MAX_Z, Math.max(MIN_Z, +newZoom.toFixed(3)));
+    const newEff = fitScale() * zoom;
+    if (Math.abs(newEff - oldEff) < 1e-9) { apply(); return; }
+    // 锚点的原生坐标不变：newEff * nx = scrollLeft' + ax → 反解新滚动位置
+    const nx = (scroll.scrollLeft + ax) / oldEff;
+    const ny = (scroll.scrollTop  + ay) / oldEff;
+    apply();
+    scroll.scrollLeft = nx * newEff - ax;
+    scroll.scrollTop  = ny * newEff - ay;
+  }
+
+  /* ---- 双指捏合（真实手机手势） ---- */
+  let pinch = null; // { dist, zoom, cx, cy }
+  scroll.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) {
+      const [a, b] = [e.touches[0], e.touches[1]];
+      const r = scroll.getBoundingClientRect();
+      pinch = {
+        dist: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY),
+        zoom,
+        cx: (a.clientX + b.clientX) / 2 - r.left + scroll.scrollLeft,
+        cy: (a.clientY + b.clientY) / 2 - r.top  + scroll.scrollTop,
+      };
+      e.preventDefault(); // 双指期间不滚动
+    }
+  }, { passive: false });
+  scroll.addEventListener('touchmove', (e) => {
+    if (!pinch || e.touches.length !== 2) return;
+    const [a, b] = [e.touches[0], e.touches[1]];
+    const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+    if (pinch.dist > 0) zoomAt(pinch.zoom * (dist / pinch.dist), pinch.cx, pinch.cy);
+    e.preventDefault();
+  }, { passive: false });
+  scroll.addEventListener('touchend', (e) => {
+    if (e.touches.length < 2) pinch = null;
+  });
+
+  /* ---- 桌面验证等价手势：Ctrl + 滚轮缩放（光标为锚点）---- */
+  scroll.addEventListener('wheel', (e) => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    const r = scroll.getBoundingClientRect();
+    const ax = e.clientX - r.left + scroll.scrollLeft;
+    const ay = e.clientY - r.top  + scroll.scrollTop;
+    const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+    zoomAt(zoom * factor, ax, ay);
+  }, { passive: false });
+
+  /* ---- 双击复位 100%（适应宽度）---- */
+  scroll.addEventListener('dblclick', () => { zoom = 1; apply(); });
+
+  // 显示模式切换（移动端仅 编辑页 / 预览页）
+  const modeBtn = document.getElementById('modeBtn');
+  const modeIc  = document.getElementById('modeIc');
+  const modeTxt = document.getElementById('modeTxt');
+  let mode = 'preview';
+  modeBtn.onclick = () => {
+    mode = (mode === 'preview') ? 'edit' : 'preview';
+    const isPrev = mode === 'preview';
+    modeIc.textContent = isPrev ? '▥' : '✎';
+    modeTxt.textContent = isPrev ? '预览页' : '编辑页';
+    scroll.style.display = isPrev ? 'block' : 'none';
+    formPane.style.display = isPrev ? 'none' : 'block';
+    if (isPrev) apply();  // 切回预览时按当前缩放重算
+  };
+
+  window.addEventListener('resize', apply);
+  // 初始：预览页 + 100% 适应宽度
+  formPane.style.display = 'none';
+  apply();
+</script>
+</body>
+</html>

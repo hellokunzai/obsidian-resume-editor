@@ -8,7 +8,6 @@ import {
   App,
   FuzzySuggestModal,
   setIcon,
-  Menu,
   Platform,
   ViewStateResult,
 } from "obsidian";
@@ -167,6 +166,12 @@ export class ResumeEditorView extends FileView {
   private activePane: "form" | "preview" = "form";
   private formPane!: HTMLElement;
   private previewPane!: HTMLElement;
+  private previewScroll!: HTMLElement;
+  private previewSizer!: HTMLElement;
+  private baseScale = 1;      // 适应屏幕宽度的基准缩放（avail/794，≤1）
+  private previewZoom = 1;    // 用户捏合倍率：1 = 适应宽度，范围 MIN_ZOOM..MAX_ZOOM
+  private static readonly MIN_ZOOM = 0.5;
+  private static readonly MAX_ZOOM = 3;
 
   // 移动端 / 桌面端共用的显示模式（桌面三态：编辑 / 编辑预览 / 预览；移动端仅 编辑页 / 预览页）
   private viewMode: "edit" | "split" | "preview" = "split";
@@ -313,9 +318,13 @@ export class ResumeEditorView extends FileView {
     this.formBody.addEventListener("input", () => this.syncFromForm());
 
     this.previewPane = dual.createDiv({ cls: "re-pane re-preview-pane" });
-    const scroll = this.previewPane.createDiv({ cls: "re-preview-scroll" });
-    this.previewPaper = scroll.createDiv({ cls: "re-preview-holder" });
-    this.previewStatus = scroll.createDiv({ cls: "re-preview-status" });
+    this.previewScroll = this.previewPane.createDiv({ cls: "re-preview-scroll" });
+    this.previewSizer = this.previewScroll.createDiv({ cls: "re-preview-sizer" });
+    this.previewPaper = this.previewSizer.createDiv({ cls: "re-preview-holder" });
+    this.previewStatus = this.previewScroll.createDiv({ cls: "re-preview-status" });
+
+    // 绑定移动端预览捏合缩放手势（桌面端内部直接 return，无副作用）
+    this.bindPreviewZoom();
 
     // 移动端：监听窗口/方向变化，切到预览时重算 A4 缩放
     if (this.isMobile) {
@@ -1927,7 +1936,7 @@ export class ResumeEditorView extends FileView {
     old.parentElement.replaceChild(wrap, old);
   }
 
-  /** 下拉菜单（Obsidian Menu，图标+箭头触发） */
+  /** 下拉按钮（自绘菜单，与导出/添加菜单同款风格） */
   private renderModeDropdown(wrap: HTMLElement): void {
     const btn = wrap.createEl("button", {
       cls: "re-mode-btn re-icon-btn clickable-icon",
@@ -1938,23 +1947,41 @@ export class ResumeEditorView extends FileView {
     });
     this.modeDropdownBtn = btn;
     setIcon(btn, "re-mode-" + this.viewMode);
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const menu = new Menu();
-      // 移动端窄屏无法并排编辑/预览，仅提供 编辑页 / 预览页 两项
-      const modes = this.isMobile
-        ? (["edit", "preview"] as const)
-        : (["edit", "preview", "split"] as const);
-      modes.forEach((m) => {
-        menu.addItem((item) =>
-          item
-            .setTitle(t("viewMode." + m))
-            .setIcon("re-mode-" + m)
-            .onClick(() => this.applyViewMode(m))
-        );
+    btn.addEventListener("click", () => this.openModeMenu(btn, wrap));
+  }
+
+  /** 显示模式下拉（自绘菜单：图标按钮触发、绝对定位展开、点击外部 / 选中后关闭，风格与导出按钮一致） */
+  private openModeMenu(anchor: HTMLElement, wrap: HTMLElement): void {
+    const existing = wrap.querySelector(".re-mode-menu");
+    if (existing) {
+      existing.remove();
+      return;
+    }
+
+    const menu = wrap.createEl("div", { cls: "re-mode-menu" });
+    // 移动端窄屏无法并排编辑/预览，仅提供 编辑页 / 预览页 两项
+    const modes = this.isMobile
+      ? (["edit", "preview"] as const)
+      : (["edit", "preview", "split"] as const);
+    for (const m of modes) {
+      const item = menu.createEl("div", {
+        cls: "re-mode-item" + (m === this.viewMode ? " is-active" : ""),
+        text: t("viewMode." + m),
       });
-      menu.showAtMouseEvent(e);
-    });
+      item.addEventListener("click", () => {
+        this.applyViewMode(m);
+        menu.remove();
+      });
+    }
+
+    const close = (ev: MouseEvent) => {
+      const target = ev.target as Node;
+      if (!menu.contains(target) && !(target as HTMLElement).closest(".re-mode-btn")) {
+        menu.remove();
+        document.removeEventListener("click", close);
+      }
+    };
+    setTimeout(() => document.addEventListener("click", close), 0);
   }
 
   /** 切换显示模式：更新控件视觉并持久化（persist=false 用于设置联动，避免重复写盘） */
@@ -2002,25 +2029,92 @@ export class ResumeEditorView extends FileView {
   private applyPreviewFit(): void {
     if (!this.isMobile) return;
     const holder = this.previewPaper;
-    const scroll = holder.parentElement as HTMLElement | null;
-    if (!scroll) return;
+    const scroll = this.previewScroll;
+    const sizer = this.previewSizer;
+    if (!scroll || !sizer) return;
     const avail = scroll.clientWidth - 28; // 减去 .re-preview-scroll 左右内边距
     const PAPER_W = 794;
-    const s = Math.max(0.2, Math.min(1, avail / PAPER_W));
+    const base = Math.max(0.2, Math.min(1, avail / PAPER_W));
+    this.baseScale = base;
+    // 实际缩放 = 适应宽度基准 × 用户捏合倍率（previewZoom>1 即放大）
+    const eff = Math.max(0.2, base * this.previewZoom);
     holder.addClass("re-preview-scaled");
-    holder.setCssProps({
-      "--re-pw": `${avail}px`,
-      "--re-scale": String(s),
-    });
+    holder.setCssProps({ "--re-scale": String(eff) });
+    // transform 不改变布局盒，故用 sizer 撑出缩放后的真实尺寸，
+    // 让滚动容器在放大时可双向滚动（替代原先的负 margin-bottom 折叠技巧）
     const paper = holder.querySelector(".re-paper") as HTMLElement | null;
-    if (paper) {
-      requestAnimationFrame(() => {
-        // 缩放后折叠原高度，避免下方留白
-        holder.setCssProps({
-          "--re-mb": `-${Math.round(paper.offsetHeight * (1 - s))}px`,
-        });
-      });
+    const natH = paper ? paper.offsetHeight : holder.offsetHeight;
+    sizer.style.width = `${PAPER_W * eff}px`;
+    sizer.style.height = `${natH * eff}px`;
+  }
+
+  /**
+   * 以视口坐标 (clientX, clientY) 为锚点缩放到 newZoom，保持该点下的内容不动。
+   * 推导：设手指相对 holder 视觉左缘偏移 dx，缩放前后该点应满足
+   *   newScrollLeft = oldScrollLeft - dx * (1 - newEff/oldEff)
+   * 高度同理，且写法与内边距无关。
+   */
+  private zoomAt(newZoom: number, clientX: number, clientY: number): void {
+    const scroll = this.previewScroll;
+    const holder = this.previewPaper;
+    if (!scroll || !holder) return;
+    const oldEff = this.baseScale * this.previewZoom;
+    this.previewZoom = Math.min(
+      ResumeEditorView.MAX_ZOOM,
+      Math.max(ResumeEditorView.MIN_ZOOM, newZoom)
+    );
+    const newEff = this.baseScale * this.previewZoom;
+    if (Math.abs(newEff - oldEff) < 1e-9) {
+      this.applyPreviewFit();
+      return;
     }
+    const hr = holder.getBoundingClientRect();
+    const dx = clientX - hr.left;
+    const dy = clientY - hr.top;
+    this.applyPreviewFit();
+    scroll.scrollLeft = scroll.scrollLeft - dx * (1 - newEff / oldEff);
+    scroll.scrollTop = scroll.scrollTop - dy * (1 - newEff / oldEff);
+  }
+
+  /** 移动端预览页双指捏合缩放（以捏合中心为锚点）；桌面端直接返回。 */
+  private bindPreviewZoom(): void {
+    if (!this.isMobile) return;
+    const scroll = this.previewScroll;
+    const holder = this.previewPaper;
+    if (!scroll || !holder) return;
+    let pinch: { dist: number; zoom: number } | null = null;
+    scroll.addEventListener(
+      "touchstart",
+      (e) => {
+        if (e.touches.length === 2) {
+          const [a, b] = [e.touches[0], e.touches[1]];
+          pinch = {
+            dist: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY),
+            zoom: this.previewZoom,
+          };
+          e.preventDefault(); // 双指期间不滚动页面
+        }
+      },
+      { passive: false }
+    );
+    scroll.addEventListener(
+      "touchmove",
+      (e) => {
+        if (!pinch || e.touches.length !== 2) return;
+        const [a, b] = [e.touches[0], e.touches[1]];
+        const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+        if (pinch.dist > 0) {
+          const cx = (a.clientX + b.clientX) / 2;
+          const cy = (a.clientY + b.clientY) / 2;
+          this.zoomAt(pinch.zoom * (dist / pinch.dist), cx, cy);
+        }
+        e.preventDefault();
+      },
+      { passive: false }
+    );
+    scroll.addEventListener("touchend", (e) => {
+      if (e.touches.length < 2) pinch = null;
+    });
   }
 
   /* ---------- 移动端：↑↓ 排序按钮（替代触屏难用的拖拽） ---------- */

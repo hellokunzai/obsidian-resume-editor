@@ -38,10 +38,13 @@
   display: inline-flex;
 }
 
-.re-export-menu {
+.re-export-menu,
+.re-mode-menu {
   position: absolute;
   top: calc(100% + 4px);
-  right: 0;
+  /* 向右展开（与按钮左缘对齐）：导出按钮在工具栏左侧（保存 → 显示模式 → 导出），
+     以前写 right:0 会向左伸出视图边缘，被 .view-content 的 overflow:hidden 裁掉半个字 */
+  left: 0;
   min-width: 140px;
   padding: 4px;
   border: 1px solid var(--background-modifier-border);
@@ -51,7 +54,8 @@
   z-index: 10;
 }
 
-.re-export-item {
+.re-export-item,
+.re-mode-item {
   padding: 6px 10px;
   border-radius: var(--button-radius, 6px);
   font-size: var(--font-ui-small, 13px);
@@ -60,9 +64,16 @@
   white-space: nowrap;
 }
 
-.re-export-item:hover {
+.re-export-item:hover,
+.re-mode-item:hover {
   background: var(--background-modifier-hover);
   color: var(--text-accent);
+}
+
+/* 显示模式下拉：高亮当前选中的模式（选择器语义，导出/添加为动作菜单无需此项） */
+.re-mode-item.is-active {
+  color: var(--text-accent);
+  background: var(--background-modifier-hover);
 }
 
 /* ===== 导出进度条（工具栏下沿的通栏细条） =====
@@ -220,6 +231,7 @@
 }
 
 .re-mode-wrap {
+  position: relative;
   display: inline-flex;
   align-items: center;
 }
@@ -2087,9 +2099,16 @@
 }
 
 /* 预览：A4 固定 794px，缩放交给 JS（applyPreviewFit）。
-   holder 宽度由 JS 设为可用宽度并 scale，paper 锁成 794 保证测量正确。 */
+   holder 宽度锁 794，transform: scale 缩放，sizer 撑出缩放后的真实尺寸供双向滚动。
+   双指捏合：touch-action 放开单指 pan（正常滚动），把双指手势交给 JS 处理。 */
 .re-mobile .re-preview-scroll {
   padding: 14px;
+  touch-action: pan-x pan-y;
+}
+
+/* sizer 仅用于撑出缩放后的布局尺寸（transform 不影响布局盒），自身不缩放 */
+.re-mobile .re-preview-sizer {
+  position: relative;
 }
 
 .re-mobile .re-preview-holder {
@@ -2377,6 +2396,7 @@
 .re-layout-btn,
 .re-swatch,
 .re-export-item,
+.re-mode-item,
 .re-add-item,
 .re-icon-picker-item {
   transition: background var(--re-dur) var(--re-ease), border-color var(--re-dur) var(--re-ease),
@@ -2400,6 +2420,7 @@
 
 /* 导出 / 添加菜单项：悬浮时轻微右移 + 左侧 accent 条 */
 .re-export-item:hover,
+.re-mode-item:hover,
 .re-add-item:hover {
   padding-left: 14px;
   box-shadow: inset 2px 0 0 var(--interactive-accent);
@@ -2433,6 +2454,7 @@
 
 /* ---------- 菜单 / 选择器入场动画 ---------- */
 .re-export-menu,
+.re-mode-menu,
 .re-add-menu,
 .re-icon-picker {
   animation: re-pop var(--re-dur-slow) var(--re-ease);
